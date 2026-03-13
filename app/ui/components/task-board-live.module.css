@@ -1,7 +1,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   width: calc(100vw - 56px);
   margin-left: calc(50% - 50vw + 28px);
   margin-right: calc(50% - 50vw + 28px);
@@ -52,7 +52,7 @@
 .primaryButton,
 .secondaryButton {
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 8px 14px;
   font: inherit;
   font-size: 0.86rem;
@@ -110,18 +110,18 @@
 .summaryStrip {
   display: flex;
   gap: 0;
-  border-radius: 12px;
-  border: 1px solid rgba(165, 196, 255, 0.09);
-  background: linear-gradient(180deg, rgba(14, 22, 48, 0.72), rgba(9, 14, 31, 0.88));
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(180deg, rgba(14, 14, 24, 0.80), rgba(9, 9, 18, 0.92));
   overflow: hidden;
 }
 
 .metricTile {
   flex: 1;
   display: grid;
-  gap: 6px;
-  padding: 16px 18px;
-  border-right: 1px solid rgba(165, 196, 255, 0.07);
+  gap: 5px;
+  padding: 12px 14px;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .metricTile:last-child {
@@ -151,14 +151,14 @@
 
 .layout {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) 280px;
-  gap: 18px;
+  grid-template-columns: 200px minmax(0, 1fr) 240px;
+  gap: 12px;
   align-items: start;
   min-height: calc(100vh - 292px);
 }
 
 .layoutWithDrawer {
-  grid-template-columns: 220px minmax(0, 1fr) 280px 540px;
+  grid-template-columns: 200px minmax(0, 1fr) 240px 520px;
 }
 
 .agentRail,
@@ -170,9 +170,12 @@
 
 /* ── Side panels ── */
 
-.sidePanel,
+.sidePanel {
+  padding: 14px;
+  min-height: calc(100vh - 292px);
+}
+
 .queueShell {
-  padding: 18px;
   min-height: calc(100vh - 292px);
 }
 
@@ -193,8 +196,8 @@
   font-size: 0.78rem;
   color: var(--text-dim);
   background: rgba(255, 255, 255, 0.06);
-  border-radius: 6px;
-  padding: 3px 8px;
+  border-radius: 4px;
+  padding: 2px 7px;
 }
 
 /* ── Agent rail ── */
@@ -207,20 +210,20 @@
 
 .agentItem {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
-  gap: 10px;
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(165, 196, 255, 0.07);
-  background: rgba(255, 255, 255, 0.025);
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 9px;
+  padding: 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .agentBadge {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  border-radius: 10px;
+  border-radius: 5px;
   background: linear-gradient(135deg, rgba(104, 121, 255, 0.24), rgba(255, 94, 189, 0.14));
   color: var(--text);
   font-weight: 600;
@@ -269,10 +272,9 @@
 .laneScroller {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 290px;
-  gap: 14px;
+  grid-auto-columns: 258px;
+  gap: 8px;
   overflow-x: auto;
-  padding-top: 12px;
   padding-bottom: 6px;
   align-items: start;
 }
@@ -282,13 +284,13 @@
 .lane {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   min-height: calc(100vh - 390px);
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(165, 196, 255, 0.09);
-  background: linear-gradient(180deg, rgba(8, 13, 29, 0.78), rgba(5, 9, 22, 0.92));
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
+  padding: 12px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(180deg, rgba(11, 11, 20, 0.82), rgba(7, 7, 16, 0.94));
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.22);
 }
 
 .lanePlanning { box-shadow: inset 0 2px 0 rgba(100, 155, 255, 0.28), 0 16px 48px rgba(0, 0, 0, 0.22); }
@@ -320,14 +322,14 @@
 }
 
 .laneCount {
-  min-width: 28px;
-  height: 28px;
+  min-width: 22px;
+  height: 20px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-soft);
-  font-size: 0.78rem;
+  font-size: 0.74rem;
 }
 
 /* Lane title tints — match the top-accent color per lane */
@@ -350,18 +352,18 @@
 .card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(165, 196, 255, 0.09);
-  background: linear-gradient(180deg, rgba(14, 22, 48, 0.75), rgba(8, 12, 27, 0.90));
+  gap: 8px;
+  padding: 11px 12px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(180deg, rgba(15, 15, 26, 0.80), rgba(10, 10, 20, 0.92));
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
 
 .card:hover {
-  border-color: rgba(165, 196, 255, 0.16);
-  background: linear-gradient(180deg, rgba(18, 26, 54, 0.82), rgba(10, 15, 32, 0.94));
+  border-color: rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, rgba(20, 20, 34, 0.86), rgba(13, 13, 26, 0.96));
 }
 
 .card:focus-visible {
@@ -452,7 +454,7 @@
 .inlineToggle,
 .inlineApply {
   border: 0;
-  border-radius: 8px;
+  border-radius: 5px;
   padding: 7px 12px;
   font: inherit;
   font-size: 0.82rem;
@@ -491,9 +493,9 @@
 
 .inlineSelect {
   width: 100%;
-  border: 1px solid rgba(165, 196, 255, 0.14);
-  border-radius: 8px;
-  background: rgba(8, 13, 29, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 5px;
+  background: rgba(10, 10, 18, 0.92);
   color: var(--text);
   padding: 8px 10px;
   font: inherit;
@@ -547,45 +549,58 @@
 
 .feedGrouped {
   display: grid;
-  gap: 20px;
+  gap: 18px;
 }
 
 .feedSection {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .feedSectionTitle {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
+  padding: 0 2px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .feedList {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
 }
 
 .feedItem {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 8px 10px;
-  border-radius: 7px;
+  padding: 6px 8px 6px 10px;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   background: transparent;
   transition: background 0.1s;
 }
 
-.feedItem:hover {
-  background: rgba(255, 255, 255, 0.03);
+.feedList .feedItem:last-child {
+  border-bottom: none;
 }
+
+.feedItem:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+/* Feed tone left-border — macro signal at a glance */
+.feedItemSuccess { border-left-color: rgba(76,  232, 158, 0.45); }
+.feedItemWarning { border-left-color: rgba(244, 197, 107, 0.45); }
+.feedItemDanger  { border-left-color: rgba(247, 110, 110, 0.45); }
+.feedItemNeutral { border-left-color: rgba(255, 255, 255, 0.10); }
 
 .feedTitle {
   flex: 1;
   min-width: 0;
-  font-size: 0.8rem;
+  font-size: 0.79rem;
   color: var(--text-soft);
   white-space: nowrap;
   overflow: hidden;
@@ -593,7 +608,7 @@
 }
 
 .feedTime {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: var(--text-dim);
   white-space: nowrap;
   flex-shrink: 0;
@@ -670,9 +685,9 @@
 .formInput,
 .formTextarea {
   width: 100%;
-  border: 1px solid rgba(165, 196, 255, 0.14);
-  border-radius: 10px;
-  background: rgba(8, 13, 29, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 6px;
+  background: rgba(10, 10, 18, 0.92);
   color: var(--text);
   padding: 10px 12px;
   font: inherit;
@@ -699,21 +714,21 @@
 
 /* ── Responsive ── */
 
-@media (max-width: 1380px) {
+@media (max-width: 1280px) {
   .summaryStrip {
     flex-wrap: wrap;
   }
 
   .metricTile {
-    flex: 1 0 160px;
+    flex: 1 0 140px;
   }
 
   .layout {
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: 200px minmax(0, 1fr);
   }
 
   .layoutWithDrawer {
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: 200px minmax(0, 1fr);
   }
 
   .feedRail {

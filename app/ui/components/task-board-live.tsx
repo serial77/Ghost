@@ -284,8 +284,14 @@ function MissionCard({
 
 function FeedItem({ item }: { item: TaskBoardFeedItem }) {
   const tone = (item.tone ?? "neutral") as "success" | "warning" | "danger" | "neutral";
+  const feedToneClass: Record<typeof tone, string> = {
+    success: styles.feedItemSuccess,
+    warning: styles.feedItemWarning,
+    danger:  styles.feedItemDanger,
+    neutral: styles.feedItemNeutral,
+  };
   return (
-    <div className={styles.feedItem}>
+    <div className={cn(styles.feedItem, feedToneClass[tone])}>
       <StatusDot tone={tone} />
       <span className={styles.feedTitle}>{item.title}</span>
       {item.href ? <a href={item.href} className={styles.feedLink}>↗</a> : null}
@@ -404,7 +410,6 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
       {/* ── Top bar ── */}
       <div className={styles.topBar}>
         <div className={styles.topBarTitle}>
-          <div className="eyebrow">Task Board</div>
           <h1 className={styles.title}>Mission Control</h1>
         </div>
         <div className={styles.topBarSignals}>
@@ -451,15 +456,7 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
 
         {/* Queue section */}
         <section className={styles.queueSection}>
-          <div className={cn("glass-panel", styles.queueShell)}>
-            <div className={styles.panelHeader}>
-              <div>
-                <div className="kicker">Mission Queue</div>
-                <h3 className={styles.panelTitle}>Orchestration lanes</h3>
-              </div>
-              <span className={styles.panelCount}>{payload.summary.totalCards} cards</span>
-            </div>
-
+          <div className={styles.queueShell}>
             <div className={styles.laneScroller}>
               {payload.lanes.map((lane) => (
                 <section
