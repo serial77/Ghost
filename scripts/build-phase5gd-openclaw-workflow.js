@@ -46,6 +46,11 @@ function addNode(workflow, node) {
   workflow.nodes.push(node);
 }
 
+function removeNode(workflow, name) {
+  workflow.nodes = workflow.nodes.filter((entry) => entry.name !== name);
+  delete workflow.connections[name];
+}
+
 function ensureAssignment(node, assignment) {
   const assignments = node.parameters.assignments.assignments;
   const existing = assignments.find((entry) => entry.name === assignment.name);
@@ -594,15 +599,8 @@ return [{ json: {
   ),
 );
 
-addNode(
-  workflow,
-  makeCodeNode(
-    "Build Finalize Delegation Context",
-    `const item = $('Build Delegated Completion Context').item.json;
-return [{ json: { ...item } }];`,
-    [3600, -208],
-  ),
-);
+removeNode(workflow, "Build Finalize Delegation Context");
+removeNode(workflow, "Finalize Successful Delegation");
 
 addNode(
   workflow,
@@ -1027,41 +1025,37 @@ addNode(
   workflow,
   makePostgresNode(
     "Complete Delegated Runtime",
-    `SELECT public.ghost_runtime_complete_task_ledger(
-  NULLIF($1, '')::uuid,
-  NULLIF($2, '')::uuid,
-  200,
-  $3::jsonb,
-  NULLIF($4, '')::uuid,
-  'delegated_worker_task',
-  NULLIF($5, ''),
-  NULLIF($6, ''),
-  FALSE,
-  $7,
-  NULLIF($8, ''),
-  NULLIF($9, ''),
-  NULLIF($10, ''),
-  '${delegatedExecutionTarget}'
-);`,
-    "={{ [$json.task_id || '', $json.task_run_id || '', JSON.stringify($json), $json.worker_conversation_id || '', $json.provider_used || '', $json.model_used || '', $json.command_success === true, $json.error_type || '', $json.task_summary || '', $json.artifact_path || ''] }}",
+    `WITH runtime_ledger AS (
+  SELECT public.ghost_runtime_complete_task_ledger(
+    NULLIF($1, '')::uuid,
+    NULLIF($2, '')::uuid,
+    200,
+    $3::jsonb,
+    NULLIF($4, '')::uuid,
+    'delegated_worker_task',
+    NULLIF($5, ''),
+    NULLIF($6, ''),
+    FALSE,
+    $7,
+    NULLIF($8, ''),
+    NULLIF($9, ''),
+    NULLIF($10, ''),
+    '${delegatedExecutionTarget}'
+  ) AS runtime_completed
+),
+delegation_finalized AS (
+  SELECT public.ghost_finalize_delegation(
+    NULLIF($11, '')::uuid,
+    NULLIF($1, '')::uuid,
+    NULLIF($12, ''),
+    $13,
+    NULLIF($10, '')
+  ) AS delegation_completed
+)
+SELECT runtime_completed, delegation_completed
+FROM runtime_ledger, delegation_finalized;`,
+    "={{ [$json.task_id || '', $json.task_run_id || '', JSON.stringify($json), $json.worker_conversation_id || '', $json.provider_used || '', $json.model_used || '', $json.command_success === true, $json.error_type || '', $json.task_summary || '', $json.artifact_path || '', $json.delegation_id || '', $json.runtime_status || 'failed', $json.result_summary || ''] }}",
     [3488, -208],
-    false,
-  ),
-);
-
-addNode(
-  workflow,
-  makePostgresNode(
-    "Finalize Successful Delegation",
-    `SELECT public.ghost_finalize_delegation(
-  NULLIF($1, '')::uuid,
-  NULLIF($2, '')::uuid,
-  NULLIF($3, ''),
-  $4,
-  NULLIF($5, '')
-);`,
-    "={{ [$json.delegation_id || '', $json.task_id || '', $json.runtime_status || 'failed', $json.result_summary || '', $json.artifact_path || ''] }}",
-    [3712, -208],
     false,
   ),
 );
@@ -1151,9 +1145,7 @@ setMainConnections(workflow.connections, "Execute Delegated Codex Command", [[{ 
 setMainConnections(workflow.connections, "Normalize Delegated Codex Reply", [[{ node: "Save Delegated Worker Reply" }]]);
 setMainConnections(workflow.connections, "Save Delegated Worker Reply", [[{ node: "Build Delegated Completion Context" }]]);
 setMainConnections(workflow.connections, "Build Delegated Completion Context", [[{ node: "Complete Delegated Runtime" }]]);
-setMainConnections(workflow.connections, "Complete Delegated Runtime", [[{ node: "Build Finalize Delegation Context" }]]);
-setMainConnections(workflow.connections, "Build Finalize Delegation Context", [[{ node: "Finalize Successful Delegation" }]]);
-setMainConnections(workflow.connections, "Finalize Successful Delegation", [[{ node: "Build Parent Delegation Response" }]]);
+setMainConnections(workflow.connections, "Complete Delegated Runtime", [[{ node: "Build Parent Delegation Response" }]]);
 setMainConnections(workflow.connections, "Build Parent Delegation Response", [[{ node: "Build API Response" }]]);
 
 fs.writeFileSync(targetPath, JSON.stringify([workflow], null, 2) + "\n");

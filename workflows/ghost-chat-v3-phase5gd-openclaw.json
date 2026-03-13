@@ -1342,19 +1342,6 @@
       },
       {
         "parameters": {
-          "jsCode": "const item = $('Build Delegated Completion Context').item.json;\nreturn [{ json: { ...item } }];"
-        },
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          3600,
-          -208
-        ],
-        "id": "6a6df5ae-faa3-178f-7054-3fee5780eec9",
-        "name": "Build Finalize Delegation Context"
-      },
-      {
-        "parameters": {
           "operation": "executeQuery",
           "query": "SELECT\n  delegation_id::text,\n  orchestration_task_id::text,\n  worker_conversation_id::text,\n  worker_agent_id::text,\n  worker_agent_label,\n  worker_provider,\n  worker_model\nFROM public.ghost_create_conversation_delegation(\n  NULLIF($1, '')::uuid,\n  NULLIF($2, '')::uuid,\n  NULLIF($3, ''),\n  NULLIF($4, ''),\n  NULLIF($5, ''),\n  $6,\n  $7::jsonb\n);",
           "options": {
@@ -1658,9 +1645,9 @@
       {
         "parameters": {
           "operation": "executeQuery",
-          "query": "SELECT public.ghost_runtime_complete_task_ledger(\n  NULLIF($1, '')::uuid,\n  NULLIF($2, '')::uuid,\n  200,\n  $3::jsonb,\n  NULLIF($4, '')::uuid,\n  'delegated_worker_task',\n  NULLIF($5, ''),\n  NULLIF($6, ''),\n  FALSE,\n  $7,\n  NULLIF($8, ''),\n  NULLIF($9, ''),\n  NULLIF($10, ''),\n  'delegated_codex_session'\n);",
+          "query": "WITH runtime_ledger AS (\n  SELECT public.ghost_runtime_complete_task_ledger(\n    NULLIF($1, '')::uuid,\n    NULLIF($2, '')::uuid,\n    200,\n    $3::jsonb,\n    NULLIF($4, '')::uuid,\n    'delegated_worker_task',\n    NULLIF($5, ''),\n    NULLIF($6, ''),\n    FALSE,\n    $7,\n    NULLIF($8, ''),\n    NULLIF($9, ''),\n    NULLIF($10, ''),\n    'delegated_codex_session'\n  ) AS runtime_completed\n),\ndelegation_finalized AS (\n  SELECT public.ghost_finalize_delegation(\n    NULLIF($11, '')::uuid,\n    NULLIF($1, '')::uuid,\n    NULLIF($12, ''),\n    $13,\n    NULLIF($10, '')\n  ) AS delegation_completed\n)\nSELECT runtime_completed, delegation_completed\nFROM runtime_ledger, delegation_finalized;",
           "options": {
-            "queryReplacement": "={{ [$json.task_id || '', $json.task_run_id || '', JSON.stringify($json), $json.worker_conversation_id || '', $json.provider_used || '', $json.model_used || '', $json.command_success === true, $json.error_type || '', $json.task_summary || '', $json.artifact_path || ''] }}"
+            "queryReplacement": "={{ [$json.task_id || '', $json.task_run_id || '', JSON.stringify($json), $json.worker_conversation_id || '', $json.provider_used || '', $json.model_used || '', $json.command_success === true, $json.error_type || '', $json.task_summary || '', $json.artifact_path || '', $json.delegation_id || '', $json.runtime_status || 'failed', $json.result_summary || ''] }}"
           }
         },
         "type": "n8n-nodes-base.postgres",
@@ -1671,30 +1658,6 @@
         ],
         "id": "c317e68b-9e06-dba5-5bf5-0885a1e69212",
         "name": "Complete Delegated Runtime",
-        "credentials": {
-          "postgres": {
-            "id": "r4pH8PimgUf2t9oM",
-            "name": "Postgres account"
-          }
-        },
-        "continueOnFail": false
-      },
-      {
-        "parameters": {
-          "operation": "executeQuery",
-          "query": "SELECT public.ghost_finalize_delegation(\n  NULLIF($1, '')::uuid,\n  NULLIF($2, '')::uuid,\n  NULLIF($3, ''),\n  $4,\n  NULLIF($5, '')\n);",
-          "options": {
-            "queryReplacement": "={{ [$json.delegation_id || '', $json.task_id || '', $json.runtime_status || 'failed', $json.result_summary || '', $json.artifact_path || ''] }}"
-          }
-        },
-        "type": "n8n-nodes-base.postgres",
-        "typeVersion": 2.6,
-        "position": [
-          3712,
-          -208
-        ],
-        "id": "d854c802-2a64-41fe-a46b-7a938d0f6e6f",
-        "name": "Finalize Successful Delegation",
         "credentials": {
           "postgres": {
             "id": "r4pH8PimgUf2t9oM",
@@ -2522,28 +2485,6 @@
         ]
       },
       "Complete Delegated Runtime": {
-        "main": [
-          [
-            {
-              "node": "Build Finalize Delegation Context",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Build Finalize Delegation Context": {
-        "main": [
-          [
-            {
-              "node": "Finalize Successful Delegation",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Finalize Successful Delegation": {
         "main": [
           [
             {
