@@ -90,6 +90,23 @@ ops/trace-runtime.sh --latest 10
 ops/trace-runtime.sh --latest-failures 10
 ```
 
+### `ops/reconcile-runtime.sh`
+Lightweight reconciliation report across delegation, task, task_run, message, and tool-event truth layers.
+
+Checks:
+- stale or orphaned `conversation_delegations`
+- stuck or contradictory `tasks` / `task_runs`
+- recent rows missing `n8n_execution_id` where the current flow should normally provide it
+- recent cross-layer disagreement between delegation state and linked runtime/message metadata
+
+Examples:
+
+```bash
+ops/reconcile-runtime.sh
+ops/reconcile-runtime.sh --stale-minutes 15 --recent-hours 6
+ops/reconcile-runtime.sh --limit 50
+```
+
 ### `ops/trace-memory.sh`
 Trace parent/worker memory separation and conversation memory state.
 
