@@ -1062,6 +1062,35 @@ FROM runtime_ledger, delegation_finalized;`,
 
 addNode(
   workflow,
+  makePostgresNode(
+    "Annotate Delegation Completion Event",
+    `WITH target_event AS (
+  SELECT id
+  FROM tool_events
+  WHERE task_id = NULLIF($1, '')::uuid
+    AND event_type = 'delegation_completed'
+  ORDER BY created_at DESC, id DESC
+  LIMIT 1
+)
+UPDATE tool_events AS te
+SET
+  task_run_id = COALESCE(te.task_run_id, NULLIF($2, '')::uuid),
+  payload = COALESCE(te.payload, '{}'::jsonb) || jsonb_build_object(
+    'task_run_id', NULLIF($2, ''),
+    'n8n_execution_id', NULLIF($3, '')
+  )
+FROM target_event
+WHERE te.id = target_event.id
+  AND NULLIF($3, '') IS NOT NULL
+RETURNING te.id::text AS tool_event_id;`,
+    "={{ [$json.task_id || '', $json.task_run_id || '', $json.n8n_execution_id || ''] }}",
+    [3712, -208],
+    false,
+  ),
+);
+
+addNode(
+  workflow,
   makeCodeNode(
     "Build Parent Delegation Response",
     `const item = $('Normalize Delegated Codex Reply').item.json;
@@ -1145,7 +1174,8 @@ setMainConnections(workflow.connections, "Execute Delegated Codex Command", [[{ 
 setMainConnections(workflow.connections, "Normalize Delegated Codex Reply", [[{ node: "Save Delegated Worker Reply" }]]);
 setMainConnections(workflow.connections, "Save Delegated Worker Reply", [[{ node: "Build Delegated Completion Context" }]]);
 setMainConnections(workflow.connections, "Build Delegated Completion Context", [[{ node: "Complete Delegated Runtime" }]]);
-setMainConnections(workflow.connections, "Complete Delegated Runtime", [[{ node: "Build Parent Delegation Response" }]]);
+setMainConnections(workflow.connections, "Complete Delegated Runtime", [[{ node: "Annotate Delegation Completion Event" }]]);
+setMainConnections(workflow.connections, "Annotate Delegation Completion Event", [[{ node: "Build Parent Delegation Response" }]]);
 setMainConnections(workflow.connections, "Build Parent Delegation Response", [[{ node: "Build API Response" }]]);
 
 fs.writeFileSync(targetPath, JSON.stringify([workflow], null, 2) + "\n");

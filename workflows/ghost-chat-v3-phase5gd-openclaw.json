@@ -1668,6 +1668,30 @@
       },
       {
         "parameters": {
+          "operation": "executeQuery",
+          "query": "WITH target_event AS (\n  SELECT id\n  FROM tool_events\n  WHERE task_id = NULLIF($1, '')::uuid\n    AND event_type = 'delegation_completed'\n  ORDER BY created_at DESC, id DESC\n  LIMIT 1\n)\nUPDATE tool_events AS te\nSET\n  task_run_id = COALESCE(te.task_run_id, NULLIF($2, '')::uuid),\n  payload = COALESCE(te.payload, '{}'::jsonb) || jsonb_build_object(\n    'task_run_id', NULLIF($2, ''),\n    'n8n_execution_id', NULLIF($3, '')\n  )\nFROM target_event\nWHERE te.id = target_event.id\n  AND NULLIF($3, '') IS NOT NULL\nRETURNING te.id::text AS tool_event_id;",
+          "options": {
+            "queryReplacement": "={{ [$json.task_id || '', $json.task_run_id || '', $json.n8n_execution_id || ''] }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          3712,
+          -208
+        ],
+        "id": "bb61e594-175e-05f5-69bf-b121528b734c",
+        "name": "Annotate Delegation Completion Event",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        },
+        "continueOnFail": false
+      },
+      {
+        "parameters": {
           "jsCode": "const item = $('Normalize Delegated Codex Reply').item.json;\nconst parent = $('Build Delegation Context').item.json;\nconst workerLabel = parent.worker_agent_label || 'Codex Worker';\nconst failureLabel = item.error_type === 'delegated_worker_timeout'\n  ? 'timed out'\n  : item.error_type === 'delegated_worker_invalid_result'\n    ? 'returned an invalid result'\n    : 'reported a failure';\nconst summary = item.command_success\n  ? `${parent.parent_owner_label || 'Ghost'} delegated this work to ${workerLabel} in a separate worker session and kept the parent conversation under Ghost ownership.`\n  : `${parent.parent_owner_label || 'Ghost'} delegated this work to ${workerLabel}, but the worker session ${failureLabel}.`;\nconst workerBlock = item.reply ? `Worker result:\\n${item.reply}` : (item.stderr_summary || 'No additional worker output was captured.');\nreturn [{ json: {\n  conversation_id: parent.conversation_id || '',\n  reply: [summary, workerBlock].join('\\n\\n'),\n  provider_used: parent.parent_provider || '',\n  model_used: parent.parent_model || '',\n  task_class: parent.task_class || 'technical_work',\n  approval_required: false,\n  risk_level: parent.risk_level || 'safe',\n  risk_reasons: parent.risk_reasons || [],\n  task_summary: parent.task_summary || '',\n  command_success: item.command_success === true,\n  command_exit_code: item.command_exit_code !== undefined ? item.command_exit_code : null,\n  stdout_summary: item.stdout_summary || '',\n  stderr_summary: item.stderr_summary || '',\n  artifact_path: item.artifact_path || '',\n  codex_command_status: item.codex_command_status || 'not_applicable',\n  error_type: item.error_type || null,\n  delegation_id: parent.delegation_id || '',\n  orchestration_task_id: parent.orchestration_task_id || '',\n  runtime_task_id: item.task_id || '',\n  worker_conversation_id: parent.worker_conversation_id || '',\n  n8n_execution_id: parent.n8n_execution_id || item.n8n_execution_id || null,\n  response_mode: 'delegated_worker_result',\n  parent_owner_label: parent.parent_owner_label || 'Ghost',\n} }];"
         },
         "type": "n8n-nodes-base.code",
@@ -2485,6 +2509,17 @@
         ]
       },
       "Complete Delegated Runtime": {
+        "main": [
+          [
+            {
+              "node": "Annotate Delegation Completion Event",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Annotate Delegation Completion Event": {
         "main": [
           [
             {
