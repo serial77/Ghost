@@ -13,19 +13,47 @@ It does not change product behavior by itself.
 ## Scripts
 
 ### `ops/activate-live-workflow.sh`
-Rebuilds the workflow from source, imports it into n8n, publishes it, restarts the n8n runtime containers, verifies live activation, and can optionally run a smoke test.
+Primary operator promotion path for the live workflow.
+
+Default promotion flow:
+- rebuild the workflow from source
+- validate the target workflow JSON before activation
+- export a live backup from n8n
+- import and publish the target workflow
+- restart the n8n runtime containers
+- verify active state and webhook registration
+- run smoke by default
+- automatically roll back to the pre-activation export if smoke fails
 
 Examples:
 
 ```bash
 ops/activate-live-workflow.sh
-ops/activate-live-workflow.sh --smoke
-ops/activate-live-workflow.sh --smoke --delegated-smoke
+ops/activate-live-workflow.sh --delegated-smoke
 ops/activate-live-workflow.sh --skip-build
+ops/activate-live-workflow.sh --skip-smoke
+ops/activate-live-workflow.sh --rollback-from workflows/ghost-chat-v3-live-backup-<STAMP>.json
 ```
 
 Important deployment note:
 - In this n8n `2.11.3` stack, import/publish changes do not fully take effect until `ghost-n8n-main` and `ghost-n8n-worker` are restarted.
+
+Operator usage:
+
+```bash
+# Standard promotion path, including backup, validation, activation, probe, and auto-rollback on probe failure.
+ops/activate-live-workflow.sh
+
+# Heavier probe that also exercises delegated runtime behavior.
+ops/activate-live-workflow.sh --delegated-smoke
+
+# Exact manual rollback command if you need to restore a captured export later.
+ops/activate-live-workflow.sh --rollback-from workflows/ghost-chat-v3-live-backup-<STAMP>.json
+```
+
+Notes:
+- The shared ops defaults now resolve `PROJECT_ROOT` from the checked-out repo containing the script, so running from `~/dev/ghost-stack-codex` uses that lane's workflow JSON and builder by default.
+- `--no-rollback` disables the automatic rollback step and prints the exact manual rollback command if smoke fails.
 
 ### `ops/smoke-runtime.sh`
 Lightweight runtime health check for operators.

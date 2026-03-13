@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="${PROJECT_ROOT:-/home/deicide/dev/ghost-stack}"
+OPS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OPS_DIR="$(cd "$OPS_LIB_DIR/.." && pwd)"
+DEFAULT_PROJECT_ROOT="$(cd "$OPS_DIR/.." && pwd)"
+
+PROJECT_ROOT="${PROJECT_ROOT:-$DEFAULT_PROJECT_ROOT}"
 COMPOSE_FILE="${COMPOSE_FILE:-$PROJECT_ROOT/base/docker-compose.yml}"
 N8N_MAIN_CONTAINER="${N8N_MAIN_CONTAINER:-ghost-n8n-main}"
 N8N_WORKER_CONTAINER="${N8N_WORKER_CONTAINER:-ghost-n8n-worker}"
@@ -154,4 +158,70 @@ json_require_fields() {
     jq -e --arg field "$field" '.[$field] != null and .[$field] != ""' "$json_file" >/dev/null \
       || fail "JSON response missing required field: $field"
   done
+}
+
+validate_workflow_json() {
+  local workflow_json="$1"
+  [[ -f "$workflow_json" ]] || fail "workflow JSON not found: $workflow_json"
+
+  jq -e '
+    type == "array" and
+    length == 1 and
+    .[0].id != null and
+    .[0].name != null and
+    (.[0].nodes | type == "array" and length > 0) and
+    (.[0].connections | type == "object")
+  ' "$workflow_json" >/dev/null || fail "workflow JSON must be a single-workflow n8n export with nodes and connections: $workflow_json"
+
+  local workflow_id
+  workflow_id="$(jq -r '.[0].id' "$workflow_json")"
+  [[ "$workflow_id" == "$WORKFLOW_ID" ]] || fail "workflow JSON id mismatch: expected $WORKFLOW_ID, got $workflow_id"
+
+  local workflow_name
+  workflow_name="$(jq -r '.[0].name' "$workflow_json")"
+  [[ "$workflow_name" == "$WORKFLOW_NAME" ]] || fail "workflow JSON name mismatch: expected '$WORKFLOW_NAME', got '$workflow_name'"
+
+  jq -e --arg webhook_path "$WEBHOOK_PATH" '
+    [.[0].nodes[]? |
+      select(
+        (.type | type == "string") and
+        (
+          .type == "n8n-nodes-base.webhook" or
+          (.type | ascii_downcase | contains("webhook"))
+        ) and
+        (.parameters.path? == $webhook_path)
+      )
+    ] | length > 0
+  ' "$workflow_json" >/dev/null || fail "workflow JSON does not include a webhook node for path '$WEBHOOK_PATH'"
+}
+
+export_live_workflow() {
+  local output_path="$1"
+  local remote_path="${2:-/tmp/ghost-chat-v3-export.json}"
+  docker exec "$N8N_MAIN_CONTAINER" n8n export:workflow --id "$WORKFLOW_ID" --output "$remote_path" >/dev/null
+  docker cp "$N8N_MAIN_CONTAINER:$remote_path" "$output_path" >/dev/null
+}
+
+import_publish_workflow() {
+  local workflow_json="$1"
+  local remote_path="/tmp/$(basename "$workflow_json")"
+  docker cp "$workflow_json" "$N8N_MAIN_CONTAINER:$remote_path" >/dev/null
+  docker exec "$N8N_MAIN_CONTAINER" n8n import:workflow --input="$remote_path" >/dev/null
+  docker exec "$N8N_MAIN_CONTAINER" n8n publish:workflow --id="$WORKFLOW_ID" >/dev/null
+}
+
+restart_and_verify_live_workflow() {
+  log "restarting n8n runtime containers so webhook registrations refresh"
+  docker_compose restart "$N8N_MAIN_CONTAINER" "$N8N_WORKER_CONTAINER" >/dev/null
+
+  log "waiting for n8n to become reachable again"
+  wait_for_n8n_ready
+
+  log "waiting for workflow active state to settle"
+  wait_for_workflow_active
+  ensure_workflow_row_is_active
+
+  log "waiting for webhook registration for POST /webhook/$WEBHOOK_PATH"
+  wait_for_webhook_registration
+  ensure_webhook_registered
 }
