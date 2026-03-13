@@ -99,3 +99,39 @@
   - ambiguous multi-surface changes
   - silent refactors across many files
   - anything that overlaps active Claude or Codex work
+
+## Flexible lane rule
+- Lane ownership is a default, not a permanent identity.
+- Codex is the default backend/runtime lane when available.
+- Claude is the default UI/product lane when available.
+- If Codex is constrained or unavailable, Claude may take over backend/runtime tasks.
+- Copilot remains the bounded support lane for search, tests, small edits, and review.
+
+## Codex-down degraded mode
+- Do not freeze backend progress just because Codex is unavailable.
+- Park or finish the current Claude UI slice, then reassign the blocked backend task to Claude if backend progress is the priority.
+- Claude may temporarily become the primary engineering lane until Codex returns.
+- Use Copilot in parallel for @workspace file discovery, tests, boilerplate, and bounded support work.
+- Keep frontend moving tactically, but do not block the project waiting for backend ownership to return to Codex.
+
+## Task reassignment rule
+- Freeze the unavailable lane's branch/worktree, not the project task.
+- Reassign the task explicitly with a fresh summary, real file paths, constraints, and current status.
+- Prefer a new Claude-owned branch for backend takeover work rather than blindly continuing an abandoned Codex branch.
+- Review and merge from `~/dev/ghost-stack`.
+
+## Multi-instance rule
+- Multiple agent instances are allowed only when they are working on clearly separate surfaces.
+- Never let two active agents edit the same file set or surface concurrently.
+- A second Claude session is acceptable only if one session owns UI work and the other owns a separate backend task.
+
+## Copilot support rule in degraded mode
+- When Codex is unavailable, Copilot supports the active primary lane rather than trying to replace Codex fully.
+- Use Copilot for:
+  - `@workspace` repo/file discovery
+  - small bounded edits
+  - test drafting
+  - diff review
+  - boilerplate and helper tasks
+- Do not assign broad architecture rewrites or ambiguous multi-surface changes to Copilot.
+- Copilot should help keep both backend and frontend moving, but ownership stays with the active primary lane.
