@@ -3,7 +3,22 @@ import { getOperationsRuntimeConfig } from "@/lib/server/runtime-env";
 
 type DatabaseId = "app" | "core";
 
-const pools = new Map<DatabaseId, Pool>();
+type PoolConfig = {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  database: string;
+  max: number;
+  idleTimeoutMillis: number;
+};
+
+type PoolEntry = {
+  pool: Pool;
+  signature: string;
+};
+
+const pools = new Map<DatabaseId, PoolEntry>();
 
 function requireConfigString(value: string, key: string) {
   if (typeof value !== "string" || value === "") {
@@ -13,14 +28,14 @@ function requireConfigString(value: string, key: string) {
   return value;
 }
 
-function createPool(databaseId: DatabaseId) {
+function buildPoolConfig(databaseId: DatabaseId): PoolConfig {
   const config = getOperationsRuntimeConfig();
   const database = requireConfigString(
     databaseId === "app" ? config.appDb : config.coreDb,
     databaseId === "app" ? "GHOST_APP_DB" : "GHOST_POSTGRES_DB",
   );
 
-  return new Pool({
+  return {
     host: requireConfigString(config.postgresHost, "GHOST_POSTGRES_HOST"),
     port: config.postgresPort,
     user: requireConfigString(config.postgresUser, "GHOST_POSTGRES_USER"),
@@ -28,16 +43,30 @@ function createPool(databaseId: DatabaseId) {
     database,
     max: 4,
     idleTimeoutMillis: 10_000,
-  });
+  };
+}
+
+function poolSignature(config: PoolConfig) {
+  return JSON.stringify(config);
+}
+
+function createPool(config: PoolConfig) {
+  return new Pool(config);
 }
 
 export function getPool(databaseId: DatabaseId) {
+  const config = buildPoolConfig(databaseId);
+  const signature = poolSignature(config);
   const existing = pools.get(databaseId);
-  if (existing) {
-    return existing;
+  if (existing?.signature === signature) {
+    return existing.pool;
   }
 
-  const pool = createPool(databaseId);
-  pools.set(databaseId, pool);
+  if (existing) {
+    void existing.pool.end().catch(() => {});
+  }
+
+  const pool = createPool(config);
+  pools.set(databaseId, { pool, signature });
   return pool;
 }
