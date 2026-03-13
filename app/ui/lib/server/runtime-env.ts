@@ -5,17 +5,6 @@ type RuntimeEnv = Record<string, string>;
 
 let cachedEnv: RuntimeEnv | null = null;
 
-const serverDir = path.resolve(__dirname);
-const uiRoot = path.resolve(serverDir, "..", "..");
-const workspaceRoot = path.resolve(uiRoot, "..", "..");
-
-const envSearchPaths = [
-  path.join(uiRoot, ".env.local"),
-  path.join(uiRoot, ".env"),
-  path.join(workspaceRoot, "base", ".env"),
-  path.join(path.dirname(workspaceRoot), "ghost-stack", "base", ".env"),
-];
-
 function parseEnvFile(contents: string): RuntimeEnv {
   return contents.split("\n").reduce<RuntimeEnv>((accumulator, line) => {
     const trimmed = line.trim();
@@ -36,30 +25,87 @@ function parseEnvFile(contents: string): RuntimeEnv {
   }, {});
 }
 
+function mergeEnvFiles(paths: string[]) {
+  const merged: RuntimeEnv = {};
+
+  for (const envPath of [...paths].reverse()) {
+    if (!existsSync(envPath)) {
+      continue;
+    }
+
+    Object.assign(merged, parseEnvFile(readFileSync(envPath, "utf8")));
+  }
+
+  return merged;
+}
+
+function ancestorPaths(start: string) {
+  const paths: string[] = [];
+  let current = path.resolve(start);
+
+  while (true) {
+    paths.push(current);
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      break;
+    }
+
+    current = parent;
+  }
+
+  return paths;
+}
+
+function discoverEnvSearchPaths() {
+  const candidates = new Set<string>();
+  const roots = new Set<string>([
+    ...ancestorPaths(process.cwd()),
+    ...ancestorPaths(__dirname),
+  ]);
+
+  for (const root of roots) {
+    candidates.add(path.join(root, ".env.local"));
+    candidates.add(path.join(root, ".env"));
+    candidates.add(path.join(root, "app", "ui", ".env.local"));
+    candidates.add(path.join(root, "app", "ui", ".env"));
+    candidates.add(path.join(root, "base", ".env"));
+    candidates.add(path.join(root, "ghost-stack", "base", ".env"));
+  }
+
+  return [...candidates];
+}
+
 function loadFallbackEnv() {
   if (cachedEnv) {
     return cachedEnv;
   }
 
-  for (const envPath of envSearchPaths) {
-    if (existsSync(envPath)) {
-      cachedEnv = parseEnvFile(readFileSync(envPath, "utf8"));
-      return cachedEnv;
-    }
-  }
-
-  cachedEnv = {};
+  cachedEnv = mergeEnvFiles(discoverEnvSearchPaths());
   return cachedEnv;
 }
 
-function getValue(key: string, fallback?: string) {
+function isPresentValue(value: string | undefined, allowEmpty = true) {
+  if (value === undefined) {
+    return false;
+  }
+
+  if (allowEmpty) {
+    return true;
+  }
+
+  return value !== "";
+}
+
+function getValue(key: string, fallback?: string, options?: { allowEmpty?: boolean }) {
+  const allowEmpty = options?.allowEmpty ?? true;
   const fromProcess = process.env[key];
-  if (fromProcess !== undefined) {
+  if (isPresentValue(fromProcess, allowEmpty)) {
     return fromProcess;
   }
 
   const fromFallback = loadFallbackEnv()[key];
-  if (fromFallback !== undefined) {
+  if (isPresentValue(fromFallback, allowEmpty)) {
     return fromFallback;
   }
 
@@ -67,12 +113,12 @@ function getValue(key: string, fallback?: string) {
 }
 
 export function getOperationsRuntimeConfig() {
-  const postgresHost = getValue("GHOST_POSTGRES_HOST", "127.0.0.1")!;
-  const postgresPort = Number(getValue("GHOST_POSTGRES_PORT", "5433"));
-  const postgresUser = getValue("GHOST_POSTGRES_USER", "ghost")!;
-  const postgresPassword = getValue("GHOST_POSTGRES_PASSWORD", "")!;
-  const appDb = getValue("GHOST_APP_DB", "ghost_app")!;
-  const coreDb = getValue("GHOST_POSTGRES_DB", "ghost_core")!;
+  const postgresHost = getValue("GHOST_POSTGRES_HOST", "127.0.0.1", { allowEmpty: false })!;
+  const postgresPort = Number(getValue("GHOST_POSTGRES_PORT", "5433", { allowEmpty: false }));
+  const postgresUser = getValue("GHOST_POSTGRES_USER", "ghost", { allowEmpty: false })!;
+  const postgresPassword = getValue("GHOST_POSTGRES_PASSWORD", "", { allowEmpty: false })!;
+  const appDb = getValue("GHOST_APP_DB", "ghost_app", { allowEmpty: false })!;
+  const coreDb = getValue("GHOST_POSTGRES_DB", "ghost_core", { allowEmpty: false })!;
 
   return {
     postgresHost,
