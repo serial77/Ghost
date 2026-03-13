@@ -1,0 +1,1677 @@
+[
+  {
+    "updatedAt": "2026-03-12T13:49:32.310Z",
+    "createdAt": "2026-03-12T12:08:38.760Z",
+    "id": "Yh6h9OJyVCfREbp3",
+    "name": "GHOST by Codex",
+    "description": "Phase 4A structured memory prod-ready artifact. Prepared for controlled cutover; do not activate directly.",
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "ghost-chat-v3",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          -3792,
+          192
+        ],
+        "id": "2c778d19-e72e-463d-bf07-27d0d68be7e1",
+        "name": "Incoming chat",
+        "webhookId": "d04845a4-b4ec-45a5-8652-1cbb2b1f4799"
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "25c6f90a-ae56-41da-9cfd-026d3a837300",
+                "name": "conversation_id",
+                "value": "={{ $json.body.conversation_id || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "3f3f0432-aae2-4384-bfda-b89b17f57d94",
+                "name": "message",
+                "value": "={{ $json.body.message || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "3ada1304-d941-4d4e-bf51-38195554adf6",
+                "name": "user_id",
+                "value": "={{ $json.body.user_id || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "86af24ab-fc51-4d34-8e92-7e48271d6b3b",
+                "name": "created_at",
+                "value": "={{ $now }}",
+                "type": "string"
+              },
+              {
+                "id": "f8418e55-daf5-4535-baa8-152329abba75",
+                "name": "force_provider",
+                "value": "={{ $json.body.force_provider || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "a1839b17-9183-48ff-bc98-b67ff9d7535a",
+                "name": "force_model",
+                "value": "={{ $json.body.force_model || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "8fb5d74d-94e3-48c4-84e5-5ec9e8b3d55f",
+                "name": "force_task_class",
+                "value": "={{ $json.body.force_task_class || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "0350c5b4-87ac-4cfb-830d-4a0233c11503",
+                "name": "memory_test_mode",
+                "value": "={{ $json.body.memory_test_mode || '' }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          -3568,
+          192
+        ],
+        "id": "44400636-2f1a-41cc-b6f6-acd6d249ef7b",
+        "name": "Normalize Input"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "WITH requested_conversation AS (\n  SELECT id, owner_user_id, created_at, updated_at, last_message_at\n  FROM conversations\n  WHERE id = NULLIF($1, '')::uuid\n  LIMIT 1\n)\nSELECT id, owner_user_id, created_at, updated_at, last_message_at\nFROM requested_conversation\nUNION ALL\nSELECT\n  NULL::uuid AS id,\n  NULL::uuid AS owner_user_id,\n  NULL::timestamptz AS created_at,\n  NULL::timestamptz AS updated_at,\n  NULL::timestamptz AS last_message_at\nWHERE NOT EXISTS (SELECT 1 FROM requested_conversation)\nLIMIT 1;",
+          "options": {
+            "queryReplacement": "={{ $('Normalize Input').item.json.conversation_id || '00000000-0000-0000-0000-000000000000' }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -3344,
+          192
+        ],
+        "id": "b6125aba-13ce-4ae9-b66a-c8a25f202ac4",
+        "name": "Find Conversation By ID",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "198d6cdc-3caa-4a31-8c31-4966d0294458",
+                "leftValue": "={{ $json.id }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "string",
+                  "operation": "exists",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          -3120,
+          192
+        ],
+        "id": "a876a82d-48bb-41f1-b8a0-e699f279a9a3",
+        "name": "Conversation Exists?"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO conversations (\n  id,\n  owner_user_id,\n  title,\n  source,\n  status,\n  metadata,\n  created_at,\n  updated_at,\n  last_message_at\n)\nVALUES (\n  COALESCE(NULLIF($1, '00000000-0000-0000-0000-000000000000')::uuid, gen_random_uuid()),\n  NULLIF($2, 'NULL')::uuid,\n  $3,\n  $4,\n  $5,\n  $6::jsonb,\n  NOW(),\n  NOW(),\n  NOW()\n)\nRETURNING id AS conversation_id, owner_user_id, created_at, updated_at, last_message_at;",
+          "options": {
+            "queryReplacement": "={{ [\n  $('Normalize Input').item.json.conversation_id || '00000000-0000-0000-0000-000000000000',\n  (($('Normalize Input').item.json.user_id || '').match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/) ? $('Normalize Input').item.json.user_id : 'NULL'),\n  'Ghost Chat',\n  'ghost-chat-v3',\n  'active',\n  {}\n] }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -2896,
+          288
+        ],
+        "id": "a7e7bbd6-2dd5-4b37-b1f5-7a9574512af0",
+        "name": "Create New Conversation",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "cd0b804b-38cc-4ef6-b7d6-4186c820e3c6",
+                "name": "conversation_id",
+                "value": "={{ $('Normalize Input').item.json.conversation_id }}",
+                "type": "string"
+              },
+              {
+                "id": "auto-conversation-id",
+                "name": "message",
+                "value": "={{ $('Normalize Input').item.json.message }}",
+                "type": "string"
+              },
+              {
+                "id": "c9a44b54-09d3-4811-9d77-3614d4235e2f",
+                "name": "user_id",
+                "value": "={{ $('Normalize Input').item.json.user_id }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          -2896,
+          96
+        ],
+        "id": "e188f994-0283-4e15-9945-03aa9296c65b",
+        "name": "Use Existing Conversation Context"
+      },
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          -2672,
+          192
+        ],
+        "id": "438d79b1-2014-48b7-bba9-a9b67d569d0a",
+        "name": "Conversation Context"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO messages (\n  id,\n  conversation_id,\n  role,\n  content,\n  content_format,\n  model_name,\n  metadata,\n  created_at\n)\nVALUES (\n  gen_random_uuid(),\n  $1,\n  'user',\n  $2,\n  'text',\n  NULL,\n  $3::jsonb,\n  NOW()\n)\nRETURNING id, conversation_id, role, content, created_at;",
+          "options": {
+            "queryReplacement": "={{ [\n  $json.conversation_id,\n  $('Normalize Input').item.json.message,\n  { source: 'ghost-chat-v3', type: 'user_message' }\n] }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -2448,
+          192
+        ],
+        "id": "5f0c6cdb-4ec0-4dcf-a909-30aa4e789621",
+        "name": "Save User Message",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT\n  role,\n  content,\n  content_format,\n  model_name,\n  metadata,\n  created_at\nFROM (\n  SELECT\n    role,\n    content,\n    content_format,\n    model_name,\n    metadata,\n    created_at\n  FROM messages\n  WHERE conversation_id = $1\n  ORDER BY created_at DESC\n  LIMIT 12\n) recent_messages\nORDER BY created_at ASC;",
+          "options": {
+            "queryReplacement": "={{ $json.conversation_id }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -2016,
+          192
+        ],
+        "id": "fed0c559-5816-43b2-b5b7-6dc0f2d3fbfb",
+        "name": "Load Recent Messages",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "ec1b4de7-21bd-4bd4-9670-2fe04addb921",
+                "name": "system_prompt",
+                "value": "={{ \"You are Ghost 🔮 — an efficient, direct AI assistant.\\n\" + \"Be concise, useful, and factual.\\n\" + \"Do not use filler.\\n\" + \"Do not pretend certainty when unsure.\\n\" + \"Prefer practical answers.\\n\" + \"When context exists in the conversation, use it.\\n\" + \"When the user asks for code or technical help, be precise and implementation-oriented.\\n\" }}",
+                "type": "string"
+              },
+              {
+                "id": "7f78195e-40f0-42f9-a348-cbe0af1eb0c0",
+                "name": "conversation_id",
+                "value": "={{ $('Touch Conversation Timestamp').item.json.conversation_id || $('Create New Conversation').item.json.conversation_id || $('Use Existing Conversation Context').item.json.conversation_id || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "4d53c306-b6e0-40a2-87fd-08cbc37d80a1",
+                "name": "force_provider",
+                "value": "={{ $('Normalize Input').item.json.force_provider || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "bcf331f9-b0e3-4651-b4e1-22744204fbe2",
+                "name": "force_model",
+                "value": "={{ $('Normalize Input').item.json.force_model || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "e66afeb6-230b-4dba-9d87-6dff2c9f9666",
+                "name": "force_task_class",
+                "value": "={{ $('Normalize Input').item.json.force_task_class || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "26f11a24-56bd-431b-8abb-fcd3805ceacb",
+                "name": "memory_test_mode",
+                "value": "={{ $('Normalize Input').item.json.memory_test_mode || '' }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          -1792,
+          192
+        ],
+        "id": "fa4a63da-87c7-488d-8cdb-48e66bf38265",
+        "name": "Build Ghost System Prompt"
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first().json;\nconst history = $items(\"Load Recent Messages\")\n  .map(entry => ({\n    role: entry.json.role,\n    content: entry.json.content,\n  }))\n  .filter(message => message.role && message.content);\n\nconst systemPrompt = item.system_prompt;\nconst messages = [\n  { role: \"system\", content: systemPrompt },\n  ...history,\n];\n\nreturn [{ json: { ...item, messages, system_prompt: systemPrompt } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -1568,
+          192
+        ],
+        "id": "bc88486a-aa97-4efc-a24a-d21aa5337764",
+        "name": "Build Structured Messages"
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first().json;\nconst messages = item.messages || [];\nconst prompt = messages.map(m => `${m.role}: ${m.content}`).join(\"\\n\\n\") + \"\\n\\nassistant:\";\nreturn [{ json: { ...item, prompt } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -1344,
+          192
+        ],
+        "id": "0dfedba6-5af5-43dc-b76e-f07892abfc80",
+        "name": "Render Model Prompt"
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first().json;\nconst messages = item.messages || [];\nconst lastUser = [...messages].reverse().find((message) => message.role === \"user\");\nconst text = (lastUser?.content || \"\").toLowerCase();\n\nconst lightweightLocalSignals = [\n  \"summarize\",\n  \"summary\",\n  \"classify\",\n  \"classification\",\n  \"extract\",\n  \"extraction\",\n  \"tag\",\n  \"tags\",\n  \"title\",\n  \"rename\",\n  \"metadata\",\n  \"rewrite briefly\",\n  \"shorten\",\n  \"bullet points\",\n  \"tl;dr\",\n  \"keywords\",\n  \"categorize\",\n  \"sentiment\",\n];\n\nconst technicalWorkSignals = [\n  \"code\",\n  \"python\",\n  \"javascript\",\n  \"typescript\",\n  \"sql\",\n  \"bash\",\n  \"shell\",\n  \"script\",\n  \"regex\",\n  \"bug\",\n  \"debug\",\n  \"stack trace\",\n  \"exception\",\n  \"error\",\n  \"fix\",\n  \"refactor\",\n  \"function\",\n  \"class\",\n  \"module\",\n  \"api\",\n  \"json\",\n  \"yaml\",\n  \"docker\",\n  \"docker compose\",\n  \"container\",\n  \"kubernetes\",\n  \"linux\",\n  \"terminal\",\n  \"cli\",\n  \"database\",\n  \"postgres\",\n  \"query\",\n  \"migration\",\n  \"schema\",\n  \"nginx\",\n  \"config\",\n  \"deploy\",\n  \"deployment\",\n  \"devops\",\n  \"infrastructure\",\n  \"repository\",\n  \"repo\",\n  \"git\",\n  \"test failure\",\n  \"failing test\",\n  \"compile\",\n  \"build failed\",\n  \"implementation\",\n];\n\nconst technicalIntentSignals = [\n  \"write a\",\n  \"implement\",\n  \"update the code\",\n  \"modify the workflow\",\n  \"patch\",\n  \"edit the file\",\n  \"run this command\",\n  \"investigate\",\n  \"why is this failing\",\n  \"how do i fix\",\n];\n\nlet request_type = \"chat\";\n\nif (lightweightLocalSignals.some((signal) => text.includes(signal))) {\n  request_type = \"lightweight_local_task\";\n}\n\nif (\n  technicalWorkSignals.some((signal) => text.includes(signal)) ||\n  technicalIntentSignals.some((signal) => text.includes(signal))\n) {\n  request_type = \"technical_work\";\n}\n\nreturn [{ json: { ...item, request_type } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -896,
+          192
+        ],
+        "id": "34834cbf-6a90-45ea-b4e4-d397ce7dfd08",
+        "name": "Classify request"
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first().json;\nconst config = item.config || {};\nconst requestedTaskClass = item.force_task_class || item.request_type || \"chat\";\nconst policies = config.provider_policies || {};\nconst routeChain = policies[requestedTaskClass] || policies.chat || [];\nconst defaultCodexModel = config.codex?.model_alias || \"gpt-5.4\";\nlet selected = routeChain[0] || { provider: \"ollama\", model: \"qwen3:14b\" };\n\nif (item.force_provider) {\n  const matchedRoute = routeChain.find((route) => route.provider === item.force_provider);\n  if (matchedRoute) {\n    selected = matchedRoute;\n  } else if (item.force_provider === \"codex_oauth_worker\") {\n    selected = { provider: item.force_provider, model: defaultCodexModel };\n  } else {\n    selected = { provider: item.force_provider, model: item.force_model || selected.model };\n  }\n}\n\nif (item.force_model) {\n  selected = { provider: selected.provider, model: item.force_model };\n}\n\nreturn [{ json: { ...item, task_class: requestedTaskClass, provider: selected.provider, selected_model: selected.model, route_chain: routeChain, fallback_chain: routeChain.slice(1) } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -672,
+          192
+        ],
+        "id": "367325d4-4a53-4aa8-b355-d969ef1422df",
+        "name": "Select Route Plan"
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first().json;\nconst messages = Array.isArray(item.messages) ? item.messages : [];\nconst lastUser = [...messages].reverse().find((message) => message.role === 'user');\nconst sourceText = (lastUser?.content || item.prompt || '').trim();\nconst findings = [];\nlet riskLevel = 'safe';\n\nconst destructiveRules = [\n  { label: 'delete_or_rm', pattern: /(^|\\s)(rm\\s+-rf|rm\\s+-r|rm\\s+|delete\\s+(the\\s+)?file|delete\\s+(the\\s+)?directory|remove\\s+(the\\s+)?file|unlink\\s+|shred\\s+)/i, reason: 'Requests file deletion or removal.' },\n  { label: 'docker_live_change', pattern: /docker\\s+compose\\s+(down|restart|up|stop)|docker\\s+(restart|stop)\\b/i, reason: 'Requests live container lifecycle changes.' },\n  { label: 'destructive_sql', pattern: /\\b(drop\\s+table|drop\\s+database|truncate\\s+table|delete\\s+from|alter\\s+table\\s+.*drop\\s+column)\\b/i, reason: 'Contains destructive SQL operations.' },\n  { label: 'critical_move', pattern: /\\b(move|mv|rename)\\b.*\\b(docker-compose\\.ya?ml|\\.env|systemd|workflow|workflows\\/|base\\/)\\b/i, reason: 'Moves or renames critical runtime files.' },\n];\n\nconst cautionRules = [\n  { label: 'critical_file_edit', pattern: /\\b(edit|modify|change|update|patch|rewrite)\\b.*\\b(docker-compose\\.ya?ml|\\.env(\\.|\\b)|systemd|service unit|workflow id|production workflow|ghost-chat-v3|Yh6h9OJyVCfREbp3)\\b/i, reason: 'Touches critical runtime configuration or live workflow identifiers.' },\n  { label: 'broad_sql', pattern: /\\b(update|delete)\\b.*\\b(sql|postgres|database|table)\\b/i, reason: 'Requests a database-changing operation.' },\n  { label: 'infrastructure_change', pattern: /\\b(deploy|deployment|infrastructure|nginx|kubernetes|compose file|dockerfile)\\b/i, reason: 'Requests infrastructure-related changes.' },\n];\n\nfor (const rule of destructiveRules) {\n  if (rule.pattern.test(sourceText)) findings.push({ level: 'destructive', code: rule.label, reason: rule.reason });\n}\nif (!findings.length) {\n  for (const rule of cautionRules) {\n    if (rule.pattern.test(sourceText)) findings.push({ level: 'caution', code: rule.label, reason: rule.reason });\n  }\n}\nif (findings.some((finding) => finding.level === 'destructive')) riskLevel = 'destructive';\nelse if (findings.some((finding) => finding.level === 'caution')) riskLevel = 'caution';\n\nconst approvalRequired = item.provider === 'codex_oauth_worker' && riskLevel !== 'safe';\nconst taskSummary = sourceText.replace(/\\s+/g, ' ').trim().slice(0, 180);\n\nreturn [{ json: {\n  ...item,\n  task_summary: taskSummary,\n  approval_required: approvalRequired,\n  risk_level: riskLevel,\n  risk_reasons: findings.map((finding) => finding.reason),\n  risk_codes: findings.map((finding) => finding.code),\n  codex_command_status: approvalRequired ? 'blocked_pending_approval' : (item.provider === 'codex_oauth_worker' ? 'pending' : 'not_applicable'),\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -560,
+          192
+        ],
+        "id": "9c9f8c66-a681-4819-8171-042e032d8391",
+        "name": "Assess Approval Risk"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://host.docker.internal:11435/api/generate",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "model",
+                "value": "={{ $json.selected_model }}"
+              },
+              {
+                "name": "stream",
+                "value": "={{ false }}"
+              },
+              {
+                "name": "prompt",
+                "value": "={{ $json.prompt }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          224,
+          192
+        ],
+        "id": "13075b7f-6119-4d8b-9c0c-7607b36e7611",
+        "name": "Call Ollama"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO messages (\n  id,\n  conversation_id,\n  role,\n  content,\n  content_format,\n  model_name,\n  metadata,\n  created_at\n)\nVALUES (\n  gen_random_uuid(),\n  $1,\n  'assistant',\n  $2,\n  'text',\n  $3,\n  $4::jsonb,\n  NOW()\n)\nRETURNING id, conversation_id, role, content, created_at;",
+          "options": {
+            "queryReplacement": "={{ [$json.conversation_id, $json.reply, $json.model_used || null, { provider_used: $json.provider_used || null, task_class: $json.task_class || null, approval_required: $json.approval_required || false, risk_level: $json.risk_level || 'safe', risk_reasons: $json.risk_reasons || [], task_summary: $json.task_summary || '', command_success: $json.command_success ? true : false, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null }] }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1040,
+          320
+        ],
+        "id": "473198b8-048b-4219-be58-90f5dd049813",
+        "name": "Save Assistant Reply",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first().json;\nconst asText = (value) => value === undefined || value === null ? '' : String(value).trim();\nconst summarize = (value) => asText(value).replace(/\\s+/g, ' ').trim().slice(0, 600);\nconst normalizeExitCode = (value) => {\n  if (value === undefined || value === null || value === '') return null;\n  const numeric = Number(value);\n  return Number.isFinite(numeric) ? numeric : asText(value);\n};\nreturn [{ json: {\n  conversation_id: asText(item.conversation_id),\n  reply: asText(item.reply),\n  provider_used: asText(item.provider_used),\n  model_used: asText(item.model_used),\n  task_class: asText(item.task_class),\n  approval_required: Boolean(item.approval_required),\n  risk_level: asText(item.risk_level) || 'safe',\n  risk_reasons: Array.isArray(item.risk_reasons) ? item.risk_reasons : [],\n  task_summary: summarize(item.task_summary),\n  command_success: Boolean(item.command_success),\n  command_exit_code: normalizeExitCode(item.command_exit_code),\n  stdout_summary: summarize(item.stdout_summary),\n  stderr_summary: summarize(item.stderr_summary),\n  artifact_path: asText(item.artifact_path) || null,\n  codex_command_status: asText(item.codex_command_status) || 'not_applicable',\n  error_type: asText(item.error_type) || null,\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          768,
+          208
+        ],
+        "id": "1928af76-cb44-4b74-80eb-e6dd5d10a0cb",
+        "name": "Build API Response"
+      },
+      {
+        "parameters": {
+          "jsCode": "const response = $input.first().json;\nconst context = $('Expose Route Metadata').item.json;\nconst reply = response.response ?? response.message?.content ?? response.data?.response ?? '[no-reply]';\nreturn [{ json: {\n  ...context,\n  ...response,\n  reply,\n  approval_required: context.approval_required || false,\n  risk_level: context.risk_level || 'safe',\n  risk_reasons: context.risk_reasons || [],\n  risk_codes: context.risk_codes || [],\n  task_summary: context.task_summary || '',\n  command_success: true,\n  command_exit_code: null,\n  stdout_summary: '',\n  stderr_summary: '',\n  artifact_path: '',\n  codex_command_status: 'not_applicable',\n  error_type: '',\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          448,
+          192
+        ],
+        "id": "3013b033-5c61-4a05-88b7-1f625ba36edc",
+        "name": "Normalize Ollama Reply"
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first().json;\n\nconst config = {\n  openai: {\n    endpoint: \"https://api.openai.com/v1/responses\",\n    chat_model_alias: \"gpt-4.1-mini\",\n    max_output_tokens: 500\n  },\n  codex: {\n    model_alias: \"gpt-5.4\",\n    worker_mode: \"oauth_cli_wrapper\"\n  },\n  ollama: {\n    small_local_instruction_model: \"qwen2.5:3b-instruct\",\n    chat_model: \"qwen3:8b\",\n    strong_chat_model: \"qwen3:14b\",\n    coding_model: \"qwen2.5-coder:14b\",\n    strong_coding_model: \"qwen3-coder:30b-a3b-q4_K_M\"\n  },\n  provider_policies: {\n    chat: [\n      { provider: \"openai_api\", model: \"gpt-4.1-mini\" },\n      { provider: \"ollama\", model: \"qwen3:8b\" },\n      { provider: \"ollama\", model: \"qwen3:14b\" }\n    ],\n    technical_work: [\n      { provider: \"codex_oauth_worker\", model: \"gpt-5.4\" },\n      { provider: \"ollama\", model: \"qwen2.5-coder:14b\" },\n      { provider: \"ollama\", model: \"qwen3-coder:30b-a3b-q4_K_M\" }\n    ],\n    lightweight_local_task: [\n      { provider: \"ollama\", model: \"qwen2.5:3b-instruct\" },\n      { provider: \"ollama\", model: \"qwen3:8b\" }\n    ]\n  }\n};\n\nreturn [{ json: { ...item, config } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -1120,
+          192
+        ],
+        "id": "45631b44-3cf9-44c2-8bfa-8211c17f86e9",
+        "name": "Runtime Policy Config"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "29ad5d38-f1ee-423b-8775-b92cedf97f28",
+                "leftValue": "={{ $json.provider }}",
+                "rightValue": "openai_api",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals",
+                  "name": "filter.operator.equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          -224,
+          192
+        ],
+        "id": "ace739d5-9789-4a36-a9f9-15edb81b2bcb",
+        "name": "Provider Is OpenAI API?"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "522f66be-7b24-4a2d-a329-bba5058e55ce",
+                "leftValue": "={{ $json.provider }}",
+                "rightValue": "codex_oauth_worker",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals",
+                  "name": "filter.operator.equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          0,
+          288
+        ],
+        "id": "f69eb71d-46af-4da6-ab19-126d79af9d22",
+        "name": "Provider Is Codex OAuth?"
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first().json;\nreturn [{ json: { ...item, openai_request: { model: item.selected_model, input: item.prompt, instructions: item.system_prompt, temperature: item.config?.openai?.temperature ?? 0.6, max_output_tokens: item.config?.openai?.max_output_tokens ?? 1200 } } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ],
+        "id": "4616d862-7990-4dff-aa38-1b2f9f271535",
+        "name": "Build OpenAI Chat Request"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://api.openai.com/v1/responses",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "model",
+                "value": "={{ $json.selected_model }}"
+              },
+              {
+                "name": "input",
+                "value": "={{ $json.prompt }}"
+              },
+              {
+                "name": "instructions",
+                "value": "={{ $json.system_prompt }}"
+              },
+              {
+                "name": "max_output_tokens",
+                "value": "={{ $json.config.openai.max_output_tokens }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          224,
+          0
+        ],
+        "id": "7f904fc3-5a80-4040-b952-48ee5f8511bc",
+        "name": "Call OpenAI Chat",
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "YQzVSBDDIUnZHT10",
+            "name": "Header Auth account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const response = $input.first().json;\nconst context = $('Build OpenAI Chat Request').item.json;\nconst output = Array.isArray(response.output) ? response.output : [];\nconst outputText = response.output_text\n  || output.flatMap(part => Array.isArray(part.content) ? part.content : [])\n    .map(content => content.text || content.value || '')\n    .join('')\n  || response.response?.output_text\n  || response.response\n  || '[no-openai-reply]';\nreturn [{ json: {\n  ...context,\n  ...response,\n  reply: outputText,\n  approval_required: context.approval_required || false,\n  risk_level: context.risk_level || 'safe',\n  risk_reasons: context.risk_reasons || [],\n  risk_codes: context.risk_codes || [],\n  task_summary: context.task_summary || '',\n  command_success: true,\n  command_exit_code: null,\n  stdout_summary: '',\n  stderr_summary: '',\n  artifact_path: '',\n  codex_command_status: 'not_applicable',\n  error_type: '',\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          448,
+          0
+        ],
+        "id": "8eee5860-d15d-4e1a-9289-f94d16edd993",
+        "name": "Normalize OpenAI Reply"
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first().json;\nconst nodeScript = \"const fs=require('fs'); const path=require('path'); const {spawnSync}=require('child_process'); const [prompt,model,conversationId]=process.argv.slice(1); const safeConversationId=(conversationId||'reply').replace(/[^a-zA-Z0-9_-]/g,'_'); const artifactDir='/home/node/.n8n/ghost-artifacts'; fs.mkdirSync(artifactDir,{recursive:true}); const timestamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\\\\.\\\\d{3}Z$/,'Z'); const basePath=path.join(artifactDir,safeConversationId+'-'+timestamp); const replyPath=basePath+'.reply.txt'; const stdoutPath=basePath+'.stdout.txt'; const stderrPath=basePath+'.stderr.txt'; const summarize=value=>value.replace(/\\\\s+/g,' ').trim().slice(0,600); const cleanStderr=value=>{ const text=(value||'').replace(/\\\\r/g,''); if(!text.trim()) return ''; const lines=text.split('\\\\n').map(line=>line.trim()).filter(Boolean); const filtered=lines.filter(line=>{ if (/^OpenAI Codex v/i.test(line)) return false; if (/^[-]{4,}$/.test(line)) return false; if (/^(workdir|model|provider|approval|sandbox|reasoning effort|reasoning summaries|session id):/i.test(line)) return false; if (/^(user|assistant|system):?$/i.test(line)) return false; if (/^mcp startup:/i.test(line)) return false; if (/^tokens used$/i.test(line)) return false; if (/^[0-9][0-9,]*$/.test(line)) return false; if (/^system: You are Ghost/.test(line)) return false; return true; }); return summarize((filtered.length ? filtered : lines.slice(0,6)).join(' ')); }; let exitCode=127; let errorText=''; try{const result=spawnSync('/opt/ghost/bin/codex-safe',['exec','--skip-git-repo-check','--model',model,'--sandbox','workspace-write','-o',replyPath,prompt],{encoding:'utf8'}); exitCode=typeof result.status==='number'?result.status:127; fs.writeFileSync(stdoutPath,result.stdout||'','utf8'); fs.writeFileSync(stderrPath,result.stderr||'','utf8'); if(result.error){errorText=result.error.message||String(result.error); fs.appendFileSync(stderrPath,(result.stderr?'\\\\n':'')+errorText,'utf8')}}catch(error){errorText=error.message||String(error); fs.writeFileSync(stdoutPath,'','utf8'); fs.writeFileSync(stderrPath,errorText,'utf8')}; const reply=fs.existsSync(replyPath)?fs.readFileSync(replyPath,'utf8').trim():''; const stdoutText=fs.existsSync(stdoutPath)?fs.readFileSync(stdoutPath,'utf8'):''; const stderrText=fs.existsSync(stderrPath)?fs.readFileSync(stderrPath,'utf8'):errorText; const payload={reply,artifact_path:fs.existsSync(replyPath)?replyPath:'',stdout_path:fs.existsSync(stdoutPath)?stdoutPath:'',stderr_path:fs.existsSync(stderrPath)?stderrPath:'',success:exitCode===0&&reply.length>0,command_exit_code:exitCode,stdout_summary:summarize(stdoutText),stderr_summary:cleanStderr(stderrText)}; process.stdout.write(JSON.stringify(payload))\";\nconst model = item.selected_model || item.config?.codex?.model_alias || 'gpt-5.4';\nconst conversationId = item.conversation_id || 'reply';\nconst prompt = item.prompt || '';\nconst codexCommand = [\n  'node',\n  '-e',\n  JSON.stringify(nodeScript),\n  JSON.stringify(prompt),\n  JSON.stringify(model),\n  JSON.stringify(conversationId),\n].join(' ');\nreturn [{ json: { ...item, codex_command: codexCommand } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          336,
+          320
+        ],
+        "id": "704a55f8-6edf-493c-adc7-0d8933627832",
+        "name": "Build Codex Command"
+      },
+      {
+        "parameters": {
+          "command": "={{ $json.codex_command }}"
+        },
+        "type": "n8n-nodes-base.executeCommand",
+        "typeVersion": 1,
+        "position": [
+          448,
+          320
+        ],
+        "id": "b5202b29-8c2c-46ed-9b54-daa5afef003d",
+        "name": "Execute Codex Command",
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "jsCode": "const result = $input.first().json;\nconst context = $('Expose Route Metadata').item.json;\nconst rawStdout = typeof result.stdout === 'string' ? result.stdout.trim() : '';\nconst nodeError = typeof result.error === 'string' ? result.error : (result.error?.message || '');\nlet payload = {};\nif (rawStdout) {\n  try {\n    payload = JSON.parse(rawStdout);\n  } catch (error) {\n    payload = {\n      reply: rawStdout,\n      success: true,\n      command_exit_code: 0,\n      stdout_summary: rawStdout.slice(0, 600),\n      stderr_summary: typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '',\n      artifact_path: '',\n    };\n  }\n}\nconst stderrSummary = payload.stderr_summary || (typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '') || nodeError.slice(0, 600);\nconst commandExitCode = payload.command_exit_code ?? (nodeError ? 127 : null);\nconst commandSuccess = Boolean(payload.success);\nconst failureSuffix = commandExitCode !== undefined && commandExitCode !== null ? ` (exit ${commandExitCode})` : '';\nconst failureReason = stderrSummary || 'No additional stderr was captured.';\nconst reply = (payload.reply || '').trim() || (commandSuccess ? '[no-codex-reply]' : `Codex execution failed${failureSuffix}. ${failureReason}`);\nreturn [{ json: {\n  ...context,\n  ...result,\n  codex_raw_result: payload,\n  conversation_id: context.conversation_id || '',\n  reply,\n  provider_used: context.provider || '',\n  model_used: context.selected_model || '',\n  task_class: context.task_class || '',\n  approval_required: context.approval_required || false,\n  risk_level: context.risk_level || 'safe',\n  risk_reasons: context.risk_reasons || [],\n  risk_codes: context.risk_codes || [],\n  task_summary: context.task_summary || '',\n  command_success: commandSuccess,\n  command_exit_code: commandExitCode,\n  stdout_summary: payload.stdout_summary || '',\n  stderr_summary: stderrSummary,\n  artifact_path: payload.artifact_path || '',\n  codex_command_status: commandSuccess ? 'succeeded' : 'failed',\n  error_type: commandSuccess ? '' : 'codex_command_failed',\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          672,
+          384
+        ],
+        "id": "d94a09f5-61b3-4d5a-817d-d0ed661ac204",
+        "name": "Normalize Codex Reply"
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "6b6872af-2edd-4c3d-aaea-e33b779e9c43",
+                "name": "provider_used",
+                "value": "={{ $json.provider || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "79663b54-3041-4f0b-b56a-47328b476b0a",
+                "name": "model_used",
+                "value": "={{ $json.selected_model || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "2381585a-8083-4feb-b4d7-dca34433e8b3",
+                "name": "task_class",
+                "value": "={{ $json.task_class || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "a250f407-def0-482a-b251-cded010a78a1",
+                "name": "conversation_id",
+                "value": "={{ $json.conversation_id || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "84062eb1-8cca-41ea-be96-5a09c15b0a24",
+                "name": "system_prompt",
+                "value": "={{ $json.system_prompt || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "225cda72-78c4-486d-b501-ac8f87bdb14d",
+                "name": "prompt",
+                "value": "={{ $json.prompt || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "9d1c60e8-e411-4d25-9325-3b9de256abb7",
+                "name": "messages",
+                "value": "={{ $json.messages || [] }}",
+                "type": "array"
+              },
+              {
+                "id": "fbe82153-50b1-439c-89ee-334a109caf21",
+                "name": "config",
+                "value": "={{ $json.config || {} }}",
+                "type": "object"
+              },
+              {
+                "id": "c7ef1f72-6253-4f15-9170-c5923f6e3697",
+                "name": "selected_model",
+                "value": "={{ $json.selected_model || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "dc417adc-d797-4025-bf4b-0f26a1ec5f12",
+                "name": "provider",
+                "value": "={{ $json.provider || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "3175e236-53ba-4771-8d01-c59ea304228f",
+                "name": "approval_required",
+                "value": "={{ $json.approval_required || false }}",
+                "type": "boolean"
+              },
+              {
+                "id": "a8732bc8-92d4-448f-ab3c-8c59a5393a4a",
+                "name": "risk_level",
+                "value": "={{ $json.risk_level || \"safe\" }}",
+                "type": "string"
+              },
+              {
+                "id": "332f6402-74dd-486a-a820-b72c5c7dce87",
+                "name": "risk_reasons",
+                "value": "={{ $json.risk_reasons || [] }}",
+                "type": "array"
+              },
+              {
+                "id": "bf75f7d4-274e-489b-9ef9-796b2bea763a",
+                "name": "risk_codes",
+                "value": "={{ $json.risk_codes || [] }}",
+                "type": "array"
+              },
+              {
+                "id": "6da07e41-8311-4ec3-b27d-c2a5e8409488",
+                "name": "task_summary",
+                "value": "={{ $json.task_summary || \"\" }}",
+                "type": "string"
+              },
+              {
+                "id": "9ff4b4ac-4904-47c8-a844-b6d194f334c4",
+                "name": "codex_command_status",
+                "value": "={{ $json.codex_command_status || \"not_applicable\" }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          -448,
+          192
+        ],
+        "id": "653c90b8-c01d-425e-9c10-06070cb59dc3",
+        "name": "Expose Route Metadata"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE conversations\nSET\n  updated_at = NOW(),\n  last_message_at = NOW()\nWHERE id = $1\nRETURNING id AS conversation_id, updated_at, last_message_at;",
+          "options": {
+            "queryReplacement": "={{ $json.conversation_id }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -2240,
+          192
+        ],
+        "id": "3b5fba43-7782-450b-90b0-778aa3e9779f",
+        "name": "Touch Conversation Timestamp",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE conversations\nSET\n  updated_at = NOW(),\n  last_message_at = NOW()\nWHERE id = $1\nRETURNING id AS conversation_id, updated_at, last_message_at;",
+          "options": {
+            "queryReplacement": "={{ $json.conversation_id }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1264,
+          320
+        ],
+        "id": "a677211c-bc35-4831-9bbf-88ccebb08990",
+        "name": "Touch Conversation Timestamp After Reply",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify($json) }}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          1040,
+          96
+        ],
+        "id": "983c58c0-3e8d-477c-b8eb-510109ae04e1",
+        "name": "Respond to Webhook"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "aad8a3f0-41b1-4e82-b4f2-1fe85ce1f92b",
+                "leftValue": "={{ $json.approval_required }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          224,
+          320
+        ],
+        "id": "3731505f-64ff-4b77-87f8-91bcbb5a7ff4",
+        "name": "Codex Approval Required?"
+      },
+      {
+        "parameters": {
+          "jsCode": "const context = $input.first().json;\nconst reasons = Array.isArray(context.risk_reasons) && context.risk_reasons.length\n  ? context.risk_reasons.join(' ')\n  : 'Risk policy requires review.';\nconst reply = `Approval required before Codex execution. Risk level: ${context.risk_level || 'unknown'}. ${reasons}`;\nreturn [{ json: {\n  ...context,\n  reply,\n  provider_used: context.provider || '',\n  model_used: context.selected_model || '',\n  task_class: context.task_class || '',\n  command_success: false,\n  error_type: 'approval_required',\n  codex_command_status: 'blocked_pending_approval',\n  artifact_path: '',\n  stdout_summary: '',\n  stderr_summary: reasons,\n  command_exit_code: null,\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          448,
+          224
+        ],
+        "id": "71884e8a-8328-4f31-8255-f53a2211f5a9",
+        "name": "Build Approval Required Response"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "WITH prioritized_memory AS (\n  SELECT\n    scope,\n    memory_type,\n    summary,\n    created_at,\n    importance,\n    COALESCE(NULLIF(details_json->>'topic_key', ''), lower(summary)) AS dedupe_key,\n    CASE scope\n      WHEN 'conversation' THEN 0\n      WHEN 'global' THEN 1\n      ELSE 2\n    END AS scope_rank,\n    CASE memory_type\n      WHEN 'decision' THEN 0\n      WHEN 'environment_fact' THEN 1\n      WHEN 'operational_note' THEN 2\n      WHEN 'task_summary' THEN 3\n      WHEN 'conversation_summary' THEN 4\n      ELSE 9\n    END AS type_rank\n  FROM ghost_memory\n  WHERE status = 'active'\n    AND (\n      conversation_id = NULLIF($1, '')::uuid\n      OR (\n        scope = 'global'\n        AND memory_type IN ('decision', 'environment_fact', 'operational_note')\n        AND importance >= 4\n      )\n    )\n), deduped_memory AS (\n  SELECT\n    scope,\n    memory_type,\n    summary,\n    created_at,\n    importance,\n    scope_rank,\n    type_rank,\n    ROW_NUMBER() OVER (\n      PARTITION BY scope, dedupe_key\n      ORDER BY type_rank ASC, importance DESC, created_at DESC\n    ) AS dedupe_rank\n  FROM prioritized_memory\n), conversation_memory AS (\n  SELECT\n    scope,\n    memory_type,\n    summary,\n    created_at,\n    importance,\n    scope_rank,\n    type_rank,\n    ROW_NUMBER() OVER (\n      ORDER BY type_rank ASC, importance DESC, created_at DESC\n    ) AS scope_row\n  FROM deduped_memory\n  WHERE dedupe_rank = 1\n    AND scope = 'conversation'\n), global_memory AS (\n  SELECT\n    scope,\n    memory_type,\n    summary,\n    created_at,\n    importance,\n    scope_rank,\n    type_rank,\n    ROW_NUMBER() OVER (\n      ORDER BY type_rank ASC, importance DESC, created_at DESC\n    ) AS scope_row\n  FROM deduped_memory\n  WHERE dedupe_rank = 1\n    AND scope = 'global'\n)\nSELECT scope, memory_type, summary, created_at, importance\nFROM (\n  SELECT * FROM conversation_memory WHERE scope_row <= 4\n  UNION ALL\n  SELECT * FROM global_memory WHERE scope_row <= 2\n) memory_items\nORDER BY scope_rank ASC, type_rank ASC, importance DESC, created_at DESC;",
+          "options": {
+            "queryReplacement": "={{ $('Touch Conversation Timestamp').item.json.conversation_id || $('Create New Conversation').item.json.conversation_id || $('Use Existing Conversation Context').item.json.conversation_id || '' }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -1904,
+          192
+        ],
+        "id": "b1b86ac3-4180-4bd5-80bf-e8e521202c9f",
+        "name": "Load Ghost Memory",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        },
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first().json;\nconst priority = { decision: 0, environment_fact: 1, operational_note: 2, task_summary: 3, conversation_summary: 4 };\nconst normalizeWhitespace = (value) => String(value || '').replace(/\\s+/g, ' ').trim();\nconst normalizeKey = (entry) => `${entry.memory_type}|${entry.scope}|${normalizeWhitespace(entry.summary).toLowerCase()}`;\nconst compactSummary = (entry) => {\n  const limit = entry.memory_type === 'task_summary' || entry.memory_type === 'conversation_summary' ? 160 : 190;\n  return normalizeWhitespace(entry.summary).slice(0, limit);\n};\nconst memoryItems = $items('Load Ghost Memory')\n  .map((entry) => entry.json || {})\n  .filter((entry) => !entry.error && entry.memory_type && entry.summary && entry.scope)\n  .map((entry) => ({\n    scope: String(entry.scope).trim(),\n    memory_type: String(entry.memory_type).trim(),\n    importance: Number.isFinite(Number(entry.importance)) ? Number(entry.importance) : 3,\n    summary: compactSummary(entry),\n  }))\n  .filter((entry) => entry.summary)\n  .sort((a, b) => {\n    const scopeDiff = (a.scope === 'conversation' ? 0 : 1) - (b.scope === 'conversation' ? 0 : 1);\n    if (scopeDiff !== 0) return scopeDiff;\n    const typeDiff = (priority[a.memory_type] ?? 9) - (priority[b.memory_type] ?? 9);\n    if (typeDiff !== 0) return typeDiff;\n    return (b.importance || 0) - (a.importance || 0);\n  });\nconst seen = new Set();\nconst filteredMemoryItems = [];\nfor (const entry of memoryItems) {\n  const key = normalizeKey(entry);\n  if (!key || seen.has(key)) continue;\n  seen.add(key);\n  filteredMemoryItems.push(entry);\n  if (filteredMemoryItems.length >= 6) break;\n}\nconst ghostMemoryBlock = filteredMemoryItems.length\n  ? 'Ghost memory:\\n' + filteredMemoryItems.map((entry) => `- [${entry.memory_type}][${entry.scope}] ${entry.summary}`).join('\\n')\n  : '';\nconst systemPrompt = ghostMemoryBlock\n  ? `${item.system_prompt}\\nUse Ghost memory only when it is directly relevant. Prefer conversation memory over global memory when both exist.\\n\\n${ghostMemoryBlock}`\n  : item.system_prompt;\n\nreturn [{ json: {\n  ...item,\n  ghost_memory_items: filteredMemoryItems,\n  ghost_memory_block: ghostMemoryBlock,\n  system_prompt: systemPrompt,\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -1680,
+          192
+        ],
+        "id": "b863caa1-455a-4f93-b3db-4a9e6368706b",
+        "name": "Compose Prompt With Ghost Memory"
+      },
+      {
+        "parameters": {
+          "jsCode": "const savedMessage = $input.first().json;\nconst routeContext = $('Expose Route Metadata').item.json;\nconst replyContext = $('Build API Response').item.json;\nconst messages = Array.isArray(routeContext.messages) ? routeContext.messages : [];\nconst lastUser = [...messages].reverse().find((message) => message.role === 'user');\nconst latestUserMessage = (lastUser?.content || '').trim();\nconst assistantReply = (replyContext.reply || '').trim();\nconst memoryTestMode = $('Normalize Input').item.json.memory_test_mode || '';\nconst taskClass = replyContext.task_class || 'chat';\nconst meaningfulTechnicalWork = taskClass === 'technical_work'\n  && replyContext.command_success === true\n  && /(implement|implemented|fix|fixed|update|updated|patch|patched|migrate|migration|refactor|created|added|write|wrote|build|built)/i.test(`${latestUserMessage} ${assistantReply}`)\n  && assistantReply.length >= 24;\nconst explicitMemoryCue = /(decision|architectural decision|architecture decision|environment fact|runtime fact|operational note|runtime note|user preference|durable preference|remember this|preference|for future responses|always|never)/i.test(latestUserMessage);\nconst shouldExtractMemory = Boolean(savedMessage.id && assistantReply)\n  && !replyContext.approval_required\n  && replyContext.error_type !== 'approval_required'\n  && (taskClass !== 'technical_work' || replyContext.command_success !== false)\n  && (explicitMemoryCue || meaningfulTechnicalWork || assistantReply.length >= 40);\nconst extractionContract = {\n  items: [\n    {\n      scope: 'global|conversation|task',\n      memory_type: 'task_summary|decision|environment_fact|operational_note|conversation_summary',\n      title: 'short title or empty string',\n      summary: 'durable compact summary',\n      details_json: {},\n      importance: 1,\n    },\n  ],\n};\nconst extractionPrompt = [\n  'You extract durable structured Ghost memory.',\n  'Return JSON only. No markdown. No explanation. No surrounding prose.',\n  'Return exactly one object with one key: items.',\n  'If nothing qualifies, return {\"items\":[]}.',\n  'Each item must contain exactly these keys: scope, memory_type, title, summary, details_json, importance.',\n  'Allowed scope: global, conversation, task.',\n  'Allowed memory_type: task_summary, decision, environment_fact, operational_note, conversation_summary.',\n  'importance must be an integer 1..5.',\n  'title should be short. summary should be compact, durable, and under 240 characters.',\n  'details_json must be a small object. Use {} when not needed.',\n  'Do not store chit-chat, greetings, vague acknowledgements, raw runtime noise, stack traces, banners, code fences, or duplicate restatements.',\n  'Prefer decision, environment_fact, operational_note over weak summaries.',\n  'Only emit task_summary when meaningful work completed successfully.',\n  'Return at most 3 items.',\n  '',\n  'JSON schema shape:',\n  JSON.stringify(extractionContract),\n  '',\n  'Turn context JSON:',\n  JSON.stringify({\n    task_class: taskClass,\n    provider_used: replyContext.provider_used || '',\n    model_used: replyContext.model_used || '',\n    command_success: replyContext.command_success,\n    risk_level: replyContext.risk_level || 'safe',\n    meaningful_technical_work: meaningfulTechnicalWork,\n    latest_user_message: latestUserMessage,\n    assistant_reply: assistantReply,\n  }),\n].join('\\n');\n\nreturn [{ json: {\n  conversation_id: replyContext.conversation_id || '',\n  source_message_id: savedMessage.id || '',\n  task_class: taskClass,\n  latest_user_message: latestUserMessage,\n  assistant_reply: assistantReply,\n  memory_test_mode: memoryTestMode,\n  should_extract_memory: shouldExtractMemory,\n  meaningful_technical_work: meaningfulTechnicalWork,\n  extraction_prompt: extractionPrompt,\n  memory_debug: {\n    extractor_attempted: shouldExtractMemory,\n    extractor_skipped: !shouldExtractMemory,\n    fallback_used: false,\n    candidate_count: 0,\n    filtered_count: 0,\n    saved_count: 0,\n  },\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1264,
+          480
+        ],
+        "id": "aef24c01-fca3-4fe1-b20d-b0e94496fca4",
+        "name": "Build Memory Extraction Input"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "236092d1-61b2-4062-8188-05e31a893787",
+                "leftValue": "={{ $json.should_extract_memory }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          1488,
+          480
+        ],
+        "id": "59062447-e144-4794-a980-a960b0dc2e01",
+        "name": "Should Extract Memory?"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "9dbbbe1b-ea60-4cc5-814f-51a4b32e0c9c",
+                "leftValue": "={{ $json.memory_test_mode === 'invalid_json' }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          1712,
+          480
+        ],
+        "id": "28c04af7-4a2f-4e33-9a69-db71fc6239d5",
+        "name": "Use Invalid Memory Stub?"
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first().json;\nreturn [{ json: { ...item, output_text: 'not valid json', memory_extractor_debug: 'invalid_json' } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1936,
+          384
+        ],
+        "id": "4656de8b-3765-4a61-8f0a-95f10f68e49f",
+        "name": "Return Invalid Memory Extractor Output"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://api.openai.com/v1/responses",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "model",
+                "value": "=gpt-4.1-mini"
+              },
+              {
+                "name": "input",
+                "value": "={{ $json.extraction_prompt }}"
+              },
+              {
+                "name": "max_output_tokens",
+                "value": "=350"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          1936,
+          576
+        ],
+        "id": "3779dbfc-0ecf-43f9-9583-049f4a149663",
+        "name": "Call OpenAI Memory Extractor",
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "YQzVSBDDIUnZHT10",
+            "name": "Header Auth account"
+          }
+        },
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "jsCode": "const response = $input.first().json;\nconst context = $('Build Memory Extraction Input').item.json;\nconst allowedScopes = new Set(['global', 'conversation', 'task']);\nconst allowedTypes = new Set(['task_summary', 'decision', 'environment_fact', 'operational_note', 'conversation_summary']);\nconst parseOutputText = () => {\n  if (typeof response.output_text === 'string' && response.output_text.trim()) return response.output_text.trim();\n  if (Array.isArray(response.output)) {\n    const text = response.output\n      .flatMap((entry) => Array.isArray(entry.content) ? entry.content : [])\n      .map((entry) => entry.text || entry.value || '')\n      .join('')\n      .trim();\n    if (text) return text;\n  }\n  if (typeof response.response === 'string' && response.response.trim()) return response.response.trim();\n  return '';\n};\nconst extractJsonText = (text) => {\n  if (!text) return '';\n  const trimmed = text.trim();\n  if (trimmed.startsWith('{') && trimmed.endsWith('}')) return trimmed;\n  const start = trimmed.indexOf('{');\n  const end = trimmed.lastIndexOf('}');\n  return start >= 0 && end > start ? trimmed.slice(start, end + 1) : trimmed;\n};\nconst sanitizeItem = (entry) => ({\n  scope: String(entry.scope || '').trim(),\n  memory_type: String(entry.memory_type || '').trim(),\n  title: entry.title ? String(entry.title).replace(/\\s+/g, ' ').trim().slice(0, 160) : '',\n  summary: String(entry.summary || '').replace(/\\s+/g, ' ').trim().slice(0, 240),\n  details_json: entry.details_json && typeof entry.details_json === 'object' && !Array.isArray(entry.details_json) ? entry.details_json : {},\n  importance: Number.isFinite(Number(entry.importance)) ? Math.max(1, Math.min(5, Math.round(Number(entry.importance)))) : 3,\n});\nconst hasNoisySummary = (summary) => /```|stack trace|exception:|error:|stderr|stdout|traceback|OpenAI Codex|session id:|tokens used|^hi$|^hello$|^thanks$|^ok$|^okay$|^understood$/i.test(summary);\nconst normalizedKey = (entry) => `${entry.scope}|${entry.memory_type}|${entry.summary.toLowerCase()}`;\nconst buildFallbackItems = () => {\n  if (context.memory_test_mode === 'invalid_json') return [];\n  const userText = String(context.latest_user_message || '').trim();\n  const normalizedUser = userText.replace(/\\s+/g, ' ').trim();\n  const fallbackItems = [];\n  const pushFallback = (entry) => fallbackItems.push(entry);\n  const preferenceMatch = normalizedUser.match(/(?:user preference(?: for this conversation)?|durable preference|preference|instruction|remember this|for future responses)\\s*:\\s*(.+)$/i);\n  if (preferenceMatch?.[1] && /(always|never|prefer|prefers|avoid|use|do not|don't|keep|concise|verbose|full config files|snippets)/i.test(preferenceMatch[1])) {\n    pushFallback({\n      scope: 'conversation',\n      memory_type: 'decision',\n      title: 'Durable preference',\n      summary: preferenceMatch[1],\n      details_json: { source: 'heuristic_fallback', trigger: 'explicit_preference' },\n      importance: 4,\n    });\n  }\n  const prefersSentence = normalizedUser.match(/(the user prefers .+?)(?:\\.\\s*(remember this preference|remember this|save this preference))?$/i);\n  if (prefersSentence?.[1] && /(prefers|avoid|use|do not|don't)/i.test(prefersSentence[1])) {\n    pushFallback({\n      scope: 'conversation',\n      memory_type: 'decision',\n      title: 'Durable preference',\n      summary: prefersSentence[1],\n      details_json: { source: 'heuristic_fallback', trigger: 'preference_sentence' },\n      importance: 4,\n    });\n  }\n  const architectureMatch = normalizedUser.match(/(?:architectural decision|architecture decision|decision(?: for this conversation)?)\\s*:\\s*(.+)$/i);\n  if (architectureMatch?.[1] && /(use|prefer|keep|avoid|do not|don't)/i.test(architectureMatch[1])) {\n    pushFallback({\n      scope: 'conversation',\n      memory_type: 'decision',\n      title: 'Architectural decision',\n      summary: architectureMatch[1],\n      details_json: { source: 'heuristic_fallback', trigger: 'explicit_decision' },\n      importance: 5,\n    });\n  }\n  const envFactMatch = normalizedUser.match(/(?:environment fact|runtime fact)\\s*:\\s*(.+)$/i);\n  if (envFactMatch?.[1] && envFactMatch[1].length >= 16) {\n    pushFallback({\n      scope: 'conversation',\n      memory_type: 'environment_fact',\n      title: 'Environment fact',\n      summary: envFactMatch[1],\n      details_json: { source: 'heuristic_fallback', trigger: 'explicit_fact' },\n      importance: 4,\n    });\n  }\n  const operationalNoteMatch = normalizedUser.match(/(?:operational note|runtime note)\\s*:\\s*(.+)$/i);\n  if (operationalNoteMatch?.[1] && operationalNoteMatch[1].length >= 16) {\n    pushFallback({\n      scope: 'conversation',\n      memory_type: 'operational_note',\n      title: 'Operational note',\n      summary: operationalNoteMatch[1],\n      details_json: { source: 'heuristic_fallback', trigger: 'explicit_operational_note' },\n      importance: 4,\n    });\n  }\n  const seen = new Set();\n  return fallbackItems.filter((entry) => {\n    const key = normalizedKey(sanitizeItem(entry));\n    if (seen.has(key)) return false;\n    seen.add(key);\n    return true;\n  });\n};\n\nlet rawText = parseOutputText();\nlet parsedItems = [];\nlet parseStatus = context.should_extract_memory ? 'attempted' : 'skipped';\nlet parseError = '';\nconst trimmedJsonText = extractJsonText(rawText);\n\nif (response.error) {\n  parseStatus = 'extractor_error';\n  parseError = typeof response.error === 'string' ? response.error : (response.error.message || 'memory extractor request failed');\n} else if (trimmedJsonText) {\n  try {\n    const parsed = JSON.parse(trimmedJsonText);\n    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Array.isArray(parsed.items)) {\n      parsedItems = parsed.items;\n      parseStatus = 'parsed';\n    } else {\n      parseStatus = 'invalid_shape';\n      parseError = 'Extractor response did not match {items:[...]}';\n    }\n  } catch (error) {\n    parseStatus = 'invalid_json';\n    parseError = error.message;\n  }\n}\n\nlet candidateItems = parsedItems\n  .filter((entry) => entry && typeof entry === 'object')\n  .map(sanitizeItem)\n  .filter((entry) => allowedScopes.has(entry.scope) && allowedTypes.has(entry.memory_type) && entry.summary)\n  .filter((entry) => JSON.stringify(entry.details_json).length <= 800)\n  .filter((entry) => !hasNoisySummary(entry.summary))\n  .map((entry) => ({\n    ...entry,\n    conversation_id: entry.scope === 'conversation' ? (context.conversation_id || null) : null,\n    task_run_id: null,\n    source_message_id: context.source_message_id || null,\n    status: 'active',\n  }));\n\nlet fallbackUsed = false;\nif (!candidateItems.length) {\n  const fallbackItems = buildFallbackItems().map((entry) => ({\n    ...sanitizeItem(entry),\n    conversation_id: context.conversation_id || null,\n    task_run_id: null,\n    source_message_id: context.source_message_id || null,\n    status: 'active',\n  }));\n  if (fallbackItems.length) {\n    candidateItems = fallbackItems;\n    fallbackUsed = true;\n    parseStatus = parseStatus === 'parsed' ? 'parsed_with_fallback' : 'heuristic_fallback';\n  }\n}\n\nreturn [{ json: {\n  ...context,\n  memory_parse_status: parseStatus,\n  memory_parse_error: parseError,\n  memory_raw_text: trimmedJsonText.slice(0, 2000),\n  memory_candidate_items: candidateItems,\n  memory_debug: {\n    ...(context.memory_debug || {}),\n    extractor_attempted: Boolean(context.should_extract_memory),\n    extractor_skipped: !context.should_extract_memory,\n    candidate_count: candidateItems.length,\n    fallback_used: fallbackUsed,\n    parse_status: parseStatus,\n  },\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2160,
+          480
+        ],
+        "id": "28475fa8-e8b5-4185-8c99-eae33744075a",
+        "name": "Parse Structured Memory"
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first().json;\nconst priority = { decision: 100, environment_fact: 90, operational_note: 80, conversation_summary: 40, task_summary: 30 };\nconst lowerUser = String(item.latest_user_message || '').toLowerCase();\nconst memoryCandidates = Array.isArray(item.memory_candidate_items) ? item.memory_candidate_items : [];\nconst meaningfulTaskSummary = item.task_class === 'technical_work'\n  && item.meaningful_technical_work === true\n  && /(implement|implemented|fix|fixed|update|updated|patch|patched|migrate|migration|refactor|created|added|write|wrote|build|built)/i.test(`${item.latest_user_message} ${item.assistant_reply}`);\nconst skipPatterns = [/^hello\\b/i, /^hi\\b/i, /^thanks\\b/i, /^thank you\\b/i, /^okay\\b/i, /^understood\\b/i, /^ping\\d+$/i, /^say hello/i, /^reply with exactly/i];\nconst noisePatterns = [/```/, /stack trace/i, /traceback/i, /stderr/i, /stdout/i, /openai codex/i, /session id:/i, /tokens used/i, /error:/i, /exception:/i];\nconst normalizeWhitespace = (value) => String(value || '').replace(/\\s+/g, ' ').trim();\nconst normalizeClause = (value) => normalizeWhitespace(value).replace(/[.!?]+$/g, '').toLowerCase();\nconst normalizeTopicText = (value) => normalizeWhitespace(value).toLowerCase().replace(/[^a-z0-9\\s:_-]/g, ' ').replace(/\\s+/g, ' ').trim();\nconst conservativeTypes = new Set(['decision', 'environment_fact', 'operational_note']);\nconst canonicalPunctuationTypes = new Set(['decision', 'environment_fact', 'operational_note']);\nconst stripWrapperPhrases = (summary, memoryType) => {\n  let text = normalizeWhitespace(summary);\n  if (!text || !conservativeTypes.has(memoryType)) return text;\n  text = text\n    .replace(/^(architectural decision|architecture decision|decision(?: for this conversation)?|environment fact|runtime fact|operational note|runtime note|user preference(?: for this conversation)?|durable preference|preference|durable instruction)\\s*:\\s*/i, '')\n    .replace(/^remember\\s+(?:that\\s+)?/i, '')\n    .replace(/^please\\s+/i, '')\n    .replace(/\\s*[.?!]?\\s*(confirm briefly|confirm clearly|confirm|briefly confirm|save only the durable decision|save only the durable fact|save only the durable note|save this note|save this preference|remember this preference|remember this note|remember this preference for future responses|keep only the durable decision|keep only the durable fact|keep only the durable note|remember this preference)\\s*[.?!]*$/i, '');\n  return normalizeWhitespace(text);\n};\nconst collapseDuplicateClauses = (summary, memoryType) => {\n  const text = normalizeWhitespace(summary);\n  if (!text || !conservativeTypes.has(memoryType)) return text;\n  const parts = text.split(/(?<=[.!?])\\s+/).map((part) => normalizeWhitespace(part)).filter(Boolean);\n  if (!parts.length) return text;\n  const deduped = [];\n  const seenClauses = new Set();\n  for (const part of parts) {\n    const key = normalizeClause(part);\n    if (!key || seenClauses.has(key)) continue;\n    seenClauses.add(key);\n    deduped.push(part);\n  }\n  if (!deduped.length) return text;\n  if (deduped.length === 2) {\n    const first = normalizeClause(deduped[0]);\n    const second = normalizeClause(deduped[1]);\n    if (first && second && (first.includes(second) || second.includes(first))) {\n      return normalizeWhitespace(first.length <= second.length ? deduped[0] : deduped[1]);\n    }\n  }\n  return normalizeWhitespace(deduped.join(' '));\n};\nconst canonicalizeShortFallbackSummary = (summary, memoryType, detailsJson) => {\n  const text = normalizeWhitespace(summary);\n  if (!text) return text;\n  if (!canonicalPunctuationTypes.has(memoryType)) return text;\n  if (!detailsJson || detailsJson.source !== 'heuristic_fallback') return text;\n  if (text.length > 120) return text;\n  if (/[?;:]$/.test(text)) return text;\n  return normalizeWhitespace(text.replace(/[.!]+$/g, ''));\n};\nconst normalizeSummary = (summary, memoryType, detailsJson) => {\n  const original = normalizeWhitespace(summary);\n  if (!original) return '';\n  let cleaned = stripWrapperPhrases(original, memoryType);\n  cleaned = collapseDuplicateClauses(cleaned, memoryType);\n  cleaned = stripWrapperPhrases(cleaned, memoryType);\n  cleaned = canonicalizeShortFallbackSummary(cleaned, memoryType, detailsJson);\n  cleaned = normalizeWhitespace(cleaned);\n  if (!cleaned) return original;\n  if (cleaned.length < 12 && original.length >= 12) return original;\n  return cleaned;\n};\nconst deriveTopicKey = (summary, memoryType) => {\n  const normalized = normalizeTopicText(summary);\n  if (!normalized || !conservativeTypes.has(memoryType)) return '';\n  if (memoryType === 'environment_fact') {\n    const subjectMatch = normalized.match(/^(?:the\\s+)?(.+?)\\s+(uses|is|runs|has|requires|needs|supports|remains|stays)\\b/);\n    if (subjectMatch?.[1]) return `environment_fact:${subjectMatch[1].trim().slice(0, 64)}`;\n  }\n  if (memoryType === 'operational_note') {\n    const opMatch = normalized.match(/^(restart|reload|publish|deploy|run|use)\\s+(.+?)(?:\\s+(after|before|when|for)\\b|$)/);\n    if (opMatch?.[1] && opMatch?.[2]) return `operational_note:${opMatch[1]}:${opMatch[2].trim().slice(0, 64)}`;\n  }\n  return `exact:${memoryType}:${normalized.slice(0, 120)}`;\n};\nconst decorateDetailsJson = (entry, summary) => {\n  const details = entry.details_json && typeof entry.details_json === 'object' && !Array.isArray(entry.details_json)\n    ? { ...entry.details_json }\n    : {};\n  const topicKey = deriveTopicKey(summary, entry.memory_type);\n  if (topicKey) details.topic_key = topicKey;\n  if (entry.memory_type === 'decision' && ['explicit_preference', 'preference_sentence'].includes(String(details.trigger || ''))) {\n    details.memory_origin = 'durable_user_preference';\n  }\n  return details;\n};\nconst normalizeKey = (entry) => {\n  const details = entry.details_json && typeof entry.details_json === 'object' && !Array.isArray(entry.details_json) ? entry.details_json : {};\n  const topicKey = normalizeWhitespace(details.topic_key || '');\n  return `${entry.scope}|${entry.memory_type}|${(topicKey || String(entry.summary || '').toLowerCase())}`;\n};\nconst filteredOut = [];\nconst normalizationChanges = [];\nconst seen = new Set();\nconst filtered = memoryCandidates.map((entry) => {\n  const originalSummary = normalizeWhitespace(entry.summary || '');\n  const normalizedSummary = normalizeSummary(originalSummary, entry.memory_type, entry.details_json || {});\n  const nextSummary = normalizedSummary || originalSummary;\n  const nextDetailsJson = decorateDetailsJson(entry, nextSummary);\n  if (originalSummary && nextSummary && originalSummary !== nextSummary) {\n    normalizationChanges.push({ memory_type: entry.memory_type, before: originalSummary, after: nextSummary });\n  }\n  return { ...entry, summary: nextSummary, details_json: nextDetailsJson };\n}).filter((entry) => {\n  const summary = normalizeWhitespace(entry.summary || '');\n  const key = normalizeKey({ ...entry, summary });\n  if (!summary) { filteredOut.push({ reason: 'empty_summary', key }); return false; }\n  if (summary.length < 16) { filteredOut.push({ reason: 'too_short', key }); return false; }\n  if (skipPatterns.some((pattern) => pattern.test(summary)) || skipPatterns.some((pattern) => pattern.test(lowerUser))) { filteredOut.push({ reason: 'trivial_chitchat', key }); return false; }\n  if (noisePatterns.some((pattern) => pattern.test(summary))) { filteredOut.push({ reason: 'runtime_noise', key }); return false; }\n  if (entry.memory_type === 'task_summary' && !meaningfulTaskSummary) { filteredOut.push({ reason: 'weak_task_summary', key }); return false; }\n  if (seen.has(key)) { filteredOut.push({ reason: 'duplicate_in_pass', key }); return false; }\n  seen.add(key);\n  return true;\n}).sort((a, b) => (priority[b.memory_type] || 0) - (priority[a.memory_type] || 0)).slice(0, 3);\n\nreturn [{ json: {\n  ...item,\n  memory_items: filtered,\n  memory_debug: {\n    ...(item.memory_debug || {}),\n    candidate_count: memoryCandidates.length,\n    filtered_count: filtered.length,\n    filtered_out_count: filteredOut.length,\n    filtered_out_reasons: filteredOut.slice(0, 10),\n    normalization_changes: normalizationChanges.slice(0, 10),\n  },\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2384,
+          480
+        ],
+        "id": "8f205b15-3096-4ab6-b419-bac8bcbea561",
+        "name": "Filter Structured Memory Candidates"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "WITH input_rows AS (\n  SELECT *\n  FROM jsonb_to_recordset($1::jsonb) AS x(\n    scope TEXT,\n    memory_type TEXT,\n    conversation_id UUID,\n    task_run_id UUID,\n    source_message_id UUID,\n    title TEXT,\n    summary TEXT,\n    details_json JSONB,\n    importance SMALLINT,\n    status TEXT\n  )\n), validated AS (\n  SELECT\n    gen_random_uuid() AS id,\n    scope,\n    memory_type,\n    conversation_id,\n    task_run_id,\n    source_message_id,\n    NULLIF(title, '') AS title,\n    summary,\n    COALESCE(details_json, '{}'::jsonb) AS details_json,\n    GREATEST(1, LEAST(5, COALESCE(importance, 3)))::smallint AS importance,\n    COALESCE(status, 'active') AS status\n  FROM input_rows\n  WHERE scope IN ('global', 'conversation', 'task')\n    AND memory_type IN ('task_summary', 'decision', 'environment_fact', 'operational_note', 'conversation_summary')\n    AND COALESCE(status, 'active') IN ('active', 'superseded', 'archived')\n    AND NULLIF(summary, '') IS NOT NULL\n), inserted AS (\n  INSERT INTO ghost_memory (\n    id,\n    scope,\n    memory_type,\n    conversation_id,\n    task_run_id,\n    source_message_id,\n    title,\n    summary,\n    details_json,\n    importance,\n    status\n  )\n  SELECT\n    id,\n    scope,\n    memory_type,\n    conversation_id,\n    task_run_id,\n    source_message_id,\n    title,\n    summary,\n    details_json,\n    importance,\n    status\n  FROM validated\n  RETURNING id, scope, memory_type, conversation_id, summary, details_json, created_at\n), superseded AS (\n  UPDATE ghost_memory older\n  SET status = 'superseded', updated_at = NOW()\n  FROM inserted newer\n  WHERE older.id <> newer.id\n    AND older.status = 'active'\n    AND older.memory_type = newer.memory_type\n    AND older.scope = newer.scope\n    AND older.memory_type IN ('decision', 'environment_fact', 'operational_note')\n    AND COALESCE(older.conversation_id, '00000000-0000-0000-0000-000000000000'::uuid) = COALESCE(newer.conversation_id, '00000000-0000-0000-0000-000000000000'::uuid)\n    AND (\n      (\n        COALESCE(NULLIF(newer.details_json->>'topic_key', ''), '') <> ''\n        AND NULLIF(older.details_json->>'topic_key', '') = NULLIF(newer.details_json->>'topic_key', '')\n      )\n      OR lower(older.summary) = lower(newer.summary)\n    )\n  RETURNING older.id\n)\nSELECT\n  inserted.id,\n  inserted.scope,\n  inserted.memory_type,\n  inserted.summary,\n  inserted.created_at,\n  (SELECT COUNT(*) FROM superseded) AS superseded_count\nFROM inserted;",
+          "options": {
+            "queryReplacement": "={{ JSON.stringify($json.memory_items || []) }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          2608,
+          480
+        ],
+        "id": "1d5067f9-ae66-4dff-991d-72be73ae0e48",
+        "name": "Save Structured Memory",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        },
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "jsCode": "const rows = $input.all().map((entry) => entry.json || {});\nconst context = $('Filter Structured Memory Candidates').item.json;\nconst savedRows = rows.filter((row) => !row.error && row.id);\nconst supersededCount = savedRows.length ? Number(savedRows[0].superseded_count || 0) : 0;\nreturn [{ json: {\n  conversation_id: context.conversation_id || '',\n  source_message_id: context.source_message_id || '',\n  memory_debug: {\n    ...(context.memory_debug || {}),\n    saved_count: savedRows.length,\n    superseded_count: supersededCount,\n    saved_items: savedRows.map((row) => ({\n      id: row.id,\n      scope: row.scope,\n      memory_type: row.memory_type,\n      summary: row.summary,\n    })),\n  },\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2832,
+          480
+        ],
+        "id": "38a83a81-612d-4c8a-bfd2-8db867c956c5",
+        "name": "Summarize Memory Write Outcome"
+      }
+    ],
+    "connections": {
+      "Incoming chat": {
+        "main": [
+          [
+            {
+              "node": "Normalize Input",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Normalize Input": {
+        "main": [
+          [
+            {
+              "node": "Find Conversation By ID",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Find Conversation By ID": {
+        "main": [
+          [
+            {
+              "node": "Conversation Exists?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Conversation Exists?": {
+        "main": [
+          [
+            {
+              "node": "Use Existing Conversation Context",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Create New Conversation",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Use Existing Conversation Context": {
+        "main": [
+          [
+            {
+              "node": "Conversation Context",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create New Conversation": {
+        "main": [
+          [
+            {
+              "node": "Conversation Context",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Conversation Context": {
+        "main": [
+          [
+            {
+              "node": "Save User Message",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Save User Message": {
+        "main": [
+          [
+            {
+              "node": "Touch Conversation Timestamp",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Load Recent Messages": {
+        "main": [
+          [
+            {
+              "node": "Load Ghost Memory",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Ghost System Prompt": {
+        "main": [
+          [
+            {
+              "node": "Compose Prompt With Ghost Memory",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Structured Messages": {
+        "main": [
+          [
+            {
+              "node": "Render Model Prompt",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Render Model Prompt": {
+        "main": [
+          [
+            {
+              "node": "Runtime Policy Config",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Runtime Policy Config": {
+        "main": [
+          [
+            {
+              "node": "Classify request",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Classify request": {
+        "main": [
+          [
+            {
+              "node": "Select Route Plan",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Select Route Plan": {
+        "main": [
+          [
+            {
+              "node": "Assess Approval Risk",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Provider Is OpenAI API?": {
+        "main": [
+          [
+            {
+              "node": "Build OpenAI Chat Request",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Provider Is Codex OAuth?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build OpenAI Chat Request": {
+        "main": [
+          [
+            {
+              "node": "Call OpenAI Chat",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Call OpenAI Chat": {
+        "main": [
+          [
+            {
+              "node": "Normalize OpenAI Reply",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Normalize OpenAI Reply": {
+        "main": [
+          [
+            {
+              "node": "Build API Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Provider Is Codex OAuth?": {
+        "main": [
+          [
+            {
+              "node": "Codex Approval Required?",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Call Ollama",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Call Ollama": {
+        "main": [
+          [
+            {
+              "node": "Normalize Ollama Reply",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Normalize Ollama Reply": {
+        "main": [
+          [
+            {
+              "node": "Build API Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Save Assistant Reply": {
+        "main": [
+          [
+            {
+              "node": "Touch Conversation Timestamp After Reply",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Build Memory Extraction Input",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Expose Route Metadata": {
+        "main": [
+          [
+            {
+              "node": "Provider Is OpenAI API?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Touch Conversation Timestamp": {
+        "main": [
+          [
+            {
+              "node": "Load Recent Messages",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build API Response": {
+        "main": [
+          [
+            {
+              "node": "Respond to Webhook",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Save Assistant Reply",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Execute Codex Command": {
+        "main": [
+          [
+            {
+              "node": "Normalize Codex Reply",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Normalize Codex Reply": {
+        "main": [
+          [
+            {
+              "node": "Build API Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Assess Approval Risk": {
+        "main": [
+          [
+            {
+              "node": "Expose Route Metadata",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Codex Approval Required?": {
+        "main": [
+          [
+            {
+              "node": "Build Approval Required Response",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Build Codex Command",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Approval Required Response": {
+        "main": [
+          [
+            {
+              "node": "Build API Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Codex Command": {
+        "main": [
+          [
+            {
+              "node": "Execute Codex Command",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Load Ghost Memory": {
+        "main": [
+          [
+            {
+              "node": "Build Ghost System Prompt",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Compose Prompt With Ghost Memory": {
+        "main": [
+          [
+            {
+              "node": "Build Structured Messages",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Memory Extraction Input": {
+        "main": [
+          [
+            {
+              "node": "Should Extract Memory?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Should Extract Memory?": {
+        "main": [
+          [
+            {
+              "node": "Use Invalid Memory Stub?",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Use Invalid Memory Stub?": {
+        "main": [
+          [
+            {
+              "node": "Return Invalid Memory Extractor Output",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Call OpenAI Memory Extractor",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Return Invalid Memory Extractor Output": {
+        "main": [
+          [
+            {
+              "node": "Parse Structured Memory",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Call OpenAI Memory Extractor": {
+        "main": [
+          [
+            {
+              "node": "Parse Structured Memory",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Structured Memory": {
+        "main": [
+          [
+            {
+              "node": "Filter Structured Memory Candidates",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filter Structured Memory Candidates": {
+        "main": [
+          [
+            {
+              "node": "Save Structured Memory",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Save Structured Memory": {
+        "main": [
+          [
+            {
+              "node": "Summarize Memory Write Outcome",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate",
+      "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": {},
+    "versionId": "231a015d-e86f-4c27-bd10-6876427616e4",
+    "activeVersionId": "231a015d-e86f-4c27-bd10-6876427616e4",
+    "versionCounter": 41,
+    "triggerCount": 1,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-03-12T12:08:38.760Z",
+        "createdAt": "2026-03-12T12:08:38.760Z",
+        "role": "workflow:owner",
+        "workflowId": "kvNzP8BQxXlrtKFG",
+        "projectId": "Dy430kHXAiPu4Qrc",
+        "project": {
+          "updatedAt": "2026-03-11T16:36:32.279Z",
+          "createdAt": "2026-03-11T16:35:10.642Z",
+          "id": "Dy430kHXAiPu4Qrc",
+          "name": "Goti DM <serial77@gmail.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "creatorId": "7ef1e7a5-f86b-4fc0-b166-eafa8d53ede3"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": null,
+      "description": null
+    }
+  }
+]

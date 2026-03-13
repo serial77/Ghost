@@ -1,0 +1,174 @@
+name: ghost
+
+services:
+  ghost-postgres:
+    image: postgres:16
+    container_name: ghost-postgres
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      POSTGRES_DB: ${GHOST_POSTGRES_DB}
+      POSTGRES_USER: ${GHOST_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${GHOST_POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:${GHOST_POSTGRES_PORT}:5432"
+    volumes:
+      - ghost_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${GHOST_POSTGRES_USER} -d ${GHOST_POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - ghost-net
+
+  ghost-redis:
+    image: redis:7
+    container_name: ghost-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --save 60 1000
+    ports:
+      - "127.0.0.1:${GHOST_REDIS_PORT}:6379"
+    volumes:
+      - ghost_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - ghost-net
+
+  ghost-ollama-proxy:
+    image: alpine:3.20
+    container_name: ghost-ollama-proxy
+    restart: unless-stopped
+    network_mode: host
+    command: >
+      sh -lc "apk add --no-cache socat &&
+      socat TCP-LISTEN:11435,fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:11434"
+
+  ghost-n8n-main:
+    image: n8nio/n8n:2.11.3
+    container_name: ghost-n8n-main
+    restart: unless-stopped
+    depends_on:
+      ghost-postgres:
+        condition: service_healthy
+      ghost-redis:
+        condition: service_healthy
+      ghost-ollama-proxy:
+        condition: service_started
+    ports:
+      - "127.0.0.1:${GHOST_N8N_PORT}:5678"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      TZ: ${TZ}
+
+      N8N_HOST: 127.0.0.1
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://127.0.0.1:${GHOST_N8N_PORT}/
+      N8N_EDITOR_BASE_URL: http://127.0.0.1:${GHOST_N8N_PORT}/
+
+      N8N_SECURE_COOKIE: "false"
+      N8N_ENCRYPTION_KEY: ${GHOST_N8N_ENCRYPTION_KEY}
+
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: ghost-postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${GHOST_POSTGRES_DB}
+      DB_POSTGRESDB_USER: ${GHOST_POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${GHOST_POSTGRES_PASSWORD}
+
+      EXECUTIONS_MODE: queue
+      QUEUE_BULL_REDIS_HOST: ghost-redis
+      QUEUE_BULL_REDIS_PORT: 6379
+      OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS: "true"
+
+      N8N_ENABLE_EXECUTE_COMMAND: "true"
+      NODES_EXCLUDE: '["n8n-nodes-base.localFileTrigger"]'
+      NODE_FUNCTION_ALLOW_EXTERNAL: "*"
+
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
+      N8N_TEMPLATES_ENABLED: "false"
+    volumes:
+      - ghost_n8n_data:/home/node/.n8n
+      - /home/deicide/dev/ghost-stack/app/identity:/files/identity:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5678 >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    networks:
+      - ghost-net
+
+  ghost-n8n-worker:
+    build:
+      context: /home/deicide/dev/ghost-stack/base/n8n-worker
+      dockerfile: Dockerfile
+    image: ghost-n8n-worker:2.11.3-codex
+    container_name: ghost-n8n-worker
+    restart: unless-stopped
+    command: worker
+    depends_on:
+      ghost-postgres:
+        condition: service_healthy
+      ghost-redis:
+        condition: service_healthy
+      ghost-ollama-proxy:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      TZ: ${TZ}
+
+      N8N_ENCRYPTION_KEY: ${GHOST_N8N_ENCRYPTION_KEY}
+
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: ghost-postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${GHOST_POSTGRES_DB}
+      DB_POSTGRESDB_USER: ${GHOST_POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${GHOST_POSTGRES_PASSWORD}
+
+      EXECUTIONS_MODE: queue
+      QUEUE_BULL_REDIS_HOST: ghost-redis
+      QUEUE_BULL_REDIS_PORT: 6379
+
+      N8N_ENABLE_EXECUTE_COMMAND: "true"
+      NODES_EXCLUDE: '["n8n-nodes-base.localFileTrigger"]'
+      NODE_FUNCTION_ALLOW_EXTERNAL: "*"
+
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
+      N8N_TEMPLATES_ENABLED: "false"
+
+      CODEX_BIN: codex
+      CODEX_HOME: /home/node/.codex
+      GHOST_CODEX_WRAPPER: /opt/ghost/bin/codex-safe
+    volumes:
+      - ghost_n8n_data:/home/node/.n8n
+      - /home/deicide/dev/ghost-stack/app/identity:/files/identity:ro
+      - /home/deicide/.codex:/home/node/.codex
+      - /home/deicide/bin/codex-auth.sh:/opt/ghost/bin/codex-auth.sh:ro
+      - /home/deicide/dev/ghost-stack/base/bin/codex-safe:/opt/ghost/bin/codex-safe:ro
+    networks:
+      - ghost-net
+
+volumes:
+  ghost_postgres_data:
+  ghost_redis_data:
+  ghost_n8n_data:
+
+networks:
+  ghost-net:
+    name: ghost-net
+    driver: bridge

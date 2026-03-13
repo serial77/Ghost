@@ -1,0 +1,746 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: calc(100vw - 56px);
+  margin-left: calc(50% - 50vw + 28px);
+  margin-right: calc(50% - 50vw + 28px);
+  min-height: calc(100vh - 164px);
+}
+
+/* ── Top bar ── */
+
+.topBar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.topBarTitle {
+  display: grid;
+  gap: 4px;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.7rem, 2.2vw, 2.4rem);
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.topBarSignals {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.boardStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.boardStatusLabel {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+/* ── Buttons ── */
+
+.newTaskButton,
+.primaryButton,
+.secondaryButton {
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.newTaskButton,
+.primaryButton {
+  color: #08111f;
+  background: linear-gradient(135deg, rgba(110, 237, 190, 0.95), rgba(137, 178, 255, 0.92));
+}
+
+.secondaryButton {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Status dots ── */
+
+.statusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.statusDotSuccess {
+  background: #4ce89e;
+  box-shadow: 0 0 0 2px rgba(76, 232, 158, 0.14), 0 0 7px rgba(76, 232, 158, 0.42);
+  animation: dot-pulse 2.6s ease-in-out infinite;
+}
+
+.statusDotWarning {
+  background: #f4c56b;
+  box-shadow: 0 0 0 2px rgba(244, 197, 107, 0.13), 0 0 6px rgba(244, 197, 107, 0.36);
+}
+
+.statusDotDanger {
+  background: #f76e6e;
+  box-shadow: 0 0 0 2px rgba(247, 110, 110, 0.13), 0 0 6px rgba(247, 110, 110, 0.36);
+}
+
+.statusDotNeutral {
+  background: rgba(180, 190, 210, 0.28);
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ── Summary strip ── */
+
+.summaryStrip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.metricTile {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(165, 196, 255, 0.09);
+  background: linear-gradient(180deg, rgba(14, 22, 48, 0.72), rgba(9, 14, 31, 0.88));
+}
+
+.metricHeader {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.metricLabel {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.metricValue {
+  font-size: 1.65rem;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+/* ── Main layout ── */
+
+.layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 270px;
+  gap: 14px;
+  align-items: start;
+  min-height: calc(100vh - 292px);
+}
+
+.layoutWithDrawer {
+  grid-template-columns: 200px minmax(0, 1fr) 270px 540px;
+}
+
+.agentRail,
+.feedRail,
+.queueSection,
+.drawerRail {
+  min-width: 0;
+}
+
+/* ── Side panels ── */
+
+.sidePanel,
+.queueShell {
+  padding: 14px;
+  min-height: calc(100vh - 292px);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.panelTitle {
+  margin: 4px 0 0;
+  font-size: 0.95rem;
+}
+
+.panelCount {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
+/* ── Agent rail ── */
+
+.agentList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agentItem {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(165, 196, 255, 0.07);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.agentBadge {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(104, 121, 255, 0.24), rgba(255, 94, 189, 0.14));
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+}
+
+.agentBody {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.agentTopline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agentName {
+  font-size: 0.86rem;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agentStatus {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-transform: capitalize;
+}
+
+.agentTask {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Lane scroller ── */
+
+.laneScroller {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 272px;
+  gap: 10px;
+  overflow-x: auto;
+  padding-top: 12px;
+  padding-bottom: 6px;
+  align-items: start;
+}
+
+/* ── Lanes ── */
+
+.lane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: calc(100vh - 390px);
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(165, 196, 255, 0.09);
+  background: linear-gradient(180deg, rgba(8, 13, 29, 0.78), rgba(5, 9, 22, 0.92));
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
+}
+
+.lanePlanning { box-shadow: inset 0 2px 0 rgba(100, 155, 255, 0.28), 0 16px 48px rgba(0, 0, 0, 0.22); }
+.laneInbox    { box-shadow: inset 0 2px 0 rgba(100, 80,  240, 0.28), 0 16px 48px rgba(0, 0, 0, 0.22); }
+.laneAssigned { box-shadow: inset 0 2px 0 rgba(165, 80,  255, 0.28), 0 16px 48px rgba(0, 0, 0, 0.22); }
+.laneProgress { box-shadow: inset 0 2px 0 rgba(60,  210, 225, 0.28), 0 16px 48px rgba(0, 0, 0, 0.22); }
+.laneTesting  { box-shadow: inset 0 2px 0 rgba(255, 140, 50,  0.28), 0 16px 48px rgba(0, 0, 0, 0.22); }
+.laneReview   { box-shadow: inset 0 2px 0 rgba(244, 197, 80,  0.28), 0 16px 48px rgba(0, 0, 0, 0.22); }
+.laneDone     { box-shadow: inset 0 2px 0 rgba(80,  210, 140, 0.28), 0 16px 48px rgba(0, 0, 0, 0.22); }
+
+.laneHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.laneTitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.laneDescription {
+  margin: 4px 0 0;
+  color: var(--text-dim);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.laneCount {
+  min-width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-soft);
+  font-size: 0.78rem;
+}
+
+/* ── Cards ── */
+
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(165, 196, 255, 0.09);
+  background: linear-gradient(180deg, rgba(14, 22, 48, 0.75), rgba(8, 12, 27, 0.90));
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.card:hover {
+  border-color: rgba(165, 196, 255, 0.16);
+  background: linear-gradient(180deg, rgba(18, 26, 54, 0.82), rgba(10, 15, 32, 0.94));
+}
+
+.card:focus-visible {
+  outline: 2px solid rgba(137, 178, 255, 0.7);
+  outline-offset: 2px;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cardHeaderInner {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+  padding-top: 1px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  font-weight: 500;
+}
+
+.cardPriority {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.cardSummary {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 0.76rem;
+  color: var(--text-soft);
+}
+
+.cardMetaDim {
+  color: var(--text-dim);
+  font-size: 0.73rem;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.inlineControls {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.inlineToggle,
+.inlineApply {
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.inlineToggle {
+  justify-self: start;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.inlineApply {
+  color: #08111f;
+  background: linear-gradient(135deg, rgba(110, 237, 190, 0.95), rgba(137, 178, 255, 0.92));
+}
+
+.inlinePanel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.inlineField {
+  display: grid;
+  gap: 6px;
+}
+
+.inlineLabel {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.68rem;
+}
+
+.inlineSelect {
+  width: 100%;
+  border: 1px solid rgba(165, 196, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(8, 13, 29, 0.88);
+  color: var(--text);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.84rem;
+}
+
+.inlineError {
+  grid-column: 1 / -1;
+  color: #ff8c8c;
+  font-size: 0.76rem;
+}
+
+.cardLinks {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cardLink,
+.feedLink,
+.cardLinkMuted,
+.cardLinkButton {
+  color: var(--blue);
+  font-size: 0.8rem;
+}
+
+.cardLinkMuted {
+  color: var(--text-dim);
+}
+
+.cardLinkButton {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.laneEmpty,
+.emptyPanel {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  border-radius: 10px;
+  border: 1px dashed rgba(165, 196, 255, 0.1);
+  color: var(--text-dim);
+  padding: 20px;
+  min-height: 140px;
+}
+
+/* ── Feed rail ── */
+
+.feedGrouped {
+  display: grid;
+  gap: 16px;
+}
+
+.feedSection {
+  display: grid;
+  gap: 6px;
+}
+
+.feedSectionTitle {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.feedList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.feedItem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: transparent;
+  transition: background 0.1s;
+}
+
+.feedItem:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.feedTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.feedTime {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.feedRail .sidePanel,
+.agentRail .sidePanel {
+  min-height: calc(100vh - 292px);
+}
+
+/* ── Drawer ── */
+
+.drawerShell {
+  padding: 0;
+  overflow: hidden;
+  position: sticky;
+  top: 16px;
+  min-height: calc(100vh - 292px);
+}
+
+.drawerState {
+  padding: 20px;
+  color: var(--text-dim);
+}
+
+/* ── Create task modal ── */
+
+.createOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.createBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 18, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.createPanel {
+  position: relative;
+  z-index: 1;
+  width: min(760px, calc(100vw - 48px));
+  padding: 18px;
+}
+
+.formGrid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.formField {
+  display: grid;
+  gap: 8px;
+}
+
+.formFieldFull {
+  grid-column: 1 / -1;
+}
+
+.formLabel {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+}
+
+.formInput,
+.formTextarea {
+  width: 100%;
+  border: 1px solid rgba(165, 196, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(8, 13, 29, 0.88);
+  color: var(--text);
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.formTextarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.formActions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.formError {
+  margin: 14px 0 0;
+  color: #ff8c8c;
+  font-size: 0.86rem;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 1380px) {
+  .summaryStrip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .layout {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+
+  .layoutWithDrawer {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+
+  .feedRail {
+    grid-column: 1 / -1;
+  }
+
+  .drawerRail {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .page {
+    width: auto;
+    margin-left: 0;
+    margin-right: 0;
+    min-height: auto;
+  }
+
+  .summaryStrip {
+    grid-template-columns: 1fr;
+  }
+
+  .layout {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .topBar,
+  .topBarSignals,
+  .panelHeader,
+  .cardHeader,
+  .cardFooter,
+  .cardLinks,
+  .feedItem,
+  .agentTopline,
+  .formActions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .inlinePanel {
+    grid-template-columns: 1fr;
+  }
+
+  .lane {
+    min-height: auto;
+  }
+}

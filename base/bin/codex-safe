@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+export CODEX_HOME
+
+if [ -x /opt/ghost/bin/codex-auth.sh ]; then
+  exec /opt/ghost/bin/codex-auth.sh run "$@"
+fi
+
+exec "$HOME/bin/codex-auth.sh" run "$@"
