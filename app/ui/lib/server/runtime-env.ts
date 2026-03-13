@@ -5,6 +5,17 @@ type RuntimeEnv = Record<string, string>;
 
 let cachedEnv: RuntimeEnv | null = null;
 
+const serverDir = path.resolve(__dirname);
+const uiRoot = path.resolve(serverDir, "..", "..");
+const workspaceRoot = path.resolve(uiRoot, "..", "..");
+
+const envSearchPaths = [
+  path.join(uiRoot, ".env.local"),
+  path.join(uiRoot, ".env"),
+  path.join(workspaceRoot, "base", ".env"),
+  path.join(path.dirname(workspaceRoot), "ghost-stack", "base", ".env"),
+];
+
 function parseEnvFile(contents: string): RuntimeEnv {
   return contents.split("\n").reduce<RuntimeEnv>((accumulator, line) => {
     const trimmed = line.trim();
@@ -19,7 +30,8 @@ function parseEnvFile(contents: string): RuntimeEnv {
 
     const key = trimmed.slice(0, separatorIndex).trim();
     const value = trimmed.slice(separatorIndex + 1).trim();
-    accumulator[key] = value;
+    const normalized = value.replace(/^['"]|['"]$/g, "");
+    accumulator[key] = normalized;
     return accumulator;
   }, {});
 }
@@ -29,19 +41,25 @@ function loadFallbackEnv() {
     return cachedEnv;
   }
 
-  const fallbackPath = path.resolve(process.cwd(), "..", "..", "base", ".env");
-  cachedEnv = existsSync(fallbackPath) ? parseEnvFile(readFileSync(fallbackPath, "utf8")) : {};
+  for (const envPath of envSearchPaths) {
+    if (existsSync(envPath)) {
+      cachedEnv = parseEnvFile(readFileSync(envPath, "utf8"));
+      return cachedEnv;
+    }
+  }
+
+  cachedEnv = {};
   return cachedEnv;
 }
 
 function getValue(key: string, fallback?: string) {
   const fromProcess = process.env[key];
-  if (fromProcess) {
+  if (fromProcess !== undefined) {
     return fromProcess;
   }
 
   const fromFallback = loadFallbackEnv()[key];
-  if (fromFallback) {
+  if (fromFallback !== undefined) {
     return fromFallback;
   }
 
