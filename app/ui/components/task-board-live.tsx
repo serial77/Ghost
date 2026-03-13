@@ -225,10 +225,16 @@ function MissionCard({
   const tone = cardTone(card);
   const owner = card.orchestrationOwner?.label ?? card.assignedActor?.label ?? "Ghost";
   const ownerTone = ownershipTone(card);
+  const cardToneClass: Record<ReturnType<typeof cardTone>, string> = {
+    success: styles.cardToneSuccess,
+    warning: styles.cardToneWarning,
+    danger: styles.cardToneDanger,
+    neutral: styles.cardToneNeutral,
+  };
 
   return (
     <article
-      className={styles.card}
+      className={cn(styles.card, cardToneClass[tone])}
       role="button"
       tabIndex={0}
       onClick={(event) => { if (!shouldIgnoreCardOpen(event.target)) onOpen(card); }}

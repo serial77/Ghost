@@ -1,7 +1,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 20px;
   width: calc(100vw - 56px);
   margin-left: calc(50% - 50vw + 28px);
   margin-right: calc(50% - 50vw + 28px);
@@ -108,18 +108,24 @@
 /* ── Summary strip ── */
 
 .summaryStrip {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.metricTile {
-  display: grid;
-  gap: 6px;
-  padding: 14px;
+  display: flex;
+  gap: 0;
   border-radius: 12px;
   border: 1px solid rgba(165, 196, 255, 0.09);
   background: linear-gradient(180deg, rgba(14, 22, 48, 0.72), rgba(9, 14, 31, 0.88));
+  overflow: hidden;
+}
+
+.metricTile {
+  flex: 1;
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border-right: 1px solid rgba(165, 196, 255, 0.07);
+}
+
+.metricTile:last-child {
+  border-right: none;
 }
 
 .metricHeader {
@@ -145,14 +151,14 @@
 
 .layout {
   display: grid;
-  grid-template-columns: 200px minmax(0, 1fr) 270px;
-  gap: 14px;
+  grid-template-columns: 220px minmax(0, 1fr) 280px;
+  gap: 18px;
   align-items: start;
   min-height: calc(100vh - 292px);
 }
 
 .layoutWithDrawer {
-  grid-template-columns: 200px minmax(0, 1fr) 270px 540px;
+  grid-template-columns: 220px minmax(0, 1fr) 280px 540px;
 }
 
 .agentRail,
@@ -166,7 +172,7 @@
 
 .sidePanel,
 .queueShell {
-  padding: 14px;
+  padding: 18px;
   min-height: calc(100vh - 292px);
 }
 
@@ -175,7 +181,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .panelTitle {
@@ -263,8 +269,8 @@
 .laneScroller {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 272px;
-  gap: 10px;
+  grid-auto-columns: 290px;
+  gap: 14px;
   overflow-x: auto;
   padding-top: 12px;
   padding-bottom: 6px;
@@ -276,9 +282,9 @@
 .lane {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   min-height: calc(100vh - 390px);
-  padding: 12px;
+  padding: 16px;
   border-radius: 12px;
   border: 1px solid rgba(165, 196, 255, 0.09);
   background: linear-gradient(180deg, rgba(8, 13, 29, 0.78), rgba(5, 9, 22, 0.92));
@@ -324,19 +330,28 @@
   font-size: 0.78rem;
 }
 
+/* Lane title tints — match the top-accent color per lane */
+.lanePlanning .laneTitle { color: rgba(120, 160, 255, 0.88); }
+.laneInbox    .laneTitle { color: rgba(130, 110, 250, 0.88); }
+.laneAssigned .laneTitle { color: rgba(175, 100, 255, 0.88); }
+.laneProgress .laneTitle { color: rgba(70,  215, 230, 0.88); }
+.laneTesting  .laneTitle { color: rgba(255, 155,  60, 0.88); }
+.laneReview   .laneTitle { color: rgba(248, 200,  80, 0.88); }
+.laneDone     .laneTitle { color: rgba(80,  210, 145, 0.88); }
+
 /* ── Cards ── */
 
 .cardList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 11px;
+  gap: 10px;
+  padding: 14px;
   border-radius: 10px;
   border: 1px solid rgba(165, 196, 255, 0.09);
   background: linear-gradient(180deg, rgba(14, 22, 48, 0.75), rgba(8, 12, 27, 0.90));
@@ -353,6 +368,12 @@
   outline: 2px solid rgba(137, 178, 255, 0.7);
   outline-offset: 2px;
 }
+
+/* Left-border tone accents — quick visual signal before reading the card */
+.cardToneWarning { border-left: 2px solid rgba(244, 197, 107, 0.52); }
+.cardToneDanger  { border-left: 2px solid rgba(247, 110, 110, 0.52); }
+.cardToneSuccess { border-left: 2px solid rgba(76,  232, 158, 0.42); }
+.cardToneNeutral { /* inherits default border */ }
 
 .cardHeader {
   display: flex;
@@ -517,18 +538,16 @@
   display: grid;
   place-items: center;
   text-align: center;
-  border-radius: 10px;
-  border: 1px dashed rgba(165, 196, 255, 0.1);
   color: var(--text-dim);
   padding: 20px;
-  min-height: 140px;
+  min-height: 120px;
 }
 
 /* ── Feed rail ── */
 
 .feedGrouped {
   display: grid;
-  gap: 16px;
+  gap: 20px;
 }
 
 .feedSection {
@@ -553,7 +572,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 6px 8px;
+  padding: 8px 10px;
   border-radius: 7px;
   background: transparent;
   transition: background 0.1s;
@@ -682,15 +701,19 @@
 
 @media (max-width: 1380px) {
   .summaryStrip {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    flex-wrap: wrap;
+  }
+
+  .metricTile {
+    flex: 1 0 160px;
   }
 
   .layout {
-    grid-template-columns: 200px minmax(0, 1fr);
+    grid-template-columns: 220px minmax(0, 1fr);
   }
 
   .layoutWithDrawer {
-    grid-template-columns: 200px minmax(0, 1fr);
+    grid-template-columns: 220px minmax(0, 1fr);
   }
 
   .feedRail {
@@ -711,7 +734,16 @@
   }
 
   .summaryStrip {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .metricTile {
+    border-right: none;
+    border-bottom: 1px solid rgba(165, 196, 255, 0.07);
+  }
+
+  .metricTile:last-child {
+    border-bottom: none;
   }
 
   .layout {
