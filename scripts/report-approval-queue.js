@@ -97,14 +97,26 @@ FROM (
     COALESCE(a.metadata -> 'approval_item' ->> 'approval_id', a.metadata ->> 'approval_contract_id', '') AS approval_contract_id,
     COALESCE(a.metadata -> 'approval_item' -> 'capabilities', a.metadata -> 'requested_capabilities', '[]'::jsonb) AS capabilities,
     COALESCE(a.metadata -> 'governed_outcome', '{}'::jsonb) AS governed_outcome,
+    COALESCE(a.metadata -> 'governed_transition', '{}'::jsonb) AS governed_transition,
+    COALESCE(a.metadata -> 'followthrough', '{}'::jsonb) AS followthrough,
     COALESCE(a.metadata -> 'resolution', '{}'::jsonb) AS resolution,
     COALESCE(a.response_text, '') AS response_text,
     COALESCE(a.responded_by_user_id::text, '') AS responded_by_user_id,
+    COALESCE(gf.followthrough_id, '') AS followthrough_id,
+    COALESCE(gf.followthrough_type, '') AS followthrough_type,
+    COALESCE(gf.execution_state, '') AS followthrough_execution_state,
+    COALESCE(gf.close_reason, '') AS followthrough_close_reason,
+    COALESCE(gf.executor_label, '') AS followthrough_executor_label,
+    CASE
+      WHEN a.status IN ('approved', 'rejected', 'expired', 'cancelled', 'superseded') AND gf.followthrough_id IS NULL THEN true
+      ELSE false
+    END AS followthrough_pending,
     a.requested_at::text AS requested_at,
     a.responded_at::text AS responded_at,
     COALESCE(a.responded_at, a.requested_at)::text AS updated_at
   FROM approvals a
   LEFT JOIN agents ag ON ag.id = a.requested_by_agent_id
+  LEFT JOIN ghost_governed_followthrough gf ON gf.approval_queue_id = a.id::text
   WHERE a.requested_at >= NOW() - INTERVAL '${recentHours} hours'
     ${statusFilter}
   ORDER BY a.requested_at DESC, a.id DESC

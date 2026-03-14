@@ -51,6 +51,9 @@ delegated_parity_gaps="$(psql_app_at "SELECT COUNT(*) FROM messages WHERE role =
 blocked_approvals="$(psql_app_at "SELECT COUNT(*) FROM conversation_delegations WHERE status = 'blocked' AND COALESCE(updated_at, created_at) >= NOW() - INTERVAL '${RECENT_HOURS} hours';")"
 pending_approval_queue="$(psql_app_at "SELECT COUNT(*) FROM approvals WHERE status = 'pending' AND requested_at >= NOW() - INTERVAL '${RECENT_HOURS} hours';")"
 stale_pending_approval_queue="$(psql_app_at "SELECT COUNT(*) FROM approvals WHERE status = 'pending' AND requested_at < NOW() - INTERVAL '${STALE_MINUTES} minutes';")"
+terminal_awaiting_followthrough="$(psql_app_at "SELECT COUNT(*) FROM approvals a WHERE a.status IN ('approved','rejected','expired','cancelled','superseded') AND a.requested_at >= NOW() - INTERVAL '${RECENT_HOURS} hours' AND NOT EXISTS (SELECT 1 FROM ghost_governed_followthrough gf WHERE gf.approval_queue_id = a.id::text);")"
+retry_enqueued_followthrough="$(psql_app_at "SELECT COUNT(*) FROM ghost_governed_followthrough WHERE execution_state = 'retry_enqueued' AND COALESCE(executed_at, created_at) >= NOW() - INTERVAL '${RECENT_HOURS} hours';")"
+closed_followthrough="$(psql_app_at "SELECT COUNT(*) FROM ghost_governed_followthrough WHERE execution_state = 'closed_without_retry' AND COALESCE(executed_at, created_at) >= NOW() - INTERVAL '${RECENT_HOURS} hours';")"
 approval_pressure_by_environment_json="$(psql_app_at "SELECT COALESCE(json_agg(row_to_json(x) ORDER BY x.pending_count DESC, x.environment), '[]'::json) FROM (SELECT COALESCE(metadata ->> 'governance_environment', metadata -> 'approval_item' ->> 'environment', 'unknown') AS environment, COUNT(*) FILTER (WHERE status = 'pending') AS pending_count, COUNT(*) AS total_count FROM approvals WHERE requested_at >= NOW() - INTERVAL '${RECENT_HOURS} hours' GROUP BY 1 LIMIT 5) x;")"
 approval_pressure_by_capability_json="$(psql_app_at "SELECT COALESCE(json_agg(row_to_json(x) ORDER BY x.pending_count DESC, x.capability_id), '[]'::json) FROM (SELECT capability_id, COUNT(*) FILTER (WHERE status = 'pending') AS pending_count, COUNT(*) AS total_count FROM approvals a CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(a.metadata -> 'requested_capabilities', '[]'::jsonb)) AS capability_id WHERE a.requested_at >= NOW() - INTERVAL '${RECENT_HOURS} hours' GROUP BY 1 LIMIT 8) x;")"
 approval_pressure_by_source_json="$(psql_app_at "SELECT COALESCE(json_agg(row_to_json(x) ORDER BY x.pending_count DESC, x.source_path), '[]'::json) FROM (SELECT COALESCE(metadata ->> 'source_path', 'unknown') AS source_path, COUNT(*) FILTER (WHERE status = 'pending') AS pending_count, COUNT(*) AS total_count FROM approvals WHERE requested_at >= NOW() - INTERVAL '${RECENT_HOURS} hours' GROUP BY 1 LIMIT 5) x;")"
@@ -78,6 +81,9 @@ export DELEGATED_PARITY_GAPS="$delegated_parity_gaps"
 export BLOCKED_APPROVALS="$blocked_approvals"
 export PENDING_APPROVAL_QUEUE="$pending_approval_queue"
 export STALE_PENDING_APPROVAL_QUEUE="$stale_pending_approval_queue"
+export TERMINAL_AWAITING_FOLLOWTHROUGH="$terminal_awaiting_followthrough"
+export RETRY_ENQUEUED_FOLLOWTHROUGH="$retry_enqueued_followthrough"
+export CLOSED_FOLLOWTHROUGH="$closed_followthrough"
 export APPROVAL_PRESSURE_BY_ENVIRONMENT_JSON="$approval_pressure_by_environment_json"
 export APPROVAL_PRESSURE_BY_CAPABILITY_JSON="$approval_pressure_by_capability_json"
 export APPROVAL_PRESSURE_BY_SOURCE_JSON="$approval_pressure_by_source_json"
@@ -132,6 +138,9 @@ const out = {
     approval_queue_pressure: {
       pending_approvals_24h: Number(process.env.PENDING_APPROVAL_QUEUE),
       stale_pending_approvals: Number(process.env.STALE_PENDING_APPROVAL_QUEUE),
+      terminal_awaiting_followthrough_24h: Number(process.env.TERMINAL_AWAITING_FOLLOWTHROUGH),
+      retry_enqueued_followthrough_24h: Number(process.env.RETRY_ENQUEUED_FOLLOWTHROUGH),
+      closed_followthrough_24h: Number(process.env.CLOSED_FOLLOWTHROUGH),
       pressure_by_environment: approvalPressureByEnvironment,
       pressure_by_capability: approvalPressureByCapability,
       pressure_by_source_path: approvalPressureBySource
