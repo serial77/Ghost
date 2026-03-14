@@ -261,26 +261,44 @@ const context = $('Expose Route Metadata').item.json;
 const rawStdout = typeof result.stdout === 'string' ? result.stdout.trim() : '';
 const nodeError = typeof result.error === 'string' ? result.error : (result.error?.message || '');
 let payload = {};
+let payloadParseFailed = false;
 if (rawStdout) {
   try {
     payload = JSON.parse(rawStdout);
   } catch (error) {
+    payloadParseFailed = true;
     payload = {
       reply: rawStdout,
-      success: true,
-      command_exit_code: 0,
+      success: false,
+      command_exit_code: typeof result.exitCode === 'number' ? result.exitCode : 0,
       stdout_summary: rawStdout.slice(0, 600),
       stderr_summary: typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '',
       artifact_path: '',
     };
   }
 }
-const stderrSummary = payload.stderr_summary || (typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '') || nodeError.slice(0, 600);
-const commandExitCode = payload.command_exit_code ?? (nodeError ? 127 : null);
-const commandSuccess = Boolean(payload.success);
+const commandExitCode = payload.command_exit_code ?? (typeof result.exitCode === 'number' ? result.exitCode : (nodeError ? 127 : null));
+const stderrSummaryBase = payload.stderr_summary || (typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '') || nodeError.slice(0, 600);
+const replyText = typeof payload.reply === 'string' ? payload.reply.trim() : '';
+const invalidPayload = payloadParseFailed || !payload || typeof payload !== 'object' || Array.isArray(payload);
+const commandSuccess = Boolean(payload.success) && !invalidPayload && replyText.length > 0;
+const derivedErrorType = commandSuccess
+  ? ''
+  : (invalidPayload || !replyText.length)
+      ? 'codex_invalid_result'
+      : 'codex_command_failed';
+const stderrSummary = commandSuccess
+  ? stderrSummaryBase
+  : (stderrSummaryBase || (invalidPayload
+      ? 'Codex returned an invalid result payload.'
+      : !replyText.length
+          ? 'Codex returned no reply content.'
+          : 'Codex execution failed.'));
 const failureSuffix = commandExitCode !== undefined && commandExitCode !== null ? \` (exit \${commandExitCode})\` : '';
 const failureReason = stderrSummary || 'No additional stderr was captured.';
-const reply = (payload.reply || '').trim() || (commandSuccess ? '[no-codex-reply]' : \`Codex execution failed\${failureSuffix}. \${failureReason}\`);
+const reply = commandSuccess
+  ? replyText
+  : \`Codex execution failed\${failureSuffix}. \${failureReason}\`;
 return [{ json: {
   ...context,
   ...result,
@@ -301,7 +319,7 @@ return [{ json: {
   stderr_summary: stderrSummary,
   artifact_path: payload.artifact_path || '',
   codex_command_status: commandSuccess ? 'succeeded' : 'failed',
-  error_type: commandSuccess ? '' : 'codex_command_failed',
+  error_type: derivedErrorType,
   n8n_execution_id: context.n8n_execution_id || null,
 } }];`;
 
