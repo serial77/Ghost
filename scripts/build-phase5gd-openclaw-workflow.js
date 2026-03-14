@@ -29,6 +29,10 @@ const {
   applyOwnerPolicyTailModule,
   assertOwnerPolicyTailContract,
 } = require("./workflow-modules/owner-policy-tail");
+const {
+  applyDelegationRouterTailModule,
+  assertDelegationRouterTailContract,
+} = require("./workflow-modules/delegation-router-tail");
 
 const projectRoot = path.join(__dirname, "..");
 const sourcePath = path.join(projectRoot, "workflows", "ghost-chat-v3-phase5d-runtime-ledger.json");
@@ -382,37 +386,14 @@ applyOwnerPolicyTailModule({
   makeCodeNode,
 });
 
-addNode(
-  workflow,
-  makeIfNode(
-    "Delegation Required?",
-    "={{ $json.delegation_required }}",
-    "true",
-    [576, -64],
-  ),
-);
-
 removeNode(workflow, "Build Finalize Delegation Context");
 removeNode(workflow, "Finalize Successful Delegation");
-addNode(
+applyDelegationRouterTailModule({
   workflow,
-  makeIfNode(
-    "Delegation Approval Required?",
-    "={{ $('Build Delegation Context').item.json.approval_required }}",
-    "true",
-    [1696, -208],
-  ),
-);
-
-addNode(
-  workflow,
-  makeIfNode(
-    "Delegated Worker Is Codex?",
-    "={{ ($json.delegated_provider || '') === 'codex_oauth_worker' }}",
-    "true",
-    [1920, -64],
-  ),
-);
+  addNode,
+  makeIfNode,
+  setMainConnections,
+});
 
 applyDelegatedSetupTailModule({
   workflow,
@@ -558,26 +539,12 @@ setMainConnections(workflow.connections, "Conversation Context With Owner", [
 
 removeConnection(workflow.connections, "Assess Approval Risk", "Expose Route Metadata");
 setMainConnections(workflow.connections, "Assess Approval Risk", [[{ node: "Resolve Parent Conversation Strategy" }]]);
-setMainConnections(workflow.connections, "Resolve Parent Conversation Strategy", [[{ node: "Delegation Required?" }]]);
-setMainConnections(workflow.connections, "Delegation Required?", [
-  [{ node: "Build Delegation Request" }],
-  [{ node: "Expose Route Metadata" }],
-]);
 setMainConnections(workflow.connections, "Build Delegation Request", [[{ node: "Create Conversation Delegation" }]]);
 setMainConnections(workflow.connections, "Create Conversation Delegation", [[{ node: "Build Delegation Context" }]]);
 setMainConnections(workflow.connections, "Build Delegation Context", [[{ node: "Save Delegated Worker Message" }]]);
 setMainConnections(workflow.connections, "Save Delegated Worker Message", [[{ node: "Build Delegation Execution Context" }]]);
-setMainConnections(workflow.connections, "Build Delegation Execution Context", [[{ node: "Delegation Approval Required?" }]]);
-setMainConnections(workflow.connections, "Delegation Approval Required?", [
-  [{ node: "Finalize Blocked Delegation" }],
-  [{ node: "Delegated Worker Is Codex?" }],
-]);
 setMainConnections(workflow.connections, "Finalize Blocked Delegation", [[{ node: "Build Parent Blocked Delegation Response" }]]);
 setMainConnections(workflow.connections, "Build Parent Blocked Delegation Response", [[{ node: "Build API Response" }]]);
-setMainConnections(workflow.connections, "Delegated Worker Is Codex?", [
-  [{ node: "Start Delegated Runtime" }],
-  [{ node: "Finalize Unsupported Delegation" }],
-]);
 setMainConnections(workflow.connections, "Finalize Unsupported Delegation", [[{ node: "Build Parent Unsupported Delegation Response" }]]);
 setMainConnections(workflow.connections, "Build Parent Unsupported Delegation Response", [[{ node: "Build API Response" }]]);
 setMainConnections(workflow.connections, "Start Delegated Runtime", [[{ node: "Build Delegated Codex Context" }]]);
@@ -599,5 +566,6 @@ assertDelegatedControlTailContract({ workflow, findNode, assertIncludes });
 assertDelegatedSetupTailContract({ workflow, findNode, assertIncludes });
 assertIngressConversationTailContract({ workflow, findNode, assertIncludes });
 assertOwnerPolicyTailContract({ workflow, findNode, assertIncludes });
+assertDelegationRouterTailContract({ workflow, findNode, assertIncludes });
 fs.writeFileSync(targetPath, JSON.stringify([workflow], null, 2) + "\n");
 console.log(targetPath);

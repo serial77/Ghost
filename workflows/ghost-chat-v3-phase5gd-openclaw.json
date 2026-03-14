@@ -2264,33 +2264,6 @@
           ]
         ]
       },
-      "Ensure Conversation Owner": {
-        "main": [
-          [
-            {
-              "node": "Conversation Context With Owner",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Conversation Context With Owner": {
-        "main": [
-          [
-            {
-              "node": "Save User Message",
-              "type": "main",
-              "index": 0
-            },
-            {
-              "node": "Build Runtime Ledger Start Payload",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
       "Resolve Parent Conversation Strategy": {
         "main": [
           [
@@ -2314,6 +2287,80 @@
           [
             {
               "node": "Expose Route Metadata",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Delegation Execution Context": {
+        "main": [
+          [
+            {
+              "node": "Delegation Approval Required?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Delegation Approval Required?": {
+        "main": [
+          [
+            {
+              "node": "Finalize Blocked Delegation",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Delegated Worker Is Codex?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Delegated Worker Is Codex?": {
+        "main": [
+          [
+            {
+              "node": "Start Delegated Runtime",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Finalize Unsupported Delegation",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ensure Conversation Owner": {
+        "main": [
+          [
+            {
+              "node": "Conversation Context With Owner",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Conversation Context With Owner": {
+        "main": [
+          [
+            {
+              "node": "Save User Message",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Build Runtime Ledger Start Payload",
               "type": "main",
               "index": 0
             }
@@ -2364,35 +2411,6 @@
           ]
         ]
       },
-      "Build Delegation Execution Context": {
-        "main": [
-          [
-            {
-              "node": "Delegation Approval Required?",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Delegation Approval Required?": {
-        "main": [
-          [
-            {
-              "node": "Finalize Blocked Delegation",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
-              "node": "Delegated Worker Is Codex?",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
       "Finalize Blocked Delegation": {
         "main": [
           [
@@ -2409,24 +2427,6 @@
           [
             {
               "node": "Build API Response",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Delegated Worker Is Codex?": {
-        "main": [
-          [
-            {
-              "node": "Start Delegated Runtime",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
-              "node": "Finalize Unsupported Delegation",
               "type": "main",
               "index": 0
             }
