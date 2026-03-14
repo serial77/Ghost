@@ -126,6 +126,126 @@ function makePostgresNode(name, query, queryReplacement, position, continueOnFai
   };
 }
 
+function assertIncludes(haystack, needle, context) {
+  if (!String(haystack || "").includes(needle)) {
+    throw new Error(`Direct-path contract check failed: missing '${needle}' in ${context}`);
+  }
+}
+
+function assertDirectPathContract(workflow) {
+  const buildApiResponse = findNode(workflow, "Build API Response");
+  const saveAssistantReply = findNode(workflow, "Save Assistant Reply");
+  const normalizeCodexReply = findNode(workflow, "Normalize Codex Reply");
+  const buildRuntimeLedgerCompletionPayload = findNode(workflow, "Build Runtime Ledger Completion Payload");
+  const annotateDirectRuntimeEvent = findNode(workflow, "Annotate Direct Runtime Event");
+
+  const apiCode = buildApiResponse.parameters.jsCode;
+  const assistantMetadata = saveAssistantReply.parameters.options.queryReplacement;
+  const codexCode = normalizeCodexReply.parameters.jsCode;
+  const completionPayloadCode = buildRuntimeLedgerCompletionPayload.parameters.jsCode;
+  const directEventQuery = annotateDirectRuntimeEvent.parameters.query;
+  const directEventReplacement = annotateDirectRuntimeEvent.parameters.options.queryReplacement;
+
+  const coreFields = [
+    "response_mode",
+    "parent_owner_label",
+    "provider_used",
+    "model_used",
+    "task_class",
+    "n8n_execution_id",
+    "runtime_task_id",
+    "runtime_task_run_id",
+    "command_success",
+    "command_exit_code",
+    "error_type",
+    "stdout_summary",
+    "stderr_summary",
+    "artifact_path",
+    "codex_command_status",
+  ];
+
+  for (const field of coreFields) {
+    assertIncludes(apiCode, field, "Build API Response");
+    assertIncludes(assistantMetadata, field, "Save Assistant Reply metadata");
+  }
+
+  for (const field of [
+    "runtime_task_id",
+    "runtime_task_run_id",
+    "n8n_execution_id",
+    "response_mode",
+    "parent_owner_label",
+    "command_success",
+    "command_exit_code",
+    "error_type",
+    "stdout_summary",
+    "stderr_summary",
+    "artifact_path",
+    "codex_command_status",
+  ]) {
+    assertIncludes(codexCode, field, "Normalize Codex Reply");
+  }
+
+  for (const field of [
+    "task_id",
+    "task_run_id",
+    "provider_used",
+    "model_used",
+    "task_class",
+    "command_success",
+    "command_exit_code",
+    "error_type",
+    "stdout_summary",
+    "stderr_summary",
+    "artifact_path",
+    "codex_command_status",
+    "n8n_execution_id",
+    "response_mode",
+    "parent_owner_label",
+  ]) {
+    assertIncludes(completionPayloadCode, field, "Build Runtime Ledger Completion Payload");
+  }
+
+  for (const field of [
+    "'direct_execution', TRUE",
+    "'n8n_execution_id'",
+    "'response_mode'",
+    "'parent_owner_label'",
+    "'provider_used'",
+    "'model_used'",
+    "'task_class'",
+    "'command_success'",
+    "'command_exit_code'",
+    "'error_type'",
+    "'stdout_summary'",
+    "'stderr_summary'",
+    "'artifact_path'",
+    "'codex_command_status'",
+  ]) {
+    assertIncludes(directEventQuery, field, "Annotate Direct Runtime Event query");
+  }
+
+  for (const field of [
+    "task_id",
+    "task_run_id",
+    "n8n_execution_id",
+    "response_mode",
+    "parent_owner_label",
+    "provider_used",
+    "model_used",
+    "task_class",
+    "command_success",
+    "command_exit_code",
+    "error_type",
+    "stdout_summary",
+    "stderr_summary",
+    "artifact_path",
+    "codex_command_status",
+  ]) {
+    assertIncludes(directEventReplacement, field, "Annotate Direct Runtime Event queryReplacement");
+  }
+}
+
 function makeIfNode(name, leftValue, operation, position, rightValue = undefined) {
   const condition = {
     id: makeId(`condition:${name}:${leftValue}:${operation}:${rightValue ?? ""}`),
@@ -188,6 +308,10 @@ ensureAssignment(exposeRouteMetadata, {
 });
 
 const buildApiResponse = findNode(workflow, "Build API Response");
+// v0.1 direct-path contract:
+// Build API Response is the canonical reply contract for direct owner execution.
+// These fields must stay preserved here because assistant metadata, task_run output_payload,
+// and direct tool_event annotation all derive from the same normalized direct reply shape.
 buildApiResponse.parameters.jsCode = `const item = $input.first().json;
 const asText = (value) => value === undefined || value === null ? '' : String(value).trim();
 const summarize = (value) => asText(value).replace(/\\s+/g, ' ').trim().slice(0, 600);
@@ -231,6 +355,10 @@ saveUserMessage.parameters.options.queryReplacement =
   "={{ [$json.conversation_id, $('Normalize Input').item.json.message, JSON.stringify({ source: 'ghost-chat-v3', type: 'user_message', entrypoint: $('Normalize Input').item.json.entrypoint || 'direct_webhook', n8n_execution_id: $('Normalize Input').item.json.n8n_execution_id || null })] }}";
 
 const saveAssistantReply = findNode(workflow, "Save Assistant Reply");
+// v0.1 direct-path contract:
+// Assistant metadata is the persisted operator/debug view for the parent reply.
+// It must retain runtime linkage, owner context, execution correlation, and normalized
+// result/error shaping fields so message inspection agrees with task_runs/tool_events.
 saveAssistantReply.parameters.options.queryReplacement =
   "={{ [$json.conversation_id, $json.reply, $json.model_used || null, { provider_used: $json.provider_used || null, task_class: $json.task_class || null, approval_required: $json.approval_required || false, risk_level: $json.risk_level || 'safe', risk_reasons: $json.risk_reasons || [], task_summary: $json.task_summary || '', command_success: $json.command_success === true, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $json.runtime_task_id || null, runtime_task_run_id: $json.runtime_task_run_id || null, worker_conversation_id: $json.worker_conversation_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || 'direct_owner_reply', parent_owner_label: $json.parent_owner_label || null }] }}";
 
@@ -402,6 +530,10 @@ FROM public.ghost_runtime_start_task_ledger(
 );`;
 
 const buildRuntimeLedgerCompletionPayload = findNode(workflow, "Build Runtime Ledger Completion Payload");
+// v0.1 direct-path contract:
+// task_runs.output_payload and the direct tool_event annotation step must share the same
+// core execution fields so reconciliation can compare tasks/task_runs/messages/tool_events
+// without inferring semantics from free text.
 buildRuntimeLedgerCompletionPayload.parameters.jsCode = `const item = $input.first().json;
 const startRows = $items('Start Runtime Ledger', 0, 0);
 const started = startRows[0]?.json || {};
@@ -433,6 +565,9 @@ addNode(
   workflow,
   makePostgresNode(
     "Annotate Direct Runtime Event",
+    // v0.1 direct-path contract:
+    // The latest direct runtime tool_event must carry the same core execution/correlation
+    // fields as the normalized reply/task_run trail plus an explicit direct_execution marker.
     `WITH target_event AS (
   SELECT id
   FROM tool_events
@@ -1281,5 +1416,6 @@ setMainConnections(workflow.connections, "Annotate Delegation Completion Event",
 setMainConnections(workflow.connections, "Build Parent Delegation Response", [[{ node: "Build API Response" }]]);
 setMainConnections(workflow.connections, "Complete Runtime Ledger", [[{ node: "Annotate Direct Runtime Event" }]]);
 
+assertDirectPathContract(workflow);
 fs.writeFileSync(targetPath, JSON.stringify([workflow], null, 2) + "\n");
 console.log(targetPath);

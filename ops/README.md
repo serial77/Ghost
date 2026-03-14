@@ -108,6 +108,50 @@ ops/reconcile-runtime.sh --stale-minutes 15 --recent-hours 6
 ops/reconcile-runtime.sh --limit 50
 ```
 
+## Direct Path Contract
+
+v0.1 direct owner execution is considered persistence-correct only when the same core fields remain visible across the canonical direct truth surfaces:
+
+- API/build contract via `Build API Response`
+- assistant reply metadata in `messages.metadata`
+- latest `task_runs.output_payload`
+- latest annotated direct `tool_events.payload`
+
+Core fields:
+
+- `response_mode`
+- `parent_owner_label`
+- `provider_used`
+- `model_used`
+- `task_class`
+- `n8n_execution_id`
+- `runtime_task_id`
+- `runtime_task_run_id`
+- `command_success`
+- `command_exit_code`
+- `error_type`
+- `stdout_summary`
+- `stderr_summary`
+- `artifact_path`
+- `codex_command_status`
+- `direct_execution` marker on direct `tool_events`
+
+Intended semantics:
+
+- direct owner replies should use `response_mode=direct_owner_reply`
+- `parent_owner_label` should reflect the resolved conversation owner kept on the parent path
+- assistant metadata and `task_runs.output_payload` should agree on normalized result/error fields
+- the latest direct `tool_event` should carry direct execution context and correlation, not just a thin completion row
+
+Regression guard:
+
+- `scripts/build-phase5gd-openclaw-workflow.js` now asserts that the generated workflow still preserves the required direct-path contract fields in:
+  - `Normalize Codex Reply`
+  - `Build API Response`
+  - `Save Assistant Reply`
+  - `Build Runtime Ledger Completion Payload`
+  - `Annotate Direct Runtime Event`
+
 ### `ops/trace-memory.sh`
 Trace parent/worker memory separation and conversation memory state.
 
