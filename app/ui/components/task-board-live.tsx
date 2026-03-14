@@ -41,11 +41,6 @@ function agentTone(agent: TaskBoardAgent): "success" | "warning" | "neutral" {
   return "warning";
 }
 
-function ownershipTone(card: TaskBoardCard): "success" | "warning" | "neutral" {
-  if (card.ownershipMode === "board_owned") return "success";
-  if (card.ownershipMode === "hybrid") return "warning";
-  return "neutral";
-}
 
 function laneClass(lane: TaskBoardLane) {
   if (lane.id === "planning") return styles.lanePlanning;
@@ -169,13 +164,15 @@ function AgentRailItem({ agent }: { agent: TaskBoardAgent }) {
     <div className={styles.agentItem}>
       <div className={styles.agentIcon}>{agentIcon(agent.label)}</div>
       <div className={styles.agentBody}>
-        <div className={styles.agentTopline}>
-          <strong className={styles.agentName}>{agent.label}</strong>
+        <strong className={styles.agentName}>{agent.label}</strong>
+        <div className={styles.agentStatusLine}>
           <span className={cn(styles.agentChip, tone === "success" ? styles.agentChipActive : styles.agentChipIdle)}>
             {agent.status}
           </span>
+          {agent.currentTaskTitle ? (
+            <span className={styles.agentTask}>{agent.currentTaskTitle}</span>
+          ) : null}
         </div>
-        <div className={styles.agentTask}>{agent.currentTaskTitle ?? "—"}</div>
       </div>
     </div>
   );
@@ -185,20 +182,16 @@ function AgentRailItem({ agent }: { agent: TaskBoardAgent }) {
 
 function MissionCard({
   card,
-  stageOptions,
-  agentOptions,
-  onApply,
   onOpen,
 }: {
   card: TaskBoardCard;
-  stageOptions: TaskBoardWorkspaceControlOption[];
-  agentOptions: TaskBoardWorkspaceControlOption[];
-  onApply: (input: { card: TaskBoardCard; stage: TaskBoardLaneId; orchestratorAgentId: string }) => Promise<void>;
   onOpen: (card: TaskBoardCard) => void;
 }) {
   const tone = cardTone(card);
   const owner = card.orchestrationOwner?.label ?? card.assignedActor?.label ?? "Ghost";
-  const ownerTone = ownershipTone(card);
+  const priorityClass = card.priorityLabel
+    ? ({ high: styles.cardPriorityHigh, urgent: styles.cardPriorityUrgent, normal: styles.cardPriorityNormal, low: styles.cardPriorityLow, resolved: styles.cardPriorityResolved, succeeded: styles.cardPrioritySucceeded } as Record<string, string>)[card.priorityLabel.toLowerCase()]
+    : undefined;
   const cardToneClass: Record<ReturnType<typeof cardTone>, string> = {
     success: styles.cardToneSuccess,
     warning: styles.cardToneWarning,
@@ -224,37 +217,27 @@ function MissionCard({
           <StatusDot tone={tone} />
           <h3 className={styles.cardTitle}>{card.title}</h3>
         </div>
-        {card.priorityLabel ? <span className={styles.cardPriority}>{card.priorityLabel}</span> : null}
+        {card.priorityLabel ? <span className={cn(styles.cardPriority, priorityClass)}>{card.priorityLabel}</span> : null}
       </div>
-
-      <p className={styles.cardSummary}>{card.summary}</p>
 
       <div className={styles.cardMeta}>
-        <StatusDot tone={ownerTone} />
         <span>{owner}</span>
-        {card.latestActivityTitle ? (
-          <span className={styles.cardMetaDim}>· {card.latestActivityTitle}</span>
-        ) : null}
+        <span className={styles.cardMetaDim}>· {card.freshnessLabel ?? relativeTime(card.updatedAt)}</span>
       </div>
-
-      <div className={styles.cardFooter} onClick={(e) => e.stopPropagation()}>
-        <button type="button" className={styles.cardLinkButton} onClick={() => onOpen(card)}>
-          Open
-        </button>
-        <div className={styles.cardLinks}>
-          <a href={card.detailHref} className={styles.cardLink}>Deep link</a>
-          {card.runtimeHref ? (
-            <a href={card.runtimeHref} className={styles.cardLinkMuted}>Runtime</a>
-          ) : null}
-        </div>
-      </div>
-
-      <InlineControlPanel card={card} stageOptions={stageOptions} agentOptions={agentOptions} onApply={onApply} />
     </article>
   );
 }
 
 // ── Feed item ─────────────────────────────────────────────────────────────────
+
+function ClockIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
 
 function FeedItem({ item }: { item: TaskBoardFeedItem }) {
   const tone = (item.tone ?? "neutral") as "success" | "warning" | "danger" | "neutral";
@@ -266,10 +249,16 @@ function FeedItem({ item }: { item: TaskBoardFeedItem }) {
   };
   return (
     <div className={cn(styles.feedItem, feedToneClass[tone])}>
-      <StatusDot tone={tone} />
-      <span className={styles.feedTitle}>{item.title}</span>
-      {item.href ? <a href={item.href} className={styles.feedLink}>↗</a> : null}
-      <time className={styles.feedTime}>{relativeTime(item.timestamp)}</time>
+      <div className={styles.feedItemBody}>
+        <div className={styles.feedTitle}>
+          {item.title}
+          {item.href ? <a href={item.href} className={styles.feedLink}>↗</a> : null}
+        </div>
+        <div className={styles.feedMeta}>
+          <ClockIcon />
+          <time>{relativeTime(item.timestamp)}</time>
+        </div>
+      </div>
     </div>
   );
 }
@@ -377,6 +366,19 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
     return () => window.clearInterval(interval);
   }, [selectedItemId]);
 
+  useEffect(() => {
+    if (!selectedItemId) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setSelectedItemId(null);
+        setDrawerPayload(null);
+        setDrawerError(null);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedItemId]);
+
   const filteredFeed = feedTab === "all"
     ? payload.feed
     : payload.feed.filter((item) =>
@@ -388,22 +390,21 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
 
   return (
     <div className={cn("screen", "shell-page", styles.page)}>
-
       {/* ── Top bar ── */}
       <div className={styles.topBar}>
         <div className={styles.topBarLeft}>
           <h1 className={styles.title}>Mission Control</h1>
         </div>
         <div className={styles.topBarCenter}>
-          <div className={styles.statBlock}>
+          <div className={cn(styles.statBlock, styles.statBlockAgents)}>
             <div className={styles.statValue}>{payload.summary.activeAgents}</div>
             <div className={styles.statLabel}>Agents active</div>
           </div>
-          <div className={styles.statBlock}>
+          <div className={cn(styles.statBlock, styles.statBlockTasks)}>
             <div className={styles.statValue}>{payload.summary.totalCards}</div>
             <div className={styles.statLabel}>Tasks in queue</div>
           </div>
-          <div className={styles.statBlock}>
+          <div className={cn(styles.statBlock, styles.statBlockReview)}>
             <div className={styles.statValue}>{payload.summary.reviewNeeded}</div>
             <div className={styles.statLabel}>Need review</div>
           </div>
@@ -420,7 +421,7 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
       </div>
 
       {/* ── Three-column layout ── */}
-      <div className={cn(styles.layout, selectedItemId && styles.layoutWithDrawer)}>
+      <div className={styles.layout}>
 
         {/* Agent rail */}
         <aside className={styles.agentRail}>
@@ -448,6 +449,9 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
           </div>
         </aside>
 
+        {/* Board area: lanes + feed rail flush together */}
+        <div className={styles.boardArea}>
+
         {/* Queue section */}
         <section className={styles.queueSection}>
           <div className={styles.queueShell}>
@@ -458,10 +462,7 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
                   className={cn(styles.lane, laneClass(lane))}
                 >
                   <header className={styles.laneHeader}>
-                    <div>
-                      <h4 className={styles.laneTitle}>{lane.title}</h4>
-                      <p className={styles.laneDescription}>{lane.description}</p>
-                    </div>
+                    <h4 className={styles.laneTitle}>{lane.title}</h4>
                     <div className={styles.laneCount}>{lane.count}</div>
                   </header>
 
@@ -471,22 +472,12 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
                         <MissionCard
                           key={card.id}
                           card={card}
-                          stageOptions={payload.controls.stageOptions}
-                          agentOptions={payload.controls.agentOptions}
-                          onApply={applyInlineControls}
                           onOpen={() => void loadWorkspace(card.id)}
                         />
                       ))}
                     </div>
                   ) : (
-                    <div className={styles.laneEmpty}>
-                      <div>
-                        <strong>No cards</strong>
-                        <p className="caption" style={{ marginTop: 8 }}>
-                          Ghost will place tasks here as orchestration posture evolves.
-                        </p>
-                      </div>
-                    </div>
+                    <div className={styles.laneEmpty} />
                   )}
                 </section>
               ))}
@@ -494,7 +485,7 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
           </div>
         </section>
 
-        {/* Feed rail */}
+        {/* Feed rail — inside boardArea, always flush after lanes */}
         <aside className={styles.feedRail}>
           <div className={cn("glass-panel", styles.sidePanel)}>
             <div className={styles.railHeader}>
@@ -520,32 +511,43 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
           </div>
         </aside>
 
-        {/* Drawer rail */}
-        {selectedItemId ? (
-          <aside className={styles.drawerRail}>
-            <Card className={styles.drawerShell}>
-              {drawerLoading ? <div className={styles.drawerState}>Loading board workspace…</div> : null}
-              {!drawerLoading && drawerError ? <div className={styles.drawerState}>{drawerError}</div> : null}
-              {!drawerLoading && !drawerError && drawerPayload ? (
-                <TaskBoardWorkspaceLive
-                  initialPayload={drawerPayload}
-                  mode="drawer"
-                  onClose={() => {
-                    setSelectedItemId(null);
-                    setDrawerPayload(null);
-                    setDrawerError(null);
-                  }}
-                  onMutated={async () => {
-                    if (!selectedItemId) return;
-                    await load({ keepDrawer: false });
-                    await loadWorkspace(selectedItemId);
-                  }}
-                />
-              ) : null}
-            </Card>
-          </aside>
-        ) : null}
+        </div>{/* end boardArea */}
+
       </div>
+
+      {/* ── Workspace popup ── */}
+      {selectedItemId ? (
+        <div className={styles.workspaceOverlay}>
+          <div
+            className={styles.workspaceBackdrop}
+            onClick={() => {
+              setSelectedItemId(null);
+              setDrawerPayload(null);
+              setDrawerError(null);
+            }}
+          />
+          <div className={cn("glass-panel", styles.workspacePanel)}>
+            {drawerLoading ? <div className={styles.drawerState}>Loading workspace…</div> : null}
+            {!drawerLoading && drawerError ? <div className={styles.drawerState}>{drawerError}</div> : null}
+            {!drawerLoading && !drawerError && drawerPayload ? (
+              <TaskBoardWorkspaceLive
+                initialPayload={drawerPayload}
+                mode="drawer"
+                onClose={() => {
+                  setSelectedItemId(null);
+                  setDrawerPayload(null);
+                  setDrawerError(null);
+                }}
+                onMutated={async () => {
+                  if (!selectedItemId) return;
+                  await load({ keepDrawer: false });
+                  await loadWorkspace(selectedItemId);
+                }}
+              />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {/* ── Create task modal ── */}
       {isCreateOpen ? (

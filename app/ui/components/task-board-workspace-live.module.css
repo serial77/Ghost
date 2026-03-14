@@ -1,7 +1,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   width: calc(100vw - 56px);
   margin-left: calc(50% - 50vw + 28px);
   margin-right: calc(50% - 50vw + 28px);
@@ -12,56 +12,115 @@
   width: auto;
   margin: 0;
   min-height: auto;
+  gap: 8px;
+  background: transparent;
+  padding-top: 0;
 }
+
+/* ── Top bar ── */
 
 .topBar {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
+  gap: 12px;
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .title {
   margin: 0;
-  font-size: clamp(1.1rem, 1.5vw, 1.5rem);
-  line-height: 1.1;
-  letter-spacing: -0.04em;
+  font-size: clamp(1.05rem, 1.3vw, 1.35rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+/* Tighter title in popup/drawer — viewport clamp is too large */
+.pageDrawer .title {
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
 }
 
 .subtitle {
-  margin: 6px 0 0;
+  margin: 5px 0 0;
   max-width: 72ch;
   color: var(--text-dim);
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   line-height: 1.5;
 }
 
-/* Hide explanatory subtitle in drawer — wastes space at 520px width */
+/* Hide subtitle in drawer — wastes vertical space */
 .pageDrawer .subtitle {
   display: none;
 }
 
+/* ── Action icon buttons ── */
+
 .actions {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
+  align-items: center;
+  gap: 5px;
   flex-shrink: 0;
 }
 
+.actionIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-soft);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: none;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  flex-shrink: 0;
+}
+
+.actionIcon:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--text);
+}
+
+.actionIconBlue {
+  color: var(--blue);
+}
+
+.actionIconBlue:hover {
+  color: var(--blue);
+  background: rgba(137, 178, 255, 0.08);
+  border-color: rgba(137, 178, 255, 0.22);
+}
+
+.noRuntime {
+  font-size: 0.70rem;
+  color: var(--text-dim);
+  padding: 4px 6px;
+  letter-spacing: 0.02em;
+}
+
+/* Keep legacy classes for page mode links (sidebar etc.) */
 .backLink,
 .runtimeLink,
 .sideLink {
   display: inline-flex;
   align-items: center;
-  padding: 6px 12px;
+  gap: 5px;
+  padding: 5px 10px;
   border-radius: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: var(--text-soft);
   background: rgba(255, 255, 255, 0.04);
-  font-size: 0.82rem;
+  font-size: 0.80rem;
+  text-decoration: none;
+  cursor: pointer;
+  font: inherit;
+  transition: background 0.12s;
 }
 
 .runtimeLink,
@@ -69,166 +128,232 @@
   color: var(--blue);
 }
 
-button.backLink,
-button.runtimeLink,
-button.sideLink {
-  font: inherit;
-  cursor: pointer;
-}
+/* ── Signal row ── */
 
 .signalRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: 6px;
 }
+
+/* ── Metric strip — flat bordered row, no individual cards ── */
 
 .metricStrip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top-color: rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.018);
 }
 
 .metric {
   display: grid;
-  gap: 8px;
+  gap: 4px;
+  padding: 12px 14px;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.metric:last-child {
+  border-right: none;
 }
 
 .metricValue {
-  font-size: 1.1rem;
-  line-height: 1.15;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text);
+  letter-spacing: -0.02em;
 }
+
+/* ── Layout ── */
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) 270px;
+  gap: 12px;
   align-items: start;
 }
 
-.tabsCard,
-.sideCard {
-  padding: 16px;
+/* Sidebar hidden in drawer/popup — popup is focused, no room for side panel */
+.pageDrawer .sidebar {
+  display: none;
 }
+
+.pageDrawer .layout {
+  grid-template-columns: 1fr;
+}
+
+/* ── Tabs card — outer container ── */
+
+/* In page mode, the main section uses Card (glass-panel). In drawer mode
+   we use a plain div so we don't nest glass-panels inside the popup. */
+.tabsCard {
+  padding: 0;
+}
+
+.sideCard {
+  padding: 14px;
+}
+
+/* ── Navigation tab strip ── */
 
 .tabBar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0;
+  margin: 0 0 0;
 }
 
 .tabButton {
   border: 0;
-  padding: 7px 12px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 9px 12px 10px;
+  background: transparent;
   color: var(--text-dim);
   cursor: pointer;
   font: inherit;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  transition: color 0.12s, border-bottom-color 0.12s;
+}
+
+.tabButton:hover {
+  color: var(--text-soft);
 }
 
 .tabButtonActive {
-  background: rgba(255, 255, 255, 0.09);
   color: var(--text);
+  border-bottom-color: rgba(137, 178, 255, 0.65);
 }
+
+/* ── Tab body ── */
 
 .tabBody {
   display: grid;
-  gap: 18px;
+  gap: 14px;
+  padding: 14px 0;
 }
 
 .sectionGrid {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: 18px;
+  gap: 20px;
 }
 
 .sectionTitle {
-  margin: 6px 0 0;
-  font-size: 1rem;
+  margin: 5px 0 0;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--text-soft);
 }
 
 .bodyText {
-  margin: 12px 0 0;
+  margin: 10px 0 0;
   color: var(--text-soft);
+  font-size: 0.88rem;
   line-height: 1.6;
 }
 
 .bodyMuted {
-  margin: 12px 0 0;
+  margin: 8px 0 0;
   color: var(--text-dim);
-  line-height: 1.6;
+  font-size: 0.85rem;
+  line-height: 1.55;
 }
+
+/* ── Fact grid — key/value pairs ── */
 
 .factGrid,
 .deliverablesGrid {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .factLabel {
   color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 0.7rem;
-  margin-bottom: 4px;
+  letter-spacing: 0.11em;
+  font-size: 0.66rem;
+  margin-bottom: 2px;
 }
 
 .factValue {
   color: var(--text);
-  font-size: 0.92rem;
+  font-size: 0.90rem;
+  font-weight: 400;
   line-height: 1.4;
 }
+
+/* ── Controls ── */
 
 .controlSelect {
   width: 100%;
   margin-top: 4px;
-  padding: 8px 10px;
+  padding: 7px 10px;
   border-radius: 5px;
   border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(10, 10, 18, 0.92);
+  background: rgba(10, 10, 18, 0.90);
   color: var(--text);
   font: inherit;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
 }
+
+/* ── Block layouts ── */
 
 .planningBlock,
 .deliverablesBlock,
 .sessionGrid,
 .activityStack {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
+/* ── Activity items — flat list with dividers, not boxed ── */
+
 .activityItem {
-  padding: 10px 12px;
-  border-radius: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: linear-gradient(180deg, rgba(14, 14, 24, 0.80), rgba(9, 9, 18, 0.92));
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.activityItem:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.activityTitle {
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 3px;
 }
 
 .activityTopline {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .runtimeDivider {
-  padding-top: 8px;
+  padding-top: 10px;
+  margin-top: 2px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* ── Responsive ── */
+
 @media (max-width: 1180px) {
-  .pageDrawer {
-    width: auto;
-    margin: 0;
+  .metricStrip,
+  .sectionGrid {
+    grid-template-columns: 1fr 1fr;
   }
 
-  .metricStrip,
-  .sectionGrid,
   .layout {
     grid-template-columns: 1fr;
   }
@@ -243,9 +368,28 @@ button.sideLink {
   }
 
   .topBar,
-  .actions,
+  .actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .metricStrip {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .sectionGrid,
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
   .activityTopline {
     align-items: flex-start;
     flex-direction: column;
+    gap: 4px;
+  }
+
+  .tabBar {
+    overflow-x: auto;
+    padding: 0 12px;
   }
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Dock } from "@/components/dock";
+import { GhostBackground } from "@/components/ghost-bg";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,8 +16,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        {/* Global background — fixed, persists across all routes */}
+        <GhostBackground />
         <div className="app-frame">
-          <div className="app-atmosphere" aria-hidden="true" />
           <div className="app-grid" aria-hidden="true" />
           <div className="app-noise" aria-hidden="true" />
           <main className="app-main">{children}</main>

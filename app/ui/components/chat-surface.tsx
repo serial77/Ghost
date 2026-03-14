@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { sendGhostMessage } from "@/lib/chat";
 import type { ChatMessage } from "@/lib/types";
-import { GhostCore } from "@/components/ghost-core";
-import { EtherealBackground } from "@/components/ethereal-background";
+import { GhostOrb } from "@/components/ghost-orb";
 import { MessageContent } from "@/components/message-content";
 import { GlassPanel } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -125,7 +124,7 @@ export function ChatSurface() {
       return;
     }
     setPhase("transitioning");
-    const timer = window.setTimeout(() => setPhase("ready"), 680);
+    const timer = window.setTimeout(() => setPhase("ready"), 900);
     return () => window.clearTimeout(timer);
   }, [mode]);
 
@@ -195,13 +194,11 @@ export function ChatSurface() {
   if (mode === "landing") {
     return (
       <section className="landing-surface">
-        {/* Wide organic atmosphere — displaced, hue-cycling blobs */}
-        <EtherealBackground />
-        {/* Tight orb bloom — concentrated light behind the Ghost Core */}
+        {/* Tight orb bloom — concentrated light behind the orb */}
         <div className="hero-fog" aria-hidden="true" />
 
         <div className="landing-presence">
-          <GhostCore responding={isResponding} />
+          <GhostOrb responding={isResponding} />
 
           <p className="landing-greeting">Hello, I&apos;m Ghost.</p>
 
@@ -242,6 +239,7 @@ export function ChatSurface() {
 
   return (
     <section className={cn("screen", "hero-shell", "operational")}>
+
       <div
         className={cn(
           "hero-stage",
@@ -250,43 +248,6 @@ export function ChatSurface() {
           phase === "ready" && "ready",
         )}
       >
-        <div className="hero-left">
-          <div className={cn("presence-column", "operational")}>
-            <GhostCore
-              compact
-              transitioning={phase === "transitioning"}
-              responding={isResponding}
-            />
-
-            <div className={cn("presence-card glass-panel", "operational")}>
-              <div className="eyebrow">Ghost · Operator Surface</div>
-              <h1 className="headline">Operational.</h1>
-
-              <div className="ghost-status-line">
-                <span className={cn("ghost-status-dot", "active")} />
-                {isResponding
-                  ? "Processing · entity routing"
-                  : `Entity engaged · ${conversationId ? conversationId.slice(0, 12) : "routing..."}`}
-              </div>
-
-              <div className="presence-readout">
-                <div>
-                  <div className="kicker">Entity State</div>
-                  <p className="caption">
-                    {isResponding
-                      ? "Routing and composing response."
-                      : "Operational mode engaged. Console is primary. Ghost remains ambient."}
-                  </p>
-                </div>
-                <div>
-                  <div className="kicker">Conversation</div>
-                  <p className="caption">{conversationId ?? "awaiting route lock"}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <GlassPanel
           className={cn(
             "chat-shell",
@@ -294,10 +255,26 @@ export function ChatSurface() {
             phase === "ready" && "ready",
           )}
         >
-          <div className="panel-header">
-            <div className="kicker">Operational Console</div>
+          {/* Orb condensed into header — presence compressed, not removed */}
+          <div className="chat-header">
+            <GhostOrb
+              compact
+              transitioning={phase === "transitioning"}
+              responding={isResponding}
+            />
+            <div className="chat-identity">
+              <span className="chat-title">Ghost</span>
+              <span className="chat-subtitle">
+                <span className={cn("ghost-status-dot", "active")} />
+                {isResponding
+                  ? "processing · entity routing"
+                  : conversationId
+                    ? `entity engaged · ${conversationId.slice(0, 10)}`
+                    : "operational · standby"}
+              </span>
+            </div>
             <button type="button" className="ghost-chip" onClick={handleReset}>
-              Reset Presence
+              Reset
             </button>
           </div>
 
