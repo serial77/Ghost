@@ -9,6 +9,7 @@
   - dual-path webhook migration (`ghost-runtime` canonical, `ghost-chat-v3` legacy)
   - repo consolidation (self-contained docker-compose, worktree structure documented)
   - Mission Control UI polish (WebGL FloatingLines/GhostAurora/GhostOrb, desaturated palette, three.js + ogl)
+  - Agent Management live-backed surface (foundation workers + capability grants + runtime agent bindings)
 - Active working worktree: `~/dev/ghost-stack-codex` on `main` — authoritative development copy, UI server running here
 - UI worktree: `~/dev/ghost-stack-claude` on `claude-mission-control-polish` — merged to main; `next dev` stopped here
 - Review/operator worktree: `~/dev/ghost-stack` on `chore/normalize-canonical-artifact-names` (stale, but holds live `.env` and `db/`)
@@ -91,6 +92,7 @@
 
 Main is green with the full stack including WebGL UI. Remaining next steps:
 
+- **Agent Management gaps**: no edit/save flows yet; WORKER_TO_AGENT mapping is hardcoded in `agent-registry.ts` (ghost_main→ghost-main, forge→codex-worker); probe/rector/archivist/operator/scout remain "Defined" until DB agents are wired
 - **Legacy webhook retirement** — `ghost-chat-v3` trigger removal after a migration window (see `docs/naming-migration-checklist.md`)
 - **Automated follow-through** — current posture is manual operator-invoked; automating resolve→execute→retry is the next governance UX step
 - **Retry queue UI panel** — no dedicated surface yet; shell/helper only
