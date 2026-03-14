@@ -234,6 +234,18 @@ const saveAssistantReply = findNode(workflow, "Save Assistant Reply");
 saveAssistantReply.parameters.options.queryReplacement =
   "={{ [$json.conversation_id, $json.reply, $json.model_used || null, { provider_used: $json.provider_used || null, task_class: $json.task_class || null, approval_required: $json.approval_required || false, risk_level: $json.risk_level || 'safe', risk_reasons: $json.risk_reasons || [], task_summary: $json.task_summary || '', command_success: $json.command_success === true, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $json.runtime_task_id || null, runtime_task_run_id: $json.runtime_task_run_id || null, worker_conversation_id: $json.worker_conversation_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || 'direct_owner_reply', parent_owner_label: $json.parent_owner_label || null }] }}";
 
+const normalizeOllamaReply = findNode(workflow, "Normalize Ollama Reply");
+normalizeOllamaReply.parameters.jsCode = `${normalizeOllamaReply.parameters.jsCode.replace(
+  "} }];",
+  "  response_mode: 'direct_owner_reply',\n  parent_owner_label: context.parent_owner_label || 'Ghost',\n} }];",
+)}`;
+
+const normalizeOpenAIReply = findNode(workflow, "Normalize OpenAI Reply");
+normalizeOpenAIReply.parameters.jsCode = `${normalizeOpenAIReply.parameters.jsCode.replace(
+  "} }];",
+  "  response_mode: 'direct_owner_reply',\n  parent_owner_label: context.parent_owner_label || 'Ghost',\n} }];",
+)}`;
+
 const buildApprovalRequiredResponse = findNode(workflow, "Build Approval Required Response");
 buildApprovalRequiredResponse.parameters.jsCode = `const context = $input.first().json;
 const reasons = Array.isArray(context.risk_reasons) && context.risk_reasons.length
@@ -254,6 +266,8 @@ return [{ json: {
   stderr_summary: reasons,
   command_exit_code: null,
   n8n_execution_id: context.n8n_execution_id || null,
+  response_mode: 'direct_owner_reply',
+  parent_owner_label: context.parent_owner_label || 'Ghost',
 } }];`;
 
 const normalizeCodexReply = findNode(workflow, "Normalize Codex Reply");
@@ -343,6 +357,8 @@ return [{ json: {
   runtime_task_id: started.task_id || '',
   runtime_task_run_id: started.task_run_id || '',
   n8n_execution_id: context.n8n_execution_id || null,
+  response_mode: 'direct_owner_reply',
+  parent_owner_label: context.parent_owner_label || 'Ghost',
 } }];`;
 
 const buildRuntimeLedgerStartPayload = findNode(workflow, "Build Runtime Ledger Start Payload");
