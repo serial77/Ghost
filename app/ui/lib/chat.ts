@@ -1,6 +1,6 @@
 import type { ChatReply } from "@/lib/types";
 
-const defaultBackendUrl = "http://127.0.0.1:5678/webhook/ghost-chat-v3";
+const defaultBackendUrl = "http://127.0.0.1:5678/webhook/ghost-runtime";
 
 interface ChatRequestInput {
   conversationId?: string;
