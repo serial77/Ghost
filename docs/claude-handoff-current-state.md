@@ -8,8 +8,9 @@
   - System Health live data page
   - dual-path webhook migration (`ghost-runtime` canonical, `ghost-chat-v3` legacy)
   - repo consolidation (self-contained docker-compose, worktree structure documented)
-- Active working worktree: `~/dev/ghost-stack-codex` on `claude-repo-consolidation` (pending merge)
-- UI worktree: `~/dev/ghost-stack-claude` on `claude-mission-control-polish` — clean, up to date with latest mirrored changes
+  - Mission Control UI polish (WebGL FloatingLines/GhostAurora/GhostOrb, desaturated palette, three.js + ogl)
+- Active working worktree: `~/dev/ghost-stack-codex` on `main` — authoritative development copy, UI server running here
+- UI worktree: `~/dev/ghost-stack-claude` on `claude-mission-control-polish` — merged to main; `next dev` stopped here
 - Review/operator worktree: `~/dev/ghost-stack` on `chore/normalize-canonical-artifact-names` (stale, but holds live `.env` and `db/`)
 
 ## 2. What is complete
@@ -88,12 +89,14 @@
 
 ## 5. Best next supervised step (updated 2026-03-14)
 
-Main is green with the full stack. Remaining next steps:
+Main is green with the full stack including WebGL UI. Remaining next steps:
 
-- **Merge `claude-repo-consolidation`** to main (docker-compose self-contained, docs updated)
-- **Merge `claude-mission-control-polish`** to main when ready — Mission Control UI polish (7 visual commits); needs rebase/merge onto current main first
 - **Legacy webhook retirement** — `ghost-chat-v3` trigger removal after a migration window (see `docs/naming-migration-checklist.md`)
 - **Automated follow-through** — current posture is manual operator-invoked; automating resolve→execute→retry is the next governance UX step
+- **Retry queue UI panel** — no dedicated surface yet; shell/helper only
+- **Action history UI panel** — durable and inspectable via shell, no dedicated UI panel yet
+- **Broad policy authority** — capability/environment and worker authority are real in bounded slices, not yet system-wide
+- **ghost-stack main worktree** — stale on `chore/normalize-canonical-artifact-names`, 90+ commits behind main; update when convenient (`git fetch && git checkout main && git pull`)
 
 ## 6. Validation contract
 
