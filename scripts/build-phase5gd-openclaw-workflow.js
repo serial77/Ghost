@@ -109,18 +109,6 @@ function setMainConnections(connections, fromNode, outputs) {
   };
 }
 
-function appendConnection(connections, fromNode, toNode, outputIndex = 0) {
-  if (!connections[fromNode]) {
-    connections[fromNode] = { main: [] };
-  }
-  if (!connections[fromNode].main[outputIndex]) {
-    connections[fromNode].main[outputIndex] = [];
-  }
-  if (!connections[fromNode].main[outputIndex].some((entry) => entry.node === toNode)) {
-    connections[fromNode].main[outputIndex].push({ node: toNode, type: "main", index: 0 });
-  }
-}
-
 function removeConnection(connections, fromNode, toNode) {
   if (!connections[fromNode]?.main) {
     return;
