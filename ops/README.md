@@ -98,6 +98,7 @@ Checks:
 - stuck or contradictory `tasks` / `task_runs`
 - recent rows missing `n8n_execution_id` where the current flow should normally provide it
 - recent cross-layer disagreement between delegation state and linked runtime/message metadata
+- recent direct-path parity mismatches across `tasks`, `task_runs`, assistant `messages`, and `tool_events`
 
 Examples:
 

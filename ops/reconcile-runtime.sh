@@ -18,6 +18,7 @@ What it checks:
   - running task/task_run rows that look stuck or contradictory
   - recent rows missing execution/correlation metadata that current flows normally provide
   - recent delegation/runtime state disagreement across delegation, task, task_run, and assistant metadata
+  - recent direct-path mismatch checks across tasks, task_runs, assistant metadata, and tool_events
 EOF
 }
 
@@ -449,4 +450,184 @@ run_check \
    FROM findings
    WHERE issue_code IS NOT NULL
    ORDER BY updated_at DESC NULLS LAST, delegation_id DESC
+   LIMIT $ROW_LIMIT;"
+
+run_check \
+  "Recent Direct Path Surface Parity" \
+  "WITH recent_direct_tasks AS (
+     SELECT id, title, status, created_at
+     FROM tasks
+     WHERE created_at >= NOW() - INTERVAL '$RECENT_INTERVAL'
+       AND source = 'ghost_runtime'
+   ),
+   latest_run AS (
+     SELECT DISTINCT ON (tr.task_id)
+       tr.task_id,
+       tr.id AS task_run_id,
+       tr.status,
+       tr.n8n_execution_id,
+       tr.output_payload
+     FROM task_runs tr
+     JOIN recent_direct_tasks rdt ON rdt.id = tr.task_id
+     ORDER BY tr.task_id, tr.started_at DESC NULLS LAST, tr.id DESC
+   ),
+   latest_reply AS (
+     SELECT DISTINCT ON (m.metadata ->> 'runtime_task_id')
+       m.metadata ->> 'runtime_task_id' AS message_runtime_task_id,
+       m.id AS message_id,
+       m.metadata,
+       m.created_at
+     FROM messages m
+     WHERE m.role = 'assistant'
+       AND COALESCE(m.metadata ->> 'response_mode', '') = 'direct_owner_reply'
+       AND COALESCE(m.metadata ->> 'runtime_task_id', '') <> ''
+     ORDER BY m.metadata ->> 'runtime_task_id', m.created_at DESC, m.id DESC
+   ),
+   latest_event AS (
+     SELECT DISTINCT ON (te.task_id)
+       te.task_id,
+       te.id AS tool_event_id,
+       te.task_run_id,
+       te.event_type,
+       te.status,
+       te.payload,
+       te.created_at
+     FROM tool_events te
+     JOIN recent_direct_tasks rdt ON rdt.id = te.task_id
+     ORDER BY te.task_id, te.created_at DESC, te.id DESC
+   )
+   SELECT COUNT(*)
+   FROM (
+     SELECT rdt.id
+     FROM recent_direct_tasks rdt
+     LEFT JOIN latest_run lr ON lr.task_id = rdt.id
+     LEFT JOIN latest_reply lrm ON lrm.message_runtime_task_id = rdt.id::text
+     LEFT JOIN latest_event lre ON lre.task_id = rdt.id
+     WHERE lrm.message_id IS NOT NULL
+       AND (
+         COALESCE(lrm.metadata ->> 'runtime_task_run_id', '') = ''
+         OR (lr.task_run_id IS NOT NULL AND lrm.metadata ->> 'runtime_task_run_id' IS DISTINCT FROM lr.task_run_id::text)
+         OR (lr.n8n_execution_id IS NOT NULL AND COALESCE(lrm.metadata ->> 'n8n_execution_id', '') = '')
+         OR (lr.n8n_execution_id IS NOT NULL AND lrm.metadata ->> 'n8n_execution_id' IS DISTINCT FROM lr.n8n_execution_id)
+         OR lre.tool_event_id IS NULL
+         OR (lr.task_run_id IS NOT NULL AND lre.task_run_id IS DISTINCT FROM lr.task_run_id)
+         OR COALESCE(lre.payload ->> 'direct_execution', '') <> 'true'
+         OR (lr.n8n_execution_id IS NOT NULL AND COALESCE(lre.payload ->> 'n8n_execution_id', '') = '')
+         OR (lr.output_payload ->> 'command_success') IS DISTINCT FROM COALESCE(lrm.metadata ->> 'command_success', '')
+         OR (lr.output_payload ->> 'command_success') IS DISTINCT FROM COALESCE(lre.payload ->> 'command_success', '')
+         OR COALESCE(NULLIF(lr.output_payload ->> 'error_type', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lrm.metadata ->> 'error_type', ''), '<none>')
+         OR COALESCE(NULLIF(lr.output_payload ->> 'error_type', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lre.payload ->> 'error_type', ''), '<none>')
+         OR COALESCE(NULLIF(lr.output_payload ->> 'provider_used', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lrm.metadata ->> 'provider_used', ''), '<none>')
+         OR COALESCE(NULLIF(lr.output_payload ->> 'provider_used', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lre.payload ->> 'provider_used', ''), '<none>')
+         OR COALESCE(NULLIF(lr.output_payload ->> 'model_used', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lrm.metadata ->> 'model_used', ''), '<none>')
+         OR COALESCE(NULLIF(lr.output_payload ->> 'task_class', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lrm.metadata ->> 'task_class', ''), '<none>')
+         OR COALESCE(NULLIF(lr.output_payload ->> 'parent_owner_label', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lrm.metadata ->> 'parent_owner_label', ''), '<none>')
+         OR (
+           COALESCE(NULLIF(lr.output_payload ->> 'artifact_path', ''), '') <> ''
+           AND (
+             COALESCE(NULLIF(lrm.metadata ->> 'artifact_path', ''), '') = ''
+             OR COALESCE(NULLIF(lre.payload ->> 'artifact_path', ''), '') = ''
+           )
+         )
+         OR (
+           COALESCE(NULLIF(lr.output_payload ->> 'stderr_summary', ''), '') <> ''
+           AND (
+             COALESCE(NULLIF(lrm.metadata ->> 'stderr_summary', ''), '') = ''
+             OR COALESCE(NULLIF(lre.payload ->> 'stderr_summary', ''), '') = ''
+           )
+         )
+       )
+   ) findings;" \
+  "WITH recent_direct_tasks AS (
+     SELECT id, title, status, created_at
+     FROM tasks
+     WHERE created_at >= NOW() - INTERVAL '$RECENT_INTERVAL'
+       AND source = 'ghost_runtime'
+   ),
+   latest_run AS (
+     SELECT DISTINCT ON (tr.task_id)
+       tr.task_id,
+       tr.id AS task_run_id,
+       tr.status AS latest_run_status,
+       tr.n8n_execution_id,
+       tr.output_payload
+     FROM task_runs tr
+     JOIN recent_direct_tasks rdt ON rdt.id = tr.task_id
+     ORDER BY tr.task_id, tr.started_at DESC NULLS LAST, tr.id DESC
+   ),
+   latest_reply AS (
+     SELECT DISTINCT ON (m.metadata ->> 'runtime_task_id')
+       m.metadata ->> 'runtime_task_id' AS message_runtime_task_id,
+       m.id AS message_id,
+       m.metadata,
+       m.created_at
+     FROM messages m
+     WHERE m.role = 'assistant'
+       AND COALESCE(m.metadata ->> 'response_mode', '') = 'direct_owner_reply'
+       AND COALESCE(m.metadata ->> 'runtime_task_id', '') <> ''
+     ORDER BY m.metadata ->> 'runtime_task_id', m.created_at DESC, m.id DESC
+   ),
+   latest_event AS (
+     SELECT DISTINCT ON (te.task_id)
+       te.task_id,
+       te.id AS tool_event_id,
+       te.task_run_id,
+       te.event_type,
+       te.status AS event_status,
+       te.payload,
+       te.created_at
+     FROM tool_events te
+     JOIN recent_direct_tasks rdt ON rdt.id = te.task_id
+     ORDER BY te.task_id, te.created_at DESC, te.id DESC
+   ),
+   findings AS (
+     SELECT
+       CASE
+         WHEN lrm.message_id IS NOT NULL AND COALESCE(lrm.metadata ->> 'runtime_task_run_id', '') = '' THEN 'assistant_reply_missing_runtime_task_run_id'
+         WHEN lrm.message_id IS NOT NULL AND lr.task_run_id IS NOT NULL AND lrm.metadata ->> 'runtime_task_run_id' IS DISTINCT FROM lr.task_run_id::text THEN 'assistant_reply_runtime_task_run_mismatch'
+         WHEN lrm.message_id IS NOT NULL AND lr.n8n_execution_id IS NOT NULL AND COALESCE(lrm.metadata ->> 'n8n_execution_id', '') = '' THEN 'assistant_reply_missing_execution_id'
+         WHEN lrm.message_id IS NOT NULL AND lr.n8n_execution_id IS NOT NULL AND lrm.metadata ->> 'n8n_execution_id' IS DISTINCT FROM lr.n8n_execution_id THEN 'assistant_reply_execution_id_mismatch'
+         WHEN lre.tool_event_id IS NULL THEN 'direct_tool_event_missing'
+         WHEN lr.task_run_id IS NOT NULL AND lre.task_run_id IS DISTINCT FROM lr.task_run_id THEN 'direct_tool_event_task_run_mismatch'
+         WHEN COALESCE(lre.payload ->> 'direct_execution', '') <> 'true' THEN 'direct_tool_event_missing_direct_execution_marker'
+         WHEN lr.n8n_execution_id IS NOT NULL AND COALESCE(lre.payload ->> 'n8n_execution_id', '') = '' THEN 'direct_tool_event_missing_execution_id'
+         WHEN (lr.output_payload ->> 'command_success') IS DISTINCT FROM COALESCE(lrm.metadata ->> 'command_success', '') THEN 'message_command_success_mismatch'
+         WHEN (lr.output_payload ->> 'command_success') IS DISTINCT FROM COALESCE(lre.payload ->> 'command_success', '') THEN 'tool_event_command_success_mismatch'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'error_type', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lrm.metadata ->> 'error_type', ''), '<none>') THEN 'message_error_type_mismatch'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'error_type', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lre.payload ->> 'error_type', ''), '<none>') THEN 'tool_event_error_type_mismatch'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'provider_used', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lrm.metadata ->> 'provider_used', ''), '<none>') THEN 'message_provider_mismatch'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'provider_used', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lre.payload ->> 'provider_used', ''), '<none>') THEN 'tool_event_provider_mismatch'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'model_used', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lrm.metadata ->> 'model_used', ''), '<none>') THEN 'message_model_mismatch'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'task_class', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lrm.metadata ->> 'task_class', ''), '<none>') THEN 'message_task_class_mismatch'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'parent_owner_label', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lrm.metadata ->> 'parent_owner_label', ''), '<none>') THEN 'message_parent_owner_mismatch'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'artifact_path', ''), '') <> '' AND COALESCE(NULLIF(lrm.metadata ->> 'artifact_path', ''), '') = '' THEN 'assistant_reply_missing_artifact_path'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'artifact_path', ''), '') <> '' AND COALESCE(NULLIF(lre.payload ->> 'artifact_path', ''), '') = '' THEN 'direct_tool_event_missing_artifact_path'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'stderr_summary', ''), '') <> '' AND COALESCE(NULLIF(lrm.metadata ->> 'stderr_summary', ''), '') = '' THEN 'assistant_reply_missing_stderr_summary'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'stderr_summary', ''), '') <> '' AND COALESCE(NULLIF(lre.payload ->> 'stderr_summary', ''), '') = '' THEN 'direct_tool_event_missing_stderr_summary'
+       END AS issue_code,
+       rdt.id AS task_id,
+       lr.task_run_id,
+       rdt.status AS task_status,
+       lr.latest_run_status,
+       lrm.message_id,
+       lre.tool_event_id,
+       lre.event_type,
+       rdt.created_at,
+       LEFT(COALESCE(rdt.title, ''), 120) AS title,
+       jsonb_build_object(
+         'message_runtime_task_run_id', lrm.metadata ->> 'runtime_task_run_id',
+         'message_execution_id', lrm.metadata ->> 'n8n_execution_id',
+         'event_execution_id', lre.payload ->> 'n8n_execution_id',
+         'event_direct_execution', lre.payload ->> 'direct_execution'
+       ) AS context_json
+     FROM recent_direct_tasks rdt
+     LEFT JOIN latest_run lr ON lr.task_id = rdt.id
+     LEFT JOIN latest_reply lrm ON lrm.message_runtime_task_id = rdt.id::text
+     LEFT JOIN latest_event lre ON lre.task_id = rdt.id
+     WHERE lrm.message_id IS NOT NULL
+   )
+   SELECT *
+   FROM findings
+   WHERE issue_code IS NOT NULL
+   ORDER BY created_at DESC, issue_code
    LIMIT $ROW_LIMIT;"
