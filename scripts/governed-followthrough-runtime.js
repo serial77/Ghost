@@ -1,7 +1,12 @@
 "use strict";
 
 const crypto = require("crypto");
+const path = require("path");
 const { execFileSync } = require("child_process");
+const { loadPhase7Foundations } = require("./foundation-runtime");
+
+const projectRoot = path.join(__dirname, "..");
+const foundations = loadPhase7Foundations(projectRoot);
 
 function fail(message) {
   throw new Error(message);
@@ -80,6 +85,9 @@ function ensureGovernedFollowthroughTable() {
   outcome_status text NOT NULL,
   followthrough_type text NOT NULL,
   execution_state text NOT NULL,
+  worker_registry_id text,
+  worker_label text,
+  worker_operator_identity text,
   close_reason text,
   executor_label text NOT NULL,
   requested_capabilities jsonb NOT NULL DEFAULT '[]'::jsonb,
@@ -89,7 +97,15 @@ function ensureGovernedFollowthroughTable() {
   executed_at timestamptz
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ghost_governed_followthrough_approval_queue_idx
-  ON ghost_governed_followthrough (approval_queue_id);`);
+  ON ghost_governed_followthrough (approval_queue_id);
+ALTER TABLE ghost_governed_followthrough ADD COLUMN IF NOT EXISTS worker_registry_id text;
+ALTER TABLE ghost_governed_followthrough ADD COLUMN IF NOT EXISTS worker_label text;
+ALTER TABLE ghost_governed_followthrough ADD COLUMN IF NOT EXISTS worker_operator_identity text;`);
+}
+
+function lookupWorker(workerId) {
+  const workers = Array.isArray(foundations?.workers?.workers) ? foundations.workers.workers : [];
+  return workers.find((entry) => entry.id === workerId) || null;
 }
 
 function makeFollowthroughId(approvalQueueId) {
@@ -131,11 +147,24 @@ function deriveFollowthroughPlan(approvalRow) {
     governance_environment: metadata.governance_environment || metadata.approval_item?.environment || null,
     requested_capabilities: requestedCapabilities,
   };
+  const workerRegistryId = (() => {
+    if (sourcePath.startsWith("delegated_")) {
+      return metadata.worker_registry_id || metadata.approval_item?.target_worker_id || "forge";
+    }
+    return metadata.worker_registry_id || metadata.approval_item?.target_worker_id || "ghost_main";
+  })();
+  const worker = lookupWorker(workerRegistryId);
+  const workerFields = {
+    worker_registry_id: worker?.id || workerRegistryId || null,
+    worker_label: worker?.visibility_label || metadata.worker_agent_label || null,
+    worker_operator_identity: worker?.operator_identity || null,
+  };
 
   if (resolutionState === "approved") {
     if (sourcePath === "direct_approval_required") {
       return {
         ...base,
+        ...workerFields,
         outcome_status: "allowed",
         followthrough_type: "direct_codex_retry",
         execution_state: "retry_enqueued",
@@ -155,6 +184,7 @@ function deriveFollowthroughPlan(approvalRow) {
     if (sourcePath === "delegated_blocked") {
       return {
         ...base,
+        ...workerFields,
         outcome_status: "allowed",
         followthrough_type: "delegated_worker_retry",
         execution_state: "retry_enqueued",
@@ -174,6 +204,7 @@ function deriveFollowthroughPlan(approvalRow) {
     if (sourcePath === "direct_environment_restricted" || sourcePath === "delegated_environment_restricted") {
       return {
         ...base,
+        ...workerFields,
         outcome_status: "allowed",
         followthrough_type: "environment_restriction_closure",
         execution_state: "closed_without_retry",
@@ -189,6 +220,7 @@ function deriveFollowthroughPlan(approvalRow) {
 
   return {
     ...base,
+    ...workerFields,
     outcome_status: resolutionState === "rejected" ? "denied" : resolutionState || "closed",
     followthrough_type: "closed_without_retry",
     execution_state: "closed_without_retry",
@@ -223,6 +255,9 @@ INSERT INTO ghost_governed_followthrough (
   outcome_status,
   followthrough_type,
   execution_state,
+  worker_registry_id,
+  worker_label,
+  worker_operator_identity,
   close_reason,
   executor_label,
   requested_capabilities,
@@ -243,6 +278,9 @@ INSERT INTO ghost_governed_followthrough (
   ${sqlString(plan.outcome_status)},
   ${sqlString(plan.followthrough_type)},
   ${sqlString(plan.execution_state)},
+  ${sqlString(plan.worker_registry_id)},
+  ${sqlString(plan.worker_label)},
+  ${sqlString(plan.worker_operator_identity)},
   ${sqlString(plan.close_reason)},
   ${sqlString(executorLabel)},
   ${sqlJson(plan.requested_capabilities)},
@@ -262,6 +300,9 @@ ON CONFLICT (approval_queue_id) DO UPDATE SET
   outcome_status = EXCLUDED.outcome_status,
   followthrough_type = EXCLUDED.followthrough_type,
   execution_state = EXCLUDED.execution_state,
+  worker_registry_id = EXCLUDED.worker_registry_id,
+  worker_label = EXCLUDED.worker_label,
+  worker_operator_identity = EXCLUDED.worker_operator_identity,
   close_reason = EXCLUDED.close_reason,
   executor_label = EXCLUDED.executor_label,
   requested_capabilities = EXCLUDED.requested_capabilities,
@@ -285,5 +326,6 @@ module.exports = {
   sqlJson,
   sqlString,
   deriveFollowthroughPlan,
+  lookupWorker,
   upsertFollowthrough,
 };

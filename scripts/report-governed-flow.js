@@ -111,6 +111,9 @@ FROM (
     COALESCE(gf.followthrough_type, '') AS followthrough_type,
     COALESCE(gf.execution_state, '') AS followthrough_execution_state,
     COALESCE(gf.outcome_status, '') AS followthrough_outcome_status,
+    COALESCE(gf.worker_registry_id, '') AS followthrough_worker_registry_id,
+    COALESCE(gf.worker_label, '') AS followthrough_worker_label,
+    COALESCE(gf.worker_operator_identity, '') AS followthrough_worker_operator_identity,
     COALESCE(gf.close_reason, '') AS followthrough_close_reason,
     COALESCE(gf.executor_label, '') AS followthrough_executor_label,
     COALESCE(gf.requested_capabilities, '[]'::jsonb) AS followthrough_requested_capabilities,
@@ -208,6 +211,8 @@ function summarize(records) {
     governance_environment: record.governance_environment || null,
     followthrough_id: record.followthrough_id || null,
     followthrough_execution_state: record.followthrough_execution_state || null,
+    followthrough_worker_registry_id: record.followthrough_worker_registry_id || null,
+    followthrough_worker_label: record.followthrough_worker_label || null,
     action_count: Array.isArray(record.action_history) ? record.action_history.length : 0,
     trace_complete: Boolean(
       record.approval_queue_id
