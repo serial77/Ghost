@@ -213,6 +213,25 @@ function validateActionModel(actionModel) {
   }
 }
 
+function validateDiagnostics(diagDoc) {
+  requireString(diagDoc.version, "diagnostics.version");
+  requireArray(diagDoc.categories, "diagnostics.categories");
+  requireArray(diagDoc.hotspot_modules, "diagnostics.hotspot_modules");
+  const ids = new Set();
+  for (const category of diagDoc.categories) {
+    requireString(category.id, "diagnostics.category.id");
+    requireString(category.description, `diagnostics.category.${category.id}.description`);
+    if (ids.has(category.id)) {
+      fail(`duplicate diagnostics category id: ${category.id}`);
+    }
+    ids.add(category.id);
+  }
+  for (const modulePath of diagDoc.hotspot_modules) {
+    requireString(modulePath, "diagnostics.hotspot_modules[]");
+    ensurePathExists(modulePath);
+  }
+}
+
 function main() {
   const baselinePath = path.join("ops", "foundation", "baseline.json");
   const baseline = loadJson(baselinePath);
@@ -224,11 +243,14 @@ function main() {
   const approvalModel = loadJson(approvalPath);
   const actionModelPath = path.join("ops", "foundation", "action-model.json");
   const actionModel = loadJson(actionModelPath);
+  const diagnosticsPath = path.join("ops", "foundation", "diagnostics.json");
+  const diagnostics = loadJson(diagnosticsPath);
   validateBaseline(baseline);
   validateWorkers(workers);
   validateCapabilities(capabilities, workers);
   validateApprovalModel(approvalModel, capabilities);
   validateActionModel(actionModel);
+  validateDiagnostics(diagnostics);
 
   const summary = {
     version: baseline.version,
@@ -241,6 +263,7 @@ function main() {
     capability_count: capabilities.capabilities.length,
     approval_state_count: approvalModel.states.length,
     action_event_count: actionModel.event_types.length,
+    diagnostic_category_count: diagnostics.categories.length,
     foundation_dir: foundationDir,
   };
 
