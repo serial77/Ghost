@@ -110,7 +110,7 @@ export async function startLedgerTask(input: LedgerStartInput) {
       [
         taskId,
         extractWebhookTarget(),
-        "GHOST by Codex",
+        "Ghost Chat Runtime",
         JSON.stringify({
           message: input.message,
           conversation_id: input.conversationId ?? null,

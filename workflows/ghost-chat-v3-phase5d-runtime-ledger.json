@@ -3,7 +3,7 @@
     "updatedAt": "2026-03-12T20:44:28.217Z",
     "createdAt": "2026-03-12T12:08:38.760Z",
     "id": "Yh6h9OJyVCfREbp3",
-    "name": "GHOST by Codex",
+    "name": "Ghost Chat Runtime",
     "description": "Phase 4A structured memory prod-ready artifact. Prepared for controlled cutover; do not activate directly.",
     "active": true,
     "isArchived": false,
@@ -275,7 +275,7 @@
               {
                 "id": "ec1b4de7-21bd-4bd4-9670-2fe04addb921",
                 "name": "system_prompt",
-                "value": "={{ \"You are Ghost 🔮 — an efficient, direct AI assistant.\\n\" + \"Be concise, useful, and factual.\\n\" + \"Do not use filler.\\n\" + \"Do not pretend certainty when unsure.\\n\" + \"Prefer practical answers.\\n\" + \"When context exists in the conversation, use it.\\n\" + \"When the user asks for code or technical help, be precise and implementation-oriented.\\n\" }}",
+                "value": "={{ \"You are Ghost \ud83d\udd2e \u2014 an efficient, direct AI assistant.\\n\" + \"Be concise, useful, and factual.\\n\" + \"Do not use filler.\\n\" + \"Do not pretend certainty when unsure.\\n\" + \"Prefer practical answers.\\n\" + \"When context exists in the conversation, use it.\\n\" + \"When the user asks for code or technical help, be precise and implementation-oriented.\\n\" }}",
                 "type": "string"
               },
               {

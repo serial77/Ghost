@@ -50,7 +50,7 @@ const postgresCredential = {
   id: "r4pH8PimgUf2t9oM",
   name: "Postgres account",
 };
-const workflowName = "GHOST by Codex";
+const workflowName = "Ghost Chat Runtime";
 const parentExecutionTarget = "webhook/ghost-chat-v3";
 const delegatedExecutionTarget = "delegated_codex_session";
 const phase7Foundations = loadPhase7Foundations(projectRoot);
@@ -297,6 +297,7 @@ function makeIfNode(name, leftValue, operation, position, rightValue = undefined
 }
 
 const [workflow] = loadWorkflow(sourcePath);
+workflow.name = workflowName;
 
 applyIngressConversationTailModule({
   workflow,
