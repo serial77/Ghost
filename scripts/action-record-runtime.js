@@ -92,6 +92,17 @@ function ensureActionHistoryTable() {
 );`);
 }
 
+function sqlString(value) {
+  if (value === null || value === undefined) {
+    return "NULL";
+  }
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function sqlJson(value) {
+  return `'${JSON.stringify(value || {}).replace(/'/g, "''")}'::jsonb`;
+}
+
 function buildActionSql(recentHours, limit) {
   return `WITH raw_events AS (
   SELECT
@@ -217,6 +228,30 @@ function buildActionSql(recentHours, limit) {
   UNION ALL
 
   SELECT
+    'governance.transitioned'::text AS event_type,
+    COALESCE(a.responded_at, a.requested_at) AS occurred_at,
+    COALESCE(a.metadata ->> 'conversation_id', '') AS conversation_id,
+    a.id::text AS request_id,
+    LEFT(REGEXP_REPLACE(COALESCE(a.metadata -> 'approval_item' ->> 'summary', a.prompt_text, 'Governed outcome transitioned'), '\\s+', ' ', 'g'), 200) AS summary,
+    COALESCE(a.metadata ->> 'delegation_id', '') AS delegation_id,
+    COALESCE(a.metadata ->> 'runtime_task_id', a.task_id::text, '') AS runtime_task_id,
+    a.id::text AS approval_id,
+    NULL::text AS artifact_id,
+    COALESCE(a.metadata -> 'governed_outcome' ->> 'outcome_status', a.status::text) AS outcome_status,
+    'approvals'::text AS source_surface,
+    jsonb_build_object(
+      'approval_queue_id', a.id::text,
+      'resolution', COALESCE(a.metadata -> 'resolution', '{}'::jsonb),
+      'governed_outcome', COALESCE(a.metadata -> 'governed_outcome', '{}'::jsonb)
+    ) AS payload
+  FROM approvals a
+  WHERE COALESCE(a.responded_at, a.requested_at) >= NOW() - INTERVAL '${recentHours} hours'
+    AND a.status IN ('approved', 'rejected', 'expired', 'cancelled', 'superseded')
+    AND COALESCE(a.metadata -> 'governed_outcome', '{}'::jsonb) <> '{}'::jsonb
+
+  UNION ALL
+
+  SELECT
     'runtime.completed'::text AS event_type,
     COALESCE(tr.finished_at, t.completed_at, t.updated_at, tr.started_at) AS occurred_at,
     COALESCE(t.conversation_id::text, t.context ->> 'parent_conversation_id', '') AS conversation_id,
@@ -317,6 +352,56 @@ function materializeActionRecords({ recentHours, limit }) {
   });
 }
 
+function upsertActionRecord(record) {
+  runPsql(`INSERT INTO ghost_action_history (
+  action_id,
+  event_type,
+  entity,
+  occurred_at,
+  conversation_id,
+  request_id,
+  delegation_id,
+  runtime_task_id,
+  approval_id,
+  artifact_id,
+  outcome_status,
+  summary,
+  source_surface,
+  payload
+) VALUES (
+  ${sqlString(record.action_id)},
+  ${sqlString(record.event_type)},
+  ${sqlString(record.entity)},
+  ${sqlString(record.occurred_at)}::timestamptz,
+  ${sqlString(record.conversation_id)},
+  ${sqlString(record.request_id)},
+  ${sqlString(record.delegation_id)},
+  ${sqlString(record.runtime_task_id)},
+  ${sqlString(record.approval_id)},
+  ${sqlString(record.artifact_id)},
+  ${sqlString(record.outcome_status)},
+  ${sqlString(record.summary)},
+  ${sqlString(record.source_surface)},
+  ${sqlJson(record.payload)}
+)
+ON CONFLICT (action_id) DO UPDATE
+SET
+  event_type = EXCLUDED.event_type,
+  entity = EXCLUDED.entity,
+  occurred_at = EXCLUDED.occurred_at,
+  conversation_id = EXCLUDED.conversation_id,
+  request_id = EXCLUDED.request_id,
+  delegation_id = EXCLUDED.delegation_id,
+  runtime_task_id = EXCLUDED.runtime_task_id,
+  approval_id = EXCLUDED.approval_id,
+  artifact_id = EXCLUDED.artifact_id,
+  outcome_status = EXCLUDED.outcome_status,
+  summary = EXCLUDED.summary,
+  source_surface = EXCLUDED.source_surface,
+  payload = EXCLUDED.payload,
+  updated_at = NOW();`);
+}
+
 module.exports = {
   buildActionSql,
   fail,
@@ -327,4 +412,7 @@ module.exports = {
   requirePositiveInt,
   ensureActionHistoryTable,
   runPsql,
+  sqlJson,
+  sqlString,
+  upsertActionRecord,
 };

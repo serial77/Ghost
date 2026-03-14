@@ -1,12 +1,18 @@
 "use strict";
 
 const path = require("path");
+const crypto = require("crypto");
 const { execFileSync } = require("child_process");
 const {
   assertApprovalTransitionAllowed,
   loadPhase7Foundations,
   normalizeApprovalState,
 } = require("./foundation-runtime");
+const {
+  ensureActionHistoryTable,
+  loadJson,
+  upsertActionRecord,
+} = require("./action-record-runtime");
 
 const projectRoot = path.join(__dirname, "..");
 const foundations = loadPhase7Foundations(projectRoot);
@@ -86,6 +92,51 @@ function deriveGovernedOutcomeStatus(state) {
   }
 }
 
+function deriveGovernedTransition(governedOutcome) {
+  switch (governedOutcome.resolution_state) {
+    case "approved":
+      return {
+        transition_type: "approval.unblocked",
+        retry_state: "allowed",
+        governed_status: "allowed",
+      };
+    case "rejected":
+      return {
+        transition_type: "approval.denied",
+        retry_state: "blocked",
+        governed_status: "denied",
+      };
+    case "expired":
+      return {
+        transition_type: "approval.expired",
+        retry_state: "requires_reissue",
+        governed_status: "expired",
+      };
+    case "cancelled":
+      return {
+        transition_type: "approval.cancelled",
+        retry_state: "cancelled",
+        governed_status: "cancelled",
+      };
+    case "superseded":
+      return {
+        transition_type: "approval.superseded",
+        retry_state: "requires_reissue",
+        governed_status: "superseded",
+      };
+    default:
+      return {
+        transition_type: "approval.pending",
+        retry_state: "blocked",
+        governed_status: "pending",
+      };
+  }
+}
+
+function makeActionId(parts) {
+  return crypto.createHash("md5").update(parts.join("|")).digest("hex").slice(0, 16);
+}
+
 function loadApprovalRow(approvalQueueId) {
   const sql = `SELECT COALESCE(row_to_json(selected), '{}'::json)::text
 FROM (
@@ -113,6 +164,7 @@ function updateApprovalRow({
   resolvedBy,
   resolvedByUserId,
   governedOutcome,
+  governedTransition,
 }) {
   const sql = `WITH current_row AS (
   SELECT
@@ -139,7 +191,8 @@ updated AS (
           'resolved_by_user_id', ${sqlString(resolvedByUserId || "")},
           'resolved_at', NOW()::text
         ),
-        'governed_outcome', ${sqlString(JSON.stringify(governedOutcome))}::jsonb
+        'governed_outcome', ${sqlString(JSON.stringify(governedOutcome))}::jsonb,
+        'governed_transition', ${sqlString(JSON.stringify(governedTransition))}::jsonb
       )
   FROM current_row
   WHERE a.id = current_row.id
@@ -201,6 +254,21 @@ function main() {
     resolved_by_user_id: resolvedByUserId || null,
     resolved_at: new Date().toISOString(),
   };
+  const governedTransition = {
+    ...deriveGovernedTransition(governedOutcome),
+    approval_queue_id: approvalQueueId,
+    source_path: governedOutcome.source_path,
+    conversation_id: governedOutcome.conversation_id,
+    delegation_id: governedOutcome.delegation_id,
+    runtime_task_id: governedOutcome.runtime_task_id,
+    runtime_task_run_id: governedOutcome.runtime_task_run_id,
+    orchestration_task_id: governedOutcome.orchestration_task_id,
+    governance_environment: governedOutcome.governance_environment,
+    requested_capabilities: governedOutcome.requested_capabilities,
+    resolved_by: governedOutcome.resolved_by,
+    resolved_by_user_id: governedOutcome.resolved_by_user_id,
+    resolved_at: governedOutcome.resolved_at,
+  };
 
   const updated = updateApprovalRow({
     approvalQueueId,
@@ -209,7 +277,60 @@ function main() {
     resolvedBy,
     resolvedByUserId,
     governedOutcome,
+    governedTransition,
   });
+
+  ensureActionHistoryTable();
+  const actionModel = loadJson("ops/foundation/action-model.json");
+  const actionTypes = new Map(actionModel.event_types.map((entry) => [entry.id, entry]));
+  const resolvedAt = updated.responded_at || governedOutcome.resolved_at;
+  const resolvedSummary = current.metadata?.approval_item?.summary || current.prompt_text || "Approval resolved";
+  const actionBase = {
+    occurred_at: resolvedAt,
+    conversation_id: metadata.conversation_id || "",
+    request_id: approvalQueueId,
+    delegation_id: metadata.delegation_id || null,
+    runtime_task_id: metadata.runtime_task_id || current.task_id || null,
+    approval_id: approvalQueueId,
+    artifact_id: null,
+    source_surface: "approvals",
+  };
+  for (const record of [
+    {
+      event_type: "approval.resolved",
+      entity: actionTypes.get("approval.resolved")?.entity || "approval",
+      outcome_status: updated.status,
+      summary: resolvedSummary,
+      payload: {
+        approval_queue_id: approvalQueueId,
+        resolution: updated.metadata?.resolution || null,
+        governed_outcome: updated.metadata?.governed_outcome || null,
+      },
+    },
+    {
+      event_type: "governance.transitioned",
+      entity: actionTypes.get("governance.transitioned")?.entity || "approval",
+      outcome_status: governedTransition.governed_status,
+      summary: resolvedSummary,
+      payload: {
+        approval_queue_id: approvalQueueId,
+        governed_transition: updated.metadata?.governed_transition || governedTransition,
+        governed_outcome: updated.metadata?.governed_outcome || null,
+      },
+    },
+  ]) {
+    upsertActionRecord({
+      action_id: makeActionId([
+        record.event_type,
+        actionBase.conversation_id,
+        actionBase.request_id,
+        record.summary,
+        actionBase.occurred_at,
+      ]),
+      ...actionBase,
+      ...record,
+    });
+  }
 
   console.log(JSON.stringify({
     approval_queue_id: updated.approval_queue_id,
@@ -219,6 +340,7 @@ function main() {
     responded_by_user_id: updated.responded_by_user_id,
     response_text: updated.response_text,
     governed_outcome: updated.metadata?.governed_outcome || null,
+    governed_transition: updated.metadata?.governed_transition || null,
     resolution: updated.metadata?.resolution || null,
   }, null, 2));
 }

@@ -51,6 +51,11 @@
       "description": "An approval item reached a terminal governance state."
     },
     {
+      "id": "governance.transitioned",
+      "entity": "approval",
+      "description": "A resolved approval produced an explicit governed outcome such as allow, deny, or cancellation."
+    },
+    {
       "id": "artifact.published",
       "entity": "artifact",
       "description": "A workflow or durable artifact was published or promoted."
