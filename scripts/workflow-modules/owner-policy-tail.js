@@ -110,6 +110,10 @@ function assertOwnerPolicyTailContract({ workflow, findNode, assertIncludes }) {
     "riskLevel",
     "risk_reasons",
     "approval_required",
+    "governance_policy",
+    "governance_environment",
+    "requested_capabilities",
+    "blocked_environment_policy",
   ]) {
     assertIncludes(assessApprovalRiskCode, field, "Assess Approval Risk");
   }

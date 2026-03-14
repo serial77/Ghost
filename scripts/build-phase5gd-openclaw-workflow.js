@@ -361,6 +361,71 @@ return [{ json: {
   parent_owner_label: context.parent_owner_label || 'Ghost',
 } }];`;
 
+const assessApprovalRisk = findNode(workflow, "Assess Approval Risk");
+assessApprovalRisk.parameters.jsCode = `${makeApprovalRuntimeHelpersCode()}
+const item = $input.first().json;
+const messages = Array.isArray(item.messages) ? item.messages : [];
+const lastUser = [...messages].reverse().find((message) => message.role === 'user');
+const sourceText = (lastUser?.content || item.prompt || '').trim();
+const findings = [];
+let riskLevel = 'safe';
+
+const destructiveRules = [
+  { label: 'delete_or_rm', pattern: /(^|\\s)(rm\\s+-rf|rm\\s+-r|rm\\s+|delete\\s+(the\\s+)?file|delete\\s+(the\\s+)?directory|remove\\s+(the\\s+)?file|unlink\\s+|shred\\s+)/i, reason: 'Requests file deletion or removal.' },
+  { label: 'docker_live_change', pattern: /docker\\s+compose\\s+(down|restart|up|stop)|docker\\s+(restart|stop)\\b/i, reason: 'Requests live container lifecycle changes.' },
+  { label: 'destructive_sql', pattern: /\\b(drop\\s+table|drop\\s+database|truncate\\s+table|delete\\s+from|alter\\s+table\\s+.*drop\\s+column)\\b/i, reason: 'Contains destructive SQL operations.' },
+  { label: 'critical_move', pattern: /\\b(move|mv|rename)\\b.*\\b(docker-compose\\.ya?ml|\\.env|systemd|workflow|workflows\\/|base\\/)\\b/i, reason: 'Moves or renames critical runtime files.' },
+];
+
+const cautionRules = [
+  { label: 'critical_file_edit', pattern: /\\b(edit|modify|change|update|patch|rewrite)\\b.*\\b(docker-compose\\.ya?ml|\\.env(\\.|\\b)|systemd|service unit|workflow id|production workflow|ghost-chat-v3|Yh6h9OJyVCfREbp3)\\b/i, reason: 'Touches critical runtime configuration or live workflow identifiers.' },
+  { label: 'broad_sql', pattern: /\\b(update|delete)\\b.*\\b(sql|postgres|database|table)\\b/i, reason: 'Requests a database-changing operation.' },
+  { label: 'infrastructure_change', pattern: /\\b(deploy|deployment|infrastructure|nginx|kubernetes|compose file|dockerfile)\\b/i, reason: 'Requests infrastructure-related changes.' },
+];
+
+for (const rule of destructiveRules) {
+  if (rule.pattern.test(sourceText)) findings.push({ level: 'destructive', code: rule.label, reason: rule.reason });
+}
+if (!findings.length) {
+  for (const rule of cautionRules) {
+    if (rule.pattern.test(sourceText)) findings.push({ level: 'caution', code: rule.label, reason: rule.reason });
+  }
+}
+if (findings.some((finding) => finding.level === 'destructive')) riskLevel = 'destructive';
+else if (findings.some((finding) => finding.level === 'caution')) riskLevel = 'caution';
+
+const isCodexDirect = item.provider === 'codex_oauth_worker';
+const directCapabilities = isCodexDirect ? ['code.write', 'artifact.publish'] : [];
+const approvalItem = isCodexDirect ? __buildApprovalItem({
+  workerId: 'ghost_main',
+  requestedBy: 'ghost-main-runtime',
+  summary: 'Direct Codex execution requires approval before mutation-capable work can start.',
+  reason: findings.map((finding) => finding.reason).join(' ') || 'Risk policy requires review.',
+  category: 'destructive_change',
+  riskLevel,
+  capabilities: directCapabilities,
+  requestedForWorkerId: 'ghost_main',
+}) : null;
+const governancePolicy = approvalItem ? __buildApprovalPolicy(approvalItem) : null;
+const blockedByEnvironment = governancePolicy?.state === 'environment_restricted';
+const approvalRequired = isCodexDirect && (riskLevel !== 'safe' || blockedByEnvironment);
+const taskSummary = sourceText.replace(/\\s+/g, ' ').trim().slice(0, 180);
+
+return [{ json: {
+  ...item,
+  task_summary: taskSummary,
+  approval_required: approvalRequired,
+  risk_level: riskLevel,
+  risk_reasons: findings.map((finding) => finding.reason),
+  risk_codes: findings.map((finding) => finding.code),
+  governance_policy: governancePolicy,
+  governance_environment: approvalItem?.environment || item.governance_environment || null,
+  requested_capabilities: directCapabilities,
+  codex_command_status: approvalRequired
+    ? (blockedByEnvironment ? 'blocked_environment_policy' : 'blocked_pending_approval')
+    : (isCodexDirect ? 'pending' : 'not_applicable'),
+} }];`;
+
 addNode(
   workflow,
   makePostgresNode(
