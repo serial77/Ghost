@@ -16,6 +16,14 @@ function loadPhase7Foundations(projectRoot = path.join(__dirname, "..")) {
   };
 }
 
+function getApprovalLifecycle(foundations) {
+  const lifecycle = foundations?.approvalModel?.lifecycle;
+  if (!lifecycle || typeof lifecycle !== "object") {
+    throw new Error("approval lifecycle is not configured");
+  }
+  return lifecycle;
+}
+
 function inferCurrentEnvironment(foundations, explicitEnvironment = "") {
   const knownIds = new Set(foundations.environments.environments.map((entry) => entry.id));
   const candidate = String(explicitEnvironment || process.env.GHOST_RUNTIME_ENV || process.env.GHOST_ENV || "").trim();
@@ -228,11 +236,37 @@ function buildApprovalPolicy(approvalItem) {
   };
 }
 
+function normalizeApprovalState(foundations, state, fieldName = "approval state") {
+  const normalized = String(state || "").trim().toLowerCase();
+  const states = Array.isArray(foundations?.approvalModel?.states)
+    ? foundations.approvalModel.states
+    : [];
+  if (!normalized || !states.includes(normalized)) {
+    throw new Error(`unknown ${fieldName}: ${state}`);
+  }
+  return normalized;
+}
+
+function assertApprovalTransitionAllowed(foundations, fromState, toState) {
+  const lifecycle = getApprovalLifecycle(foundations);
+  const normalizedFrom = normalizeApprovalState(foundations, fromState, "approval from-state");
+  const normalizedTo = normalizeApprovalState(foundations, toState, "approval to-state");
+  const allowedTransitions = lifecycle.allowed_transitions || {};
+  const allowed = Array.isArray(allowedTransitions[normalizedFrom]) ? allowedTransitions[normalizedFrom] : [];
+  if (!allowed.includes(normalizedTo)) {
+    throw new Error(`approval transition not allowed: ${normalizedFrom} -> ${normalizedTo}`);
+  }
+  return { fromState: normalizedFrom, toState: normalizedTo };
+}
+
 module.exports = {
+  assertApprovalTransitionAllowed,
   buildApprovalPolicy,
   buildApprovalItem,
+  getApprovalLifecycle,
   inferCurrentEnvironment,
   loadPhase7Foundations,
   makeApprovalRuntimeConfig,
   makeWorkerRuntimeConfig,
+  normalizeApprovalState,
 };
