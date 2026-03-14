@@ -56,46 +56,113 @@ Scope:
 - `Build Parent Unsupported Delegation Response`
 - delegated control-tail contract assertions
 
+### Phase 6E: delegated setup / creation cluster
+
+Module:
+
+- `scripts/workflow-modules/delegated-setup-tail.js`
+
+Scope:
+
+- `Build Delegation Request`
+- `Create Conversation Delegation`
+- `Build Delegation Context`
+- `Save Delegated Worker Message`
+- `Build Delegation Execution Context`
+- `Start Delegated Runtime`
+- delegated setup-tail contract assertions
+
+### Phase 6F: request ingress / conversation load cluster
+
+Module:
+
+- `scripts/workflow-modules/ingress-conversation-tail.js`
+
+Scope:
+
+- request normalization assignments
+- conversation lookup / create contract assertions
+- user-message persistence metadata contract
+- recent-message load contract
+- route metadata exposure contract
+
+### Phase 6G: owner resolution / approval policy cluster
+
+Module:
+
+- `scripts/workflow-modules/owner-policy-tail.js`
+
+Scope:
+
+- `Ensure Conversation Owner`
+- `Conversation Context With Owner`
+- `Resolve Parent Conversation Strategy`
+- owner/policy contract assertions, including approval-risk handoff
+
+### Phase 6H: delegation router cluster
+
+Module:
+
+- `scripts/workflow-modules/delegation-router-tail.js`
+
+Scope:
+
+- `Delegation Required?`
+- `Delegation Approval Required?`
+- `Delegated Worker Is Codex?`
+- router handoff connection ownership
+- delegation-router contract assertions
+
+### Phase 6I: delegated worker runtime branch cluster
+
+Module:
+
+- `scripts/workflow-modules/delegated-worker-runtime-tail.js`
+
+Scope:
+
+- `Build Delegated Codex Context`
+- `Build Delegated Codex Command`
+- `Execute Delegated Codex Command`
+- `Normalize Delegated Codex Reply`
+- delegated worker-runtime contract assertions
+
 ## Current modular builder architecture
 
-The current builder architecture is intentionally tail-first:
+The current builder architecture is intentionally contract-first:
 
-- main builder retains core orchestration, routing, and execution graph assembly
-- downstream, contiguous, lower-blast-radius tails are extracted into dedicated module files
+- main builder retains workflow assembly glue, a small amount of shared customization, and final connection wiring
+- extracted builder modules now cover the major direct-path and delegated-path clusters that can be modularized without runtime subworkflow semantics
 - module assertions protect the extracted boundaries against silent drift
 
 This is a builder modularization phase, not a runtime subworkflow phase.
 
 ## Regions intentionally still inlined
 
-- request ingress / conversation load
-- owner resolution / approval policy
-- delegation router
-- delegated setup / creation cluster
-- worker runtime branches
+- shared direct provider reply normalization (`Normalize Ollama Reply`, `Normalize OpenAI Reply`, `Normalize Codex Reply`)
+- runtime ledger start / direct runtime start payload shaping
+- memory/prompt composition upstream of the extracted memory tail
+- a small amount of connection glue in the main builder
 
-These remain inlined because they are closer to orchestration semantics, policy semantics, or creation-time truth than the extracted tails.
+These remain inlined because they are shared across multiple extracted regions or are still clearer as central builder glue.
 
 ## Supervised-only regions
 
-- delegated setup / creation cluster
-- request ingress / conversation load
-- owner resolution / approval policy
-- worker runtime branches
+- none of the originally planned Phase 6 builder extraction regions remain unimplemented
 
 ## Regions that may be better left inlined
 
 - delegation router
 - owner resolution / approval policy
 
-These regions are central enough that extraction may not improve maintainability relative to the validation risk.
+These were extracted successfully at the builder level, but future work should treat them as semantically sensitive and avoid churning them casually.
 
 ## Current modular invariants
 
 The modular builder architecture now depends on these invariants:
 
 - extracted tail modules must remain builder-level only
-- extracted tails must not reinterpret routing or policy semantics
+- extracted modules must not reinterpret routing or policy semantics
 - direct-path truth surfaces must remain aligned:
   - API response
   - assistant metadata
@@ -108,6 +175,10 @@ The modular builder architecture now depends on these invariants:
   - parent assistant metadata
   - delegated completion `tool_events.payload`
 - direct and delegated parity checks must remain meaningful after any further extraction
+- routing/control modules must preserve current branch semantics exactly:
+  - direct vs delegated
+  - blocked vs unsupported vs executable delegated
+- delegated setup and worker-runtime modules must preserve creation-time and worker-runtime linkage continuity
 
 ## Validation posture
 
@@ -120,15 +191,14 @@ The current safe validation posture remains:
 - recent delegated parity section
 - targeted probes for the exact extracted region
 
-This posture is sufficient for downstream tails, but not by itself for broad routing/policy/core-runtime refactors.
+This posture was sufficient to carry Phase 6 through the full builder-level modularization queue, but future work should still treat routing/policy/runtime changes as supervision-heavy.
 
 ## Phase 6 readiness statement
 
-Phase 6 is complete enough to begin Phase 7 planning.
+Phase 6 builder modularization is effectively complete enough to begin Phase 7 planning.
 
 Reason:
 
-- the safest builder-level extractions have been completed
-- the remaining candidates are classified and bounded
-- the remaining higher-risk work now has explicit supervised briefs
-- there is no obvious need to keep extracting higher-blast-radius core regions just to satisfy modularization aesthetics
+- the major builder-level regions have now been extracted into dedicated modules
+- direct and delegated parity remained clean through the implementation queue
+- the remaining work is no longer “Phase 6 extraction,” but post-modularization hardening, supervision, and architectural follow-up

@@ -2,6 +2,12 @@
 
 This document is the canonical supervised extraction package for the remaining higher-risk Phase 6 regions after the completed downstream builder-level module work.
 
+Historical note:
+
+- This package was written before the forced implementation pass completed Phases 6E through 6I.
+- It remains useful as a record of the intended boundaries and validation expectations for those regions.
+- For the current post-implementation state, treat [`phase-6-completion-summary.md`](/home/deicide/dev/ghost-stack-codex/docs/phase-6-completion-summary.md) and [`phase-7-starter.md`](/home/deicide/dev/ghost-stack-codex/docs/phase-7-starter.md) as the authoritative current artifacts.
+
 It assumes the following completed extractions remain unchanged:
 
 - Phase 6A direct runtime tail
