@@ -4,7 +4,7 @@
 
 - Branch: `codex-direct-truth-reconcile`
 - Remote state: pushed to `origin`
-- Merge state: not merged
+- Merge state: not merged to main; Copilot's `chore/normalize-canonical-artifact-names` also pending (see Section 9)
 - Working tree at handoff creation: clean before this docs-only file; only this handoff doc was added in this step
 
 ## 2. What is complete
@@ -15,7 +15,7 @@
   - delegated completion/result tail extracted
   - delegated control/setup/router/worker-runtime regions extracted
   - builder modularization baseline is established and validated
-- Phase 7: materially real and near-MVP-ready on the backend/governance side
+- Phase 7: **MVP-ready** — governed loop proven live end-to-end, operator approval UI shipped
   - durable approval request persistence in `approvals`
   - durable approval resolution
   - durable governed outcome metadata
@@ -26,9 +26,15 @@
   - capability/environment policy consumed in bounded live admission slices
   - worker registry consumed in delegated setup and governed follow-through identity
   - governed-flow scenario harness exists and runs
-- Near-MVP-ready now means:
-  - the governed operator core is durable, inspectable, and parity-clean
-  - the main remaining backend gap is follow-through execution, not truth persistence
+- Completed in MVP closure pass (2026-03):
+  - fixed `$items('Start Runtime Ledger', 0, 0)[0]?.json.task_id` accessor in builder (was silently skipping approval INSERT due to sink-node paired-item resolution failure)
+  - live loop proven end-to-end: blocked execution → approval persisted → resolved via shell → follow-through executed → retry dispatched → new n8n execution succeeded
+  - operator approval API: `GET /api/operations/approvals`, `POST /api/operations/approvals/[id]/resolve`
+  - operator approval UI panel in Task Overview: pending/resolved display, Approve/Reject buttons, follow-through guidance
+- MVP-ready now means:
+  - the governed operator core is durable, inspectable, parity-clean, and live-loop verified
+  - operator can see and act on pending approvals directly in the UI
+  - follow-through (resolve → execute → retry) is manual/operator-invoked, not automated — intentional posture
 
 ## 3. What is frozen / do not drift
 
@@ -52,7 +58,8 @@
   - do not widen changes into UI or historical DB cleanup
 - Phase 6 builder modularization baseline
   - builder modules under [`scripts/workflow-modules`](/home/deicide/dev/ghost-stack-codex/scripts/workflow-modules)
-  - generated workflow must remain reproducible from [`scripts/build-phase5gd-openclaw-workflow.js`](/home/deicide/dev/ghost-stack-codex/scripts/build-phase5gd-openclaw-workflow.js)
+  - generated workflow must remain reproducible from [`scripts/build-phase5gd-openclaw-workflow.js`](/home/deicide/dev/ghost-stack-codex/scripts/build-phase5gd-openclaw-workflow.js) (Copilot's naming branch may rename this post-merge — do not rename on this branch)
+  - `$items('Start Runtime Ledger', 0, 0)[0]?.json` is the correct accessor for sink nodes — do not revert to `$('Start Runtime Ledger').item.json`
 - Governance contract surfaces that should not be casually rewritten
   - [`ops/foundation/approval-model.json`](/home/deicide/dev/ghost-stack-codex/ops/foundation/approval-model.json)
   - [`ops/foundation/action-model.json`](/home/deicide/dev/ghost-stack-codex/ops/foundation/action-model.json)
@@ -62,31 +69,23 @@
 
 ## 4. What remains incomplete
 
-- Remaining backend gap
-  - approved follow-through rows record durable `retry_enqueued` intent, but Ghost does not yet execute one real blocked-work retry/unblock path end to end
-- Remaining operator/UI gap
-  - no first-class approval queue UI
-  - durable action and approval surfaces are still mostly shell/helper consumed
+- Remaining operator posture gap
+  - follow-through after UI approve is manual: operator must run `bash ops/resolve-approval-queue.sh` then `bash ops/execute-governed-followthrough.sh` then `bash ops/retry-governed-followthrough.sh`; the UI surfaces this guidance but does not automate it
+  - retry queue has no dedicated UI surface (approval queue UI shows approved items; retry queue visibility is shell/helper)
+  - action history surface is durable and inspectable via shell helpers but has no dedicated UI panel
 - Remaining broader authority gap
   - capability/environment and worker authority are real in bounded slices, not yet system-wide
+- Two-repo operational debt
+  - live UI runs from `ghost-stack-claude`; canonical work is in `ghost-stack-codex`; new UI files must be manually mirrored until repos converge
 
 ## 5. Best next supervised step
 
-Implement one controlled approved-followthrough executor that consumes a durable `retry_enqueued` row and actually retries or unblocks one blocked path end to end.
+The governed loop is live and operator-accessible. The next well-scoped supervised step is merge consolidation:
 
-Target shape:
-
-- choose one blocked path only
-- approved row -> durable governed outcome already says `allowed`
-- consume the follow-through row
-- execute one narrow retry/unblock action
-- keep the result durable and inspectable across:
-  - `approvals`
-  - `ghost_governed_followthrough`
-  - `ghost_action_history`
-  - existing runtime/delegation truth surfaces
-
-Do not start with a broad replay engine.
+- assess whether `codex-direct-truth-reconcile` is safe to merge to main
+- assess Copilot's `chore/normalize-canonical-artifact-names` branch conflict surface (renames builder + workflow files; does not change webhook/runtime contract names)
+- recommended merge sequence: Copilot's naming branch first (naming only, low risk), then this branch (adds governance, approval API, approval UI)
+- resolve two-repo operational debt by consolidating `ghost-stack-claude` and `ghost-stack-codex` after merge
 
 ## 6. Validation contract
 
@@ -145,11 +144,40 @@ High-risk files/areas:
 
 ## 8. Near-term objective
 
-Ghost is **near-MVP-ready**, not fully MVP-ready.
+Ghost is **MVP-ready**.
 
 Why:
 
-- the governed operator core is now durable, authoritative in bounded slices, and operationally coherent
+- the governed operator core is durable, authoritative in bounded slices, and operationally coherent
 - direct/delegated parity remains green
 - approvals, action history, follow-through, policy, and worker identity are all real backend surfaces
-- the main remaining gap is not truth persistence; it is executing one real approved follow-through path end to end
+- the governed loop is live-verified end-to-end (blocked execution → approval persisted → shell resolve → follow-through → retry dispatch → new execution succeeded)
+- operator approval UI exists: pending approvals visible and actionable in Task Overview, follow-through guidance surfaced inline
+- remaining gaps (automated retry, retry queue UI, action history UI, broad policy) are post-MVP scope
+
+## 9. Pending branch consolidation
+
+**This branch (`codex-direct-truth-reconcile`) is ready to merge.** TypeScript checks pass, workflow fix live-proven, approval surface functional.
+
+**Copilot's `chore/normalize-canonical-artifact-names` branch — actual state:**
+
+- Despite the branch name, no file renames have been committed yet (builder and workflow files still have the old names)
+- Actual changes: adds `.github/copilot-instructions.md`, `docs/ai-workspace-playbook.md`, `ops/promote-live-workflow-safe.sh`, extends `ops/README.md` with a canonical promotion path section
+
+**Conflict surface:**
+
+- Only `ops/README.md` is modified in both branches — a docs-only conflict
+- Our branch rewrote the `activate-live-workflow.sh` description
+- Copilot's branch added a new "Canonical workflow promotion path" section using `promote-live-workflow-safe.sh`
+- Resolution: additive — keep both sections, order Copilot's canonical path first, then existing script entries
+
+**Recommended merge order:**
+
+1. Copilot's naming branch first (no functional changes, small conflict surface)
+2. Then this branch (resolve `ops/README.md` by incorporating both sections)
+
+**After merge:**
+
+- consolidate `ghost-stack-claude` and `ghost-stack-codex` two-repo operational debt
+- ensure live UI server switches to the merged version
+- update validation contract references if builder file is eventually renamed

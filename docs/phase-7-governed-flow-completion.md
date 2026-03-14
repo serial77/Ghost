@@ -81,19 +81,46 @@ The following remain required after future governed-flow changes:
 - `ops/foundation/action-model.json` — added `governance.retry_dispatched` and `governance.retry_failed`
 - `scripts/run-governed-flow-scenarios.js` — `--with-retry` flag runs dry-run probe
 
+## Added: workflow accessor fix + live loop proof (2026-03)
+
+- Fixed silent approval INSERT failure in `Persist Approval Queue Item` n8n node
+  - root cause: `$('Start Runtime Ledger').item.json.task_id` resolves to `undefined` for sink nodes (no outgoing connections); paired-item accessor requires the node to be in the direct execution chain
+  - fix: replaced all three occurrences with `$items('Start Runtime Ledger', 0, 0)[0]?.json.task_id` — same pattern used by `Build Runtime Ledger Completion Payload` elsewhere in the workflow
+  - rebuilt workflow via `node scripts/build-phase5gd-openclaw-workflow.js`, redeployed via `ops/activate-live-workflow.sh`
+- Live loop proven end-to-end on live stack:
+  - execution 489: blocked path → `approval_required: true`, `response_mode: delegated_blocked`
+  - approval `f124d02d` persisted correctly in `approvals` table
+  - resolved via `bash ops/resolve-approval-queue.sh` → `bash ops/execute-governed-followthrough.js` → `retry_enqueued`
+  - retried via `bash ops/retry-governed-followthrough.sh` → execution 490: succeeded, `response_mode: direct_owner_reply`
+  - full timeline confirmed in `ghost_action_history`
+
+## Added: operator approval API and UI (2026-03)
+
+- `app/ui/lib/server/approval-queue.ts`: data layer for approval queue read and resolve
+- `app/ui/app/api/operations/approvals/route.ts`: `GET /api/operations/approvals`
+- `app/ui/app/api/operations/approvals/[approvalId]/resolve/route.ts`: `POST .../resolve`
+- `app/ui/components/task-overview-live.tsx`: approval queue panel in Task Overview
+  - shows pending count, approval type, environment, capabilities, conversation ID, time
+  - Approve/Reject buttons for pending items (resolves via API, refreshes on response)
+  - resolved-by + outcome for resolved items
+  - inline follow-through guidance: "Follow-through is manual. Run: `bash ops/resolve-approval-queue.sh` then `bash ops/execute-governed-followthrough.sh`"
+  - polling every 15s
+
 ## Remaining thin areas
 
-- no first-class operator UI for approval queue or retry queue
-- retry is operator-invoked (script); not automated or event-driven
+- follow-through after UI approve is manual (operator-invoked scripts); the UI surfaces guidance but does not automate
+- retry queue has no dedicated UI surface
+- action history surface is shell/helper only, no UI panel
 - worker registry authority is stronger, but not yet system-wide
 - broad policy admission remains intentionally narrow and bounded
 
-## MVP posture after retry executor
+## MVP posture (2026-03)
 
-The governed loop is now end-to-end executable:
+The governed loop is now end-to-end executable and live-verified:
 
 - approval request → durable queue
-- operator resolution → durable governed outcome
+- operator sees pending approval in UI → clicks Approve/Reject → durable governed outcome
+- UI surfaces follow-through instructions inline
 - follow-through planning → durable `retry_enqueued` intent
 - retry executor → real webhook dispatch → durable `retry_dispatched` + new n8n execution
 - action history captures full timeline at every stage

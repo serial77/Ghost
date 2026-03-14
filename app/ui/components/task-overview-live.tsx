@@ -290,7 +290,7 @@ export function TaskOverviewLive({
           <div className="panel-header">
             <div>
               <div className="kicker">Approval Queue</div>
-              <h3>Governed requests awaiting operator action</h3>
+              <h3>{approvalPayload.counts.pending > 0 ? "Governed requests awaiting operator action" : "Governed approval queue"}</h3>
             </div>
             <StatusPill
               label={approvalPayload.counts.pending > 0 ? `${approvalPayload.counts.pending} pending` : "No pending"}
@@ -339,6 +339,11 @@ export function TaskOverviewLive({
                       {approval.outcomeStatus ? ` · ${approval.outcomeStatus}` : ""}
                     </p>
                   ) : null}
+                  {approval.status === "approved" ? (
+                    <p className="caption" style={{ marginTop: 6, padding: "4px 8px", background: "var(--color-surface-2, rgba(255,255,255,0.04))", borderRadius: 4, fontFamily: "monospace", fontSize: "0.75rem" }}>
+                      Follow-through is manual. Run: <code>bash ops/resolve-approval-queue.sh</code> then <code>bash ops/execute-governed-followthrough.sh</code>
+                    </p>
+                  ) : null}
                 </div>
                 {approval.status === "pending" ? (
                   <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
@@ -364,7 +369,7 @@ export function TaskOverviewLive({
             ))}
           </div>
         </Card>
-      ) : approvalPayload?.counts.total === 0 ? null : null}
+      ) : null}
 
       <div className="task-live-layout">
         <Card>

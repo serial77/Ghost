@@ -13,7 +13,7 @@ export interface ApprovalQueueItem {
   orchestrationTaskId: string | null;
   runtimeTaskId: string | null;
   n8nExecutionId: string | null;
-  responseMod: string | null;
+  responseMode: string | null;
   governanceEnvironment: string | null;
   requestedCapabilities: string[];
   outcomeStatus: string | null;
@@ -105,11 +105,16 @@ export async function getApprovalQueuePayload(): Promise<ApprovalQueuePayload> {
     orchestrationTaskId: row.orchestration_task_id,
     runtimeTaskId: row.runtime_task_id,
     n8nExecutionId: row.n8n_execution_id,
-    responseMod: row.response_mode,
+    responseMode: row.response_mode,
     governanceEnvironment: row.governance_environment,
-    requestedCapabilities: row.requested_capabilities
-      ? JSON.parse(row.requested_capabilities).filter((c: unknown) => typeof c === "string")
-      : [],
+    requestedCapabilities: (() => {
+      try {
+        const parsed = row.requested_capabilities ? (JSON.parse(row.requested_capabilities) as unknown) : [];
+        return Array.isArray(parsed) ? parsed.filter((c: unknown) => typeof c === "string") : [];
+      } catch {
+        return [];
+      }
+    })(),
     outcomeStatus: row.outcome_status,
     resolvedBy: row.resolved_by,
     sourcePath: row.source_path,

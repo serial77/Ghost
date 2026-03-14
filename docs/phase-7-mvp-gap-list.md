@@ -15,16 +15,20 @@
 - worker registry affects bounded live worker-selection and governed output slices
 - recent direct and delegated parity remain green
 
-## Thin but acceptable for near-MVP
+## Thin but acceptable for MVP
 
-- approval queue is backend/report-helper driven, not operator UI driven
-- retry dispatch is durable and inspectable, but triggered by operator/script — not automated
-- action history is durable, but mostly helper-consumed
+- approval queue has operator UI (Task Overview panel); retry queue is still shell/helper only
+- retry dispatch is durable and inspectable, but triggered by operator/script — not automated; UI surfaces the command guidance
+- action history is durable, but mostly helper-consumed; no UI panel
 - policy gating is authoritative in bounded slices, not broad policy-engine form
 - worker registry authority is real, but not system-wide
 
-## Completed since last gap list
+## Completed since last gap list (2026-03)
 
+- live loop proven end-to-end on live stack (blocked execution 489 → approval → resolve → execute → retry → execution 490 succeeded)
+- fixed `$items('Start Runtime Ledger', 0, 0)[0]?.json.task_id` accessor in builder (was silently skipping approval INSERT)
+- operator approval API: `GET /api/operations/approvals`, `POST /api/operations/approvals/[id]/resolve`
+- operator approval UI in Task Overview: pending/resolved display, Approve/Reject buttons, follow-through guidance
 - controlled unblock/retry executor added (`scripts/retry-governed-followthrough.js`)
   - consumes `retry_enqueued` rows from `ghost_governed_followthrough`
   - validates `outcome_status = allowed` before dispatch
@@ -35,11 +39,12 @@
   - `governance.retry_dispatched` and `governance.retry_failed` added to action-model.json
   - scenario harness extended with `--with-retry` dry-run probe
 
-## Still missing for a stronger MVP claim
+## Still missing for a stronger post-MVP claim
 
-- first-class operator UI surface for approval queue and retry queue
+- first-class operator UI surface for retry queue (approval queue UI is closed)
+- dedicated UI panel for action history (currently shell/helper only)
 - broader authoritative worker/capability policy checks in more than one routing/execution slice
-- automated retry trigger (current: operator-invoked script)
+- automated retry trigger (current: operator-invoked script; UI surfaces guidance)
 
 ## Do not weaken
 

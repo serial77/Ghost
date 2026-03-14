@@ -43,6 +43,7 @@ app/ui/tsconfig.tsbuildinfo
 *.sqlite
 *.sqlite3
 workflows/*backup*.json
+workflows/*post-activate*.json
 
 # Docker local overrides
 docker-compose.override.yml
