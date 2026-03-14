@@ -48,6 +48,7 @@ direct_parity_gaps="$(psql_app_at "SELECT COUNT(*) FROM messages WHERE role = 'a
 delegated_parity_gaps="$(psql_app_at "SELECT COUNT(*) FROM messages WHERE role = 'assistant' AND created_at >= NOW() - INTERVAL '${RECENT_HOURS} hours' AND COALESCE(metadata ->> 'response_mode', '') IN ('delegated_worker_result', 'delegated_blocked', 'delegated_execution_unavailable') AND COALESCE(metadata ->> 'delegation_id', '') <> '' AND COALESCE(metadata ->> 'runtime_task_run_id', '') = '' AND COALESCE(metadata ->> 'response_mode', '') = 'delegated_worker_result';")"
 blocked_approvals="$(psql_app_at "SELECT COUNT(*) FROM conversation_delegations WHERE status = 'blocked' AND COALESCE(updated_at, created_at) >= NOW() - INTERVAL '${RECENT_HOURS} hours';")"
 top_worker_provider="$(psql_app_at "SELECT COALESCE(worker_provider, 'unknown') || '|' || COUNT(*) FROM conversation_delegations WHERE COALESCE(updated_at, created_at) >= NOW() - INTERVAL '${RECENT_HOURS} hours' GROUP BY worker_provider ORDER BY COUNT(*) DESC, worker_provider NULLS LAST LIMIT 1;")"
+worker_fragility_json="$(psql_app_at "SELECT COALESCE(json_agg(row_to_json(x) ORDER BY x.blocked_count DESC, x.failed_count DESC, x.total_count DESC, x.worker_provider), '[]'::json) FROM (SELECT COALESCE(worker_provider, 'unknown') AS worker_provider, COUNT(*) FILTER (WHERE status = 'failed') AS failed_count, COUNT(*) FILTER (WHERE status = 'blocked') AS blocked_count, COUNT(*) FILTER (WHERE status IN ('queued', 'running')) AS non_terminal_count, COUNT(*) AS total_count FROM conversation_delegations WHERE COALESCE(updated_at, created_at) >= NOW() - INTERVAL '${RECENT_HOURS} hours' GROUP BY 1 LIMIT 5) x;")"
 
 TOP_WORKER_PROVIDER="${top_worker_provider%%|*}"
 TOP_WORKER_COUNT="${top_worker_provider#*|}"
@@ -65,12 +66,28 @@ export DIRECT_PARITY_GAPS="$direct_parity_gaps"
 export DELEGATED_PARITY_GAPS="$delegated_parity_gaps"
 export BLOCKED_APPROVALS="$blocked_approvals"
 export TOP_WORKER_PROVIDER TOP_WORKER_COUNT
+export WORKER_FRAGILITY_JSON="$worker_fragility_json"
 
 node - <<'NODE'
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const projectRoot = '/home/deicide/dev/ghost-stack-codex';
 const diagnostics = JSON.parse(fs.readFileSync(path.join(projectRoot, 'ops/foundation/diagnostics.json'), 'utf8'));
+const actionFeed = JSON.parse(execFileSync(
+  path.join(projectRoot, 'ops/materialize-action-records.sh'),
+  ['--recent-hours', process.env.RECENT_HOURS, '--limit', '200'],
+  { encoding: 'utf8' },
+));
+const workerFragility = JSON.parse(process.env.WORKER_FRAGILITY_JSON || '[]');
+const eventCounts = {};
+for (const record of actionFeed.records || []) {
+  eventCounts[record.event_type] = (eventCounts[record.event_type] || 0) + 1;
+}
+const topActionEvents = Object.entries(eventCounts)
+  .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+  .slice(0, 5)
+  .map(([event_type, count]) => ({ event_type, count }));
 const out = {
   recent_hours: Number(process.env.RECENT_HOURS),
   stale_minutes: Number(process.env.STALE_MINUTES),
@@ -88,15 +105,22 @@ const out = {
       recent_delegated_runtime_task_run_gaps: Number(process.env.DELEGATED_PARITY_GAPS)
     },
     repeated_blocked_approvals: {
-      blocked_delegations_24h: Number(process.env.BLOCKED_APPROVALS)
+      blocked_delegations_24h: Number(process.env.BLOCKED_APPROVALS),
+      approval_requested_actions_24h: eventCounts['approval.requested'] || 0,
+      delegation_blocked_actions_24h: eventCounts['delegation.blocked'] || 0
     },
     worker_overload_imbalance: {
       top_worker_provider: process.env.TOP_WORKER_PROVIDER,
-      top_worker_count_24h: Number(process.env.TOP_WORKER_COUNT)
+      top_worker_count_24h: Number(process.env.TOP_WORKER_COUNT),
+      worker_fragility: workerFragility
     },
     fragile_module_hotspots: {
       hotspot_count: diagnostics.hotspot_modules.length,
-      hotspot_modules: diagnostics.hotspot_modules
+      hotspot_modules: diagnostics.hotspot_modules,
+      action_event_mix: topActionEvents,
+      materialized_action_records: actionFeed.record_count || 0,
+      runtime_completed_actions_24h: eventCounts['runtime.completed'] || 0,
+      outcome_recorded_actions_24h: eventCounts['outcome.recorded'] || 0
     }
   }
 };
