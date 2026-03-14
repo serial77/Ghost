@@ -13,6 +13,8 @@ interface WorkersJson {
     purpose: string;
     operator_identity: string;
     environment_scope: string[];
+    success_contract: string;
+    failure_contract: string;
   }>;
 }
 
@@ -48,6 +50,8 @@ export interface FoundationWorker {
   visibilityLabel: string;
   role: string;
   purpose: string;
+  successContract: string;
+  failureContract: string;
   environmentScope: string[];
   capabilities: string[];
   operatorIdentity: string;
@@ -88,6 +92,40 @@ export interface AgentRegistryPayload {
   errors: string[];
 }
 
+// ---- Detail payload (fetched on demand per agent) ----
+
+export interface RecentTask {
+  taskId: string;
+  title: string;
+  status: string;
+  taskType: string;
+  source: string;
+  workerName: string | null;
+  executionTarget: string | null;
+  n8nExecutionId: string | null;
+  durationMs: number | null;
+  runStatus: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RecentDelegation {
+  delegationId: string;
+  status: string;
+  requestSummary: string;
+  resultSummary: string | null;
+  workerProvider: string | null;
+  workerModel: string | null;
+  createdAt: string;
+}
+
+export interface AgentDetailPayload {
+  agentKey: string;
+  recentTasks: RecentTask[];
+  recentDelegations: RecentDelegation[];
+  errors: string[];
+}
+
 // ---- Helpers ----
 
 function readFoundationJson<T>(filename: string): T {
@@ -107,7 +145,7 @@ interface AgentRow {
   last_active: string | null;
 }
 
-// ---- Main export ----
+// ---- Main registry payload ----
 
 export async function getAgentRegistryPayload(): Promise<AgentRegistryPayload> {
   const generatedAt = new Date().toISOString();
@@ -174,6 +212,8 @@ export async function getAgentRegistryPayload(): Promise<AgentRegistryPayload> {
       visibilityLabel: w.visibility_label,
       role: w.role,
       purpose: w.purpose,
+      successContract: w.success_contract,
+      failureContract: w.failure_contract,
       environmentScope: w.environment_scope,
       capabilities: capabilitiesJson.worker_capabilities[w.id] ?? [],
       operatorIdentity: w.operator_identity,
@@ -217,4 +257,114 @@ export async function getAgentRegistryPayload(): Promise<AgentRegistryPayload> {
     capabilities,
     errors,
   };
+}
+
+// ---- Per-agent detail payload (recent activity, fetched on demand) ----
+
+interface TaskActivityRow {
+  task_id: string;
+  title: string;
+  status: string;
+  task_type: string;
+  source: string;
+  worker_name: string | null;
+  execution_target: string | null;
+  n8n_execution_id: string | null;
+  duration_ms: string | null;
+  run_status: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DelegationActivityRow {
+  delegation_id: string;
+  status: string;
+  request_summary: string;
+  result_summary: string | null;
+  worker_provider: string | null;
+  worker_model: string | null;
+  created_at: string;
+}
+
+export async function getAgentDetailPayload(agentKey: string): Promise<AgentDetailPayload> {
+  const errors: string[] = [];
+  let recentTasks: RecentTask[] = [];
+  let recentDelegations: RecentDelegation[] = [];
+
+  try {
+    const pool = getPool("app");
+
+    const tasksResult = await pool.query<TaskActivityRow>(`
+      SELECT
+        t.id            AS task_id,
+        t.title,
+        t.status,
+        t.task_type,
+        t.source,
+        tr.worker_name,
+        tr.execution_target,
+        tr.n8n_execution_id,
+        tr.duration_ms::text  AS duration_ms,
+        tr.status             AS run_status,
+        t.created_at::text,
+        t.updated_at::text
+      FROM tasks t
+      LEFT JOIN LATERAL (
+        SELECT worker_name, execution_target, n8n_execution_id, duration_ms, status
+        FROM task_runs
+        WHERE task_id = t.id
+        ORDER BY run_number DESC
+        LIMIT 1
+      ) tr ON true
+      JOIN agents a ON a.id = t.assigned_agent_id
+      WHERE a.agent_key = $1
+      ORDER BY t.updated_at DESC
+      LIMIT 8
+    `, [agentKey]);
+
+    recentTasks = tasksResult.rows.map((r) => ({
+      taskId: r.task_id,
+      title: r.title,
+      status: r.status,
+      taskType: r.task_type,
+      source: r.source,
+      workerName: r.worker_name,
+      executionTarget: r.execution_target,
+      n8nExecutionId: r.n8n_execution_id,
+      durationMs: r.duration_ms !== null ? parseInt(r.duration_ms, 10) : null,
+      runStatus: r.run_status,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }));
+
+    const delegationsResult = await pool.query<DelegationActivityRow>(`
+      SELECT
+        cd.id              AS delegation_id,
+        cd.status,
+        cd.request_summary,
+        cd.result_summary,
+        cd.worker_provider,
+        cd.worker_model,
+        cd.created_at::text
+      FROM conversation_delegations cd
+      JOIN agents a ON a.id = cd.worker_agent_id
+      WHERE a.agent_key = $1
+      ORDER BY cd.created_at DESC
+      LIMIT 8
+    `, [agentKey]);
+
+    recentDelegations = delegationsResult.rows.map((r) => ({
+      delegationId: r.delegation_id,
+      status: r.status,
+      requestSummary: r.request_summary,
+      resultSummary: r.result_summary,
+      workerProvider: r.worker_provider,
+      workerModel: r.worker_model,
+      createdAt: r.created_at,
+    }));
+  } catch (err) {
+    errors.push(`Activity query failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  return { agentKey, recentTasks, recentDelegations, errors };
 }

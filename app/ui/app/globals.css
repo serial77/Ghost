@@ -951,6 +951,92 @@ textarea {
   grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.3fr) minmax(320px, 1fr);
 }
 
+.agent-layout-workspace {
+  grid-template-columns: minmax(240px, 0.72fr) minmax(0, 2.28fr);
+}
+
+/* Selectable roster rows */
+.agent-row-selectable {
+  cursor: pointer;
+  transition: background 0.13s ease, border-color 0.13s ease;
+}
+.agent-row-selectable:hover {
+  background: rgba(255, 255, 255, 0.038);
+  border-color: rgba(255, 255, 255, 0.07);
+}
+.agent-row-selected {
+  background: rgba(126, 170, 255, 0.07) !important;
+  border-color: rgba(126, 170, 255, 0.18) !important;
+}
+
+/* Workspace tabs */
+.workspace-tabs {
+  display: flex;
+  gap: 2px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.workspace-tab {
+  padding: 5px 13px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background 0.12s, color 0.12s;
+  letter-spacing: 0.01em;
+}
+.workspace-tab:hover {
+  color: var(--text-soft);
+  background: rgba(255, 255, 255, 0.04);
+}
+.workspace-tab.active {
+  color: var(--text);
+  background: rgba(126, 170, 255, 0.1);
+}
+
+/* Workspace content rows */
+.workspace-field {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.35fr) minmax(0, 1fr);
+  gap: 4px 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: baseline;
+}
+.workspace-field:last-child {
+  border-bottom: none;
+}
+.workspace-field-label {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+  padding-top: 1px;
+}
+.workspace-field-value {
+  font-size: 0.83rem;
+  color: var(--text-soft);
+  line-height: 1.55;
+}
+
+/* Activity list in workspace */
+.workspace-activity-row {
+  padding: 11px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.014);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  margin-bottom: 7px;
+}
+.workspace-activity-row:last-child {
+  margin-bottom: 0;
+}
+
 .card {
   padding: 20px;
   /* Content panel tier — catches ambient crown light from above */
@@ -1361,6 +1447,7 @@ textarea {
   .task-live-layout,
   .task-detail-grid,
   .agent-layout,
+  .agent-layout-workspace,
   .status-cluster,
   .split-grid {
     grid-template-columns: 1fr;
