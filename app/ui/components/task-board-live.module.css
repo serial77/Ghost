@@ -36,10 +36,13 @@
   display: flex;
   align-items: stretch;
   gap: 0;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-top-color: rgba(255, 255, 255, 0.16);
   border-radius: 6px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.025);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .statBlock {
@@ -349,19 +352,22 @@
   gap: 10px;
   min-height: 200px;
   padding: 12px;
-  border-radius: 7px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: linear-gradient(180deg, rgba(11, 11, 20, 0.82), rgba(7, 7, 16, 0.94));
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.22);
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-top-color: rgba(255, 255, 255, 0.16);
+  background: linear-gradient(180deg, rgba(12, 12, 22, 0.58), rgba(8, 8, 16, 0.68));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.34);
 }
 
-.lanePlanning { box-shadow: inset 0 2px 0 rgba(100, 155, 255, 0.28), 0 16px 48px rgba(0, 0, 0, 0.22); }
-.laneInbox    { box-shadow: inset 0 2px 0 rgba(100, 80,  240, 0.28), 0 16px 48px rgba(0, 0, 0, 0.22); }
-.laneAssigned { box-shadow: inset 0 2px 0 rgba(165, 80,  255, 0.28), 0 16px 48px rgba(0, 0, 0, 0.22); }
-.laneProgress { box-shadow: inset 0 2px 0 rgba(60,  210, 225, 0.28), 0 16px 48px rgba(0, 0, 0, 0.22); }
-.laneTesting  { box-shadow: inset 0 2px 0 rgba(255, 140, 50,  0.28), 0 16px 48px rgba(0, 0, 0, 0.22); }
-.laneReview   { box-shadow: inset 0 2px 0 rgba(244, 197, 80,  0.28), 0 16px 48px rgba(0, 0, 0, 0.22); }
-.laneDone     { box-shadow: inset 0 2px 0 rgba(80,  210, 140, 0.28), 0 16px 48px rgba(0, 0, 0, 0.22); }
+.lanePlanning { box-shadow: inset 0 2px 0 rgba(100, 155, 255, 0.34), 0 10px 32px rgba(0, 0, 0, 0.34); }
+.laneInbox    { box-shadow: inset 0 2px 0 rgba(100, 80,  240, 0.34), 0 10px 32px rgba(0, 0, 0, 0.34); }
+.laneAssigned { box-shadow: inset 0 2px 0 rgba(165, 80,  255, 0.34), 0 10px 32px rgba(0, 0, 0, 0.34); }
+.laneProgress { box-shadow: inset 0 2px 0 rgba(60,  210, 225, 0.34), 0 10px 32px rgba(0, 0, 0, 0.34); }
+.laneTesting  { box-shadow: inset 0 2px 0 rgba(255, 140, 50,  0.34), 0 10px 32px rgba(0, 0, 0, 0.34); }
+.laneReview   { box-shadow: inset 0 2px 0 rgba(244, 197, 80,  0.34), 0 10px 32px rgba(0, 0, 0, 0.34); }
+.laneDone     { box-shadow: inset 0 2px 0 rgba(80,  210, 140, 0.34), 0 10px 32px rgba(0, 0, 0, 0.34); }
 
 .laneHeader {
   display: flex;
@@ -416,16 +422,20 @@
   flex-direction: column;
   gap: 8px;
   padding: 11px 12px;
-  border-radius: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: linear-gradient(180deg, rgba(15, 15, 26, 0.80), rgba(10, 10, 20, 0.92));
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-top-color: rgba(255, 255, 255, 0.14);
+  background: linear-gradient(180deg, rgba(16, 16, 28, 0.72), rgba(11, 11, 22, 0.82));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 
 .card:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: linear-gradient(180deg, rgba(20, 20, 34, 0.86), rgba(13, 13, 26, 0.96));
+  border-color: rgba(255, 255, 255, 0.14);
+  border-top-color: rgba(255, 255, 255, 0.22);
+  background: linear-gradient(180deg, rgba(20, 20, 34, 0.78), rgba(14, 14, 26, 0.88));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .card:focus-visible {
@@ -434,9 +444,9 @@
 }
 
 /* Left-border tone accents — quick visual signal before reading the card */
-.cardToneWarning { border-left: 2px solid rgba(244, 197, 107, 0.52); }
-.cardToneDanger  { border-left: 2px solid rgba(247, 110, 110, 0.52); }
-.cardToneSuccess { border-left: 2px solid rgba(76,  232, 158, 0.42); }
+.cardToneWarning { border-left: 2px solid rgba(244, 197, 107, 0.60); }
+.cardToneDanger  { border-left: 2px solid rgba(247, 110, 110, 0.60); }
+.cardToneSuccess { border-left: 2px solid rgba(76,  232, 158, 0.50); }
 .cardToneNeutral { /* inherits default border */ }
 
 .cardHeader {
@@ -459,7 +469,8 @@
   margin: 0;
   font-size: 0.88rem;
   line-height: 1.35;
-  font-weight: 500;
+  font-weight: 550;
+  color: var(--text);
 }
 
 .cardPriority {
@@ -489,7 +500,7 @@
   gap: 6px;
   flex-wrap: wrap;
   font-size: 0.76rem;
-  color: var(--text-soft);
+  color: var(--text-dim);
 }
 
 .cardMetaDim {
@@ -503,7 +514,7 @@
   justify-content: space-between;
   gap: 10px;
   padding-top: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .inlineControls {
