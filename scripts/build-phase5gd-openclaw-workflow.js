@@ -25,6 +25,10 @@ const {
   applyIngressConversationTailModule,
   assertIngressConversationTailContract,
 } = require("./workflow-modules/ingress-conversation-tail");
+const {
+  applyOwnerPolicyTailModule,
+  assertOwnerPolicyTailContract,
+} = require("./workflow-modules/owner-policy-tail");
 
 const projectRoot = path.join(__dirname, "..");
 const sourcePath = path.join(projectRoot, "workflows", "ghost-chat-v3-phase5d-runtime-ledger.json");
@@ -371,70 +375,12 @@ FROM public.ghost_runtime_start_task_ledger(
 applyDirectRuntimeTailModule({ workflow, findNode, addNode, makePostgresNode });
 applyMemoryExtractionTailModule({ workflow, findNode });
 
-addNode(
+applyOwnerPolicyTailModule({
   workflow,
-  makePostgresNode(
-    "Ensure Conversation Owner",
-    `SELECT
-  conversation_id::text,
-  owner_agent_id::text,
-  owner_agent_key,
-  owner_label,
-  owner_provider,
-  owner_model,
-  owner_locked_at,
-  owner_was_created
-FROM public.ghost_ensure_conversation_owner(
-  NULLIF($1, '')::uuid
-);`,
-    "={{ [$json.conversation_id || ''] }}",
-    [-2420, -96],
-    false,
-  ),
-);
-
-addNode(
-  workflow,
-  makeCodeNode(
-    "Conversation Context With Owner",
-    `const context = $('Conversation Context').item.json;
-const owner = $input.first().json;
-return [{ json: { ...context, ...owner } }];`,
-    [-2196, -96],
-  ),
-);
-
-addNode(
-  workflow,
-  makeCodeNode(
-    "Resolve Parent Conversation Strategy",
-    `const item = $input.first().json;
-const owner = $items('Ensure Conversation Owner', 0, 0)[0]?.json || {};
-const taskClass = item.task_class || item.request_type || 'chat';
-const parentProvider = String(owner.owner_provider || item.provider || 'ollama').trim() || 'ollama';
-const parentModel = String(owner.owner_model || item.selected_model || 'qwen3:14b').trim() || 'qwen3:14b';
-const delegatedProvider = String(item.provider || '').trim();
-const delegatedModel = String(item.selected_model || '').trim();
-const delegationRequired = taskClass === 'technical_work';
-return [{ json: {
-  ...item,
-  task_class: taskClass,
-  parent_owner_agent_id: owner.owner_agent_id || '',
-  parent_owner_agent_key: owner.owner_agent_key || 'ghost-main',
-  parent_owner_label: owner.owner_label || 'Ghost',
-  parent_provider: parentProvider,
-  parent_model: parentModel,
-  delegated_provider: delegatedProvider,
-  delegated_model: delegatedModel,
-  delegation_required: delegationRequired,
-  provider: parentProvider,
-  selected_model: parentModel,
-  owner_locked_at: owner.owner_locked_at || '',
-  n8n_execution_id: $('Normalize Input').item.json.n8n_execution_id || item.n8n_execution_id || '',
-} }];`,
-    [352, -64],
-  ),
-);
+  addNode,
+  makePostgresNode,
+  makeCodeNode,
+});
 
 addNode(
   workflow,
@@ -652,5 +598,6 @@ assertDelegatedCompletionTailContract({ workflow, findNode, assertIncludes });
 assertDelegatedControlTailContract({ workflow, findNode, assertIncludes });
 assertDelegatedSetupTailContract({ workflow, findNode, assertIncludes });
 assertIngressConversationTailContract({ workflow, findNode, assertIncludes });
+assertOwnerPolicyTailContract({ workflow, findNode, assertIncludes });
 fs.writeFileSync(targetPath, JSON.stringify([workflow], null, 2) + "\n");
 console.log(targetPath);
