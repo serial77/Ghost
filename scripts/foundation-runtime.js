@@ -94,6 +94,7 @@ function makeWorkerRuntimeConfig(foundations) {
       visibility_label: worker.visibility_label,
       role: worker.role,
       purpose: worker.purpose,
+      invocation_intent: worker.invocation_intent,
       operator_identity: worker.operator_identity,
       responsibility_domain: worker.responsibility_domain,
       environment_scope: worker.environment_scope,

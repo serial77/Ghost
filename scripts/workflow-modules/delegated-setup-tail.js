@@ -35,10 +35,18 @@ return [{ json: {
     workflow,
     makeCodeNode(
       "Build Delegation Request",
-      `const item = $input.first().json;
+      `const __ghostWorkerRuntime = ${workerRuntimeConfigLiteral};
+const item = $input.first().json;
 const normalized = $('Normalize Input').item.json;
 const userMessage = $items('Save User Message', 0, 0)[0]?.json || {};
 const compact = (value, limit = 600) => String(value || '').replace(/\\s+/g, ' ').trim().slice(0, limit);
+const candidateWorkers = Object.values(__ghostWorkerRuntime.workers_by_id || {});
+const selectedWorker = candidateWorkers.find((worker) => Array.isArray(worker.invocation_intent) && worker.invocation_intent.includes(item.task_class || ''))
+  || __ghostWorkerRuntime.workers_by_id.forge
+  || null;
+if (!selectedWorker) {
+  throw new Error('No delegated worker registry entry is available for technical work');
+}
 const requestTitle = compact(item.task_summary || normalized.message || 'Ghost delegated worker task', 160) || 'Ghost delegated worker task';
 const requestSummary = compact(normalized.message || item.task_summary || '');
 const metadata = {
@@ -56,6 +64,10 @@ const metadata = {
 };
 return [{ json: {
   ...item,
+  delegated_worker_id: selectedWorker.id,
+  delegated_worker_label: selectedWorker.visibility_label || 'Forge',
+  delegated_worker_role: selectedWorker.role || 'implementation_worker',
+  delegated_worker_operator_identity: selectedWorker.operator_identity || 'delegated-worker',
   parent_message_id: userMessage.id || '',
   request_title: requestTitle,
   request_summary: requestSummary,
@@ -99,9 +111,11 @@ FROM public.ghost_create_conversation_delegation(
     makeCodeNode(
       "Build Delegation Context",
       `const __ghostWorkerRuntime = ${workerRuntimeConfigLiteral};
-const workerRegistry = __ghostWorkerRuntime.workers_by_id.forge;
-const workerCapabilities = Array.isArray(__ghostWorkerRuntime.worker_capabilities.forge)
-  ? __ghostWorkerRuntime.worker_capabilities.forge
+const parent = $('Build Delegation Request').item.json;
+const workerId = parent.delegated_worker_id || 'forge';
+const workerRegistry = __ghostWorkerRuntime.workers_by_id[workerId];
+const workerCapabilities = Array.isArray(__ghostWorkerRuntime.worker_capabilities[workerId])
+  ? __ghostWorkerRuntime.worker_capabilities[workerId]
   : [];
 const requiredCapabilities = ['code.write', 'artifact.publish'];
 const runtimeEnvironment = (() => {
@@ -147,12 +161,11 @@ const workerGovernancePolicy = {
 };
 const missingCapabilities = requiredCapabilities.filter((capabilityId) => !workerCapabilities.includes(capabilityId));
 if (!workerRegistry) {
-  throw new Error('Missing forge worker registry definition');
+  throw new Error(\`Missing delegated worker registry definition for \${workerId}\`);
 }
 if (missingCapabilities.length > 0) {
-  throw new Error(\`Forge worker is missing required capabilities: \${missingCapabilities.join(', ')}\`);
+  throw new Error(\`\${workerRegistry.visibility_label || workerId} worker is missing required capabilities: \${missingCapabilities.join(', ')}\`);
 }
-const parent = $('Build Delegation Request').item.json;
 const delegation = $input.first().json;
 const normalized = $('Normalize Input').item.json;
 const compact = (value, limit = 800) => String(value || '').replace(/\\s+/g, ' ').trim().slice(0, limit);
@@ -295,6 +308,11 @@ function assertDelegatedSetupTailContract({ workflow, findNode, assertIncludes }
   const startReplacement = startDelegatedRuntime.parameters.options.queryReplacement;
 
   for (const field of [
+    "selectedWorker",
+    "delegated_worker_id",
+    "delegated_worker_label",
+    "delegated_worker_role",
+    "delegated_worker_operator_identity",
     "request_title",
     "request_summary",
     "worker_message_content",
@@ -321,6 +339,7 @@ function assertDelegatedSetupTailContract({ workflow, findNode, assertIncludes }
   }
 
   for (const field of [
+    "workerId = parent.delegated_worker_id || 'forge'",
     "runtimeEnvironment",
     "workerGovernancePolicy",
     "approval_required: parent.approval_required === true || workerGovernancePolicy.state === 'environment_restricted'",
