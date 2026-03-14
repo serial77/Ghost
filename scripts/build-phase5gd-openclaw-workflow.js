@@ -301,9 +301,14 @@ const stderrSummary = commandSuccess
               : 'Codex execution failed.');
 const failureSuffix = commandExitCode !== undefined && commandExitCode !== null ? \` (exit \${commandExitCode})\` : '';
 const failureReason = stderrSummary || 'No additional stderr was captured.';
+const failureLabel = derivedErrorType === 'codex_command_timeout'
+  ? 'timed out'
+  : derivedErrorType === 'codex_invalid_result'
+      ? 'returned an invalid result'
+      : 'failed';
 const reply = commandSuccess
   ? replyText
-  : \`Codex execution failed\${failureSuffix}. \${failureReason}\`;
+  : \`Codex execution \${failureLabel}\${failureSuffix}. \${failureReason}\`;
 return [{ json: {
   ...context,
   ...result,
