@@ -11,15 +11,14 @@
 /* ── Top bar ── */
 
 .topBar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
 }
 
-.topBarTitle {
+.topBarLeft {
   display: grid;
-  gap: 4px;
 }
 
 .title {
@@ -29,9 +28,48 @@
   line-height: 1;
 }
 
-.topBarSignals {
+.topBarCenter {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 7px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.statBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 9px 20px;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.statBlock:last-child {
+  border-right: none;
+}
+
+.statValue {
+  font-size: 1.55rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.05em;
+}
+
+.statLabel {
+  font-size: 0.62rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+
+.topBarRight {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
 }
 
@@ -105,46 +143,47 @@
   50% { opacity: 0.5; }
 }
 
-/* ── Summary strip ── */
+/* ── Rail headers + tabs ── */
 
-.summaryStrip {
+.railHeader {
   display: flex;
-  gap: 0;
-  border-radius: 7px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: linear-gradient(180deg, rgba(14, 14, 24, 0.80), rgba(9, 9, 18, 0.92));
-  overflow: hidden;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
-.metricTile {
-  flex: 1;
-  display: grid;
-  gap: 5px;
-  padding: 12px 14px;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.metricTile:last-child {
-  border-right: none;
-}
-
-.metricHeader {
+.railTitle {
   display: flex;
   align-items: center;
   gap: 7px;
 }
 
-.metricLabel {
-  font-size: 0.78rem;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+.segTabs {
+  display: flex;
+  gap: 0;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 5px;
+  padding: 2px;
 }
 
-.metricValue {
-  font-size: 1.65rem;
-  line-height: 1;
-  letter-spacing: -0.05em;
+.segTab {
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 3px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.segTabActive {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--text);
 }
 
 /* ── Main layout ── */
@@ -154,7 +193,7 @@
   grid-template-columns: 200px minmax(0, 1fr) 240px;
   gap: 12px;
   align-items: start;
-  min-height: calc(100vh - 292px);
+  min-height: calc(100vh - 220px);
 }
 
 .layoutWithDrawer {
@@ -172,11 +211,11 @@
 
 .sidePanel {
   padding: 14px;
-  min-height: calc(100vh - 292px);
+  min-height: calc(100vh - 220px);
 }
 
 .queueShell {
-  min-height: calc(100vh - 292px);
+  min-height: calc(100vh - 220px);
 }
 
 .panelHeader {
@@ -205,36 +244,39 @@
 .agentList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
 }
 
 .agentItem {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
+  display: flex;
+  align-items: flex-start;
   gap: 9px;
-  padding: 9px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
+  padding: 9px 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.agentBadge {
-  width: 32px;
-  height: 32px;
+.agentItem:last-child {
+  border-bottom: none;
+}
+
+.agentIcon {
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
   border-radius: 5px;
-  background: linear-gradient(135deg, rgba(104, 121, 255, 0.24), rgba(255, 94, 189, 0.14));
-  color: var(--text);
-  font-weight: 600;
-  font-size: 0.82rem;
-  letter-spacing: 0.06em;
+  background: linear-gradient(135deg, rgba(104, 121, 255, 0.20), rgba(180, 80, 240, 0.12));
+  font-size: 0.78rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  color: rgba(180, 190, 255, 0.9);
 }
 
 .agentBody {
   display: grid;
   gap: 4px;
   min-width: 0;
+  flex: 1;
 }
 
 .agentTopline {
@@ -253,10 +295,23 @@
   white-space: nowrap;
 }
 
-.agentStatus {
-  font-size: 0.72rem;
+.agentChip {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.agentChipActive {
+  background: rgba(76, 232, 158, 0.12);
+  color: rgba(76, 232, 158, 0.85);
+}
+
+.agentChipIdle {
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text-dim);
-  text-transform: capitalize;
 }
 
 .agentTask {
@@ -285,7 +340,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: calc(100vh - 390px);
+  min-height: calc(100vh - 318px);
   padding: 12px;
   border-radius: 7px;
   border: 1px solid rgba(255, 255, 255, 0.07);
@@ -616,7 +671,7 @@
 
 .feedRail .sidePanel,
 .agentRail .sidePanel {
-  min-height: calc(100vh - 292px);
+  min-height: calc(100vh - 220px);
 }
 
 /* ── Drawer ── */
@@ -626,7 +681,7 @@
   overflow: hidden;
   position: sticky;
   top: 16px;
-  min-height: calc(100vh - 292px);
+  min-height: calc(100vh - 220px);
 }
 
 .drawerState {
@@ -715,14 +770,6 @@
 /* ── Responsive ── */
 
 @media (max-width: 1280px) {
-  .summaryStrip {
-    flex-wrap: wrap;
-  }
-
-  .metricTile {
-    flex: 1 0 140px;
-  }
-
   .layout {
     grid-template-columns: 200px minmax(0, 1fr);
   }
@@ -748,17 +795,17 @@
     min-height: auto;
   }
 
-  .summaryStrip {
-    flex-direction: column;
+  .topBar {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
-  .metricTile {
-    border-right: none;
-    border-bottom: 1px solid rgba(165, 196, 255, 0.07);
+  .topBarCenter {
+    justify-content: center;
   }
 
-  .metricTile:last-child {
-    border-bottom: none;
+  .topBarRight {
+    justify-content: flex-start;
   }
 
   .layout {
@@ -766,9 +813,7 @@
     min-height: auto;
   }
 
-  .topBar,
-  .topBarSignals,
-  .panelHeader,
+  .railHeader,
   .cardHeader,
   .cardFooter,
   .cardLinks,

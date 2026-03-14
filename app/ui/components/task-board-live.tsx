@@ -72,21 +72,6 @@ function shouldIgnoreCardOpen(target: EventTarget | null) {
   return target instanceof HTMLElement && Boolean(target.closest("a, button, select, option, input, textarea, label"));
 }
 
-// ── Feed section ──────────────────────────────────────────────────────────────
-
-function FeedSection({ title, items }: { title: string; items: TaskBoardFeedItem[] }) {
-  return (
-    <section className={styles.feedSection}>
-      <div className={styles.feedSectionTitle}>{title}</div>
-      <div className={styles.feedList}>
-        {items.length
-          ? items.map((item) => <FeedItem key={item.id} item={item} />)
-          : <div className={styles.emptyPanel}>No items.</div>}
-      </div>
-    </section>
-  );
-}
-
 // ── Inline control panel ──────────────────────────────────────────────────────
 
 function InlineControlPanel({
@@ -161,47 +146,36 @@ function InlineControlPanel({
   );
 }
 
-// ── Metric tile ───────────────────────────────────────────────────────────────
-
-function MetricTile({ label, value, detail, tone = "neutral" }: {
-  label: string;
-  value: number;
-  detail: string;
-  tone?: "neutral" | "success" | "warning" | "danger";
-}) {
-  return (
-    <div className={styles.metricTile}>
-      <div className={styles.metricHeader}>
-        <StatusDot tone={tone} />
-        <span className={styles.metricLabel}>{label}</span>
-      </div>
-      <div className={styles.metricValue}>{value}</div>
-      <p className="caption">{detail}</p>
-    </div>
-  );
-}
-
 // ── Agent rail item ───────────────────────────────────────────────────────────
 
+function agentIcon(label: string): string {
+  const l = label.toLowerCase();
+  if (l.includes("ghost") || l.includes("core")) return "◆";
+  if (l.includes("atlas"))                        return "◎";
+  if (l.includes("relay"))                        return "⇄";
+  if (l.includes("ember"))                        return "◉";
+  if (l.includes("orchestrat"))                   return "◆";
+  if (l.includes("build"))                        return "⚙";
+  if (l.includes("research"))                     return "◎";
+  if (l.includes("review"))                       return "◈";
+  if (l.includes("test"))                         return "⊕";
+  return label.charAt(0).toUpperCase();
+}
+
 function AgentRailItem({ agent }: { agent: TaskBoardAgent }) {
-  const initials = agent.label
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
   const tone = agentTone(agent);
 
   return (
     <div className={styles.agentItem}>
-      <div className={styles.agentBadge}>{initials || "G"}</div>
+      <div className={styles.agentIcon}>{agentIcon(agent.label)}</div>
       <div className={styles.agentBody}>
         <div className={styles.agentTopline}>
           <strong className={styles.agentName}>{agent.label}</strong>
-          <StatusDot tone={tone} />
+          <span className={cn(styles.agentChip, tone === "success" ? styles.agentChipActive : styles.agentChipIdle)}>
+            {agent.status}
+          </span>
         </div>
-        <div className={styles.agentStatus}>{agent.status}</div>
-        <div className={styles.agentTask}>{agent.currentTaskTitle ?? "No active task"}</div>
+        <div className={styles.agentTask}>{agent.currentTaskTitle ?? "—"}</div>
       </div>
     </div>
   );
@@ -315,6 +289,8 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
   const [suggestedModel, setSuggestedModel] = useState("");
   const [planningNote, setPlanningNote] = useState("");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [feedTab, setFeedTab] = useState<"all" | "tasks" | "agents">("all");
+  const [agentFilter, setAgentFilter] = useState<"all" | "working" | "standby">("all");
   const [drawerPayload, setDrawerPayload] = useState<TaskBoardWorkspacePayload | null>(null);
   const [drawerLoading, setDrawerLoading] = useState(false);
   const [drawerError, setDrawerError] = useState<string | null>(null);
@@ -401,37 +377,46 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
     return () => window.clearInterval(interval);
   }, [selectedItemId]);
 
-  const operatorFeed = payload.feed.filter((item) => item.group === "operator_actions");
-  const runtimeFeed = payload.feed.filter((item) => item.group === "runtime_signals");
+  const filteredFeed = feedTab === "all"
+    ? payload.feed
+    : payload.feed.filter((item) =>
+        feedTab === "tasks" ? item.group === "runtime_signals" : item.group === "operator_actions"
+      );
+  const filteredAgents = agentFilter === "all"
+    ? payload.agents
+    : payload.agents.filter((a) => a.status === agentFilter);
 
   return (
     <div className={cn("screen", "shell-page", styles.page)}>
 
       {/* ── Top bar ── */}
       <div className={styles.topBar}>
-        <div className={styles.topBarTitle}>
+        <div className={styles.topBarLeft}>
           <h1 className={styles.title}>Mission Control</h1>
         </div>
-        <div className={styles.topBarSignals}>
+        <div className={styles.topBarCenter}>
+          <div className={styles.statBlock}>
+            <div className={styles.statValue}>{payload.summary.activeAgents}</div>
+            <div className={styles.statLabel}>Agents active</div>
+          </div>
+          <div className={styles.statBlock}>
+            <div className={styles.statValue}>{payload.summary.totalCards}</div>
+            <div className={styles.statLabel}>Tasks in queue</div>
+          </div>
+          <div className={styles.statBlock}>
+            <div className={styles.statValue}>{payload.summary.reviewNeeded}</div>
+            <div className={styles.statLabel}>Need review</div>
+          </div>
+        </div>
+        <div className={styles.topBarRight}>
           <div className={styles.boardStatus}>
             <StatusDot tone={isLoading ? "warning" : "success"} />
-            <span className={styles.boardStatusLabel}>
-              {isLoading ? "Refreshing" : `${payload.summary.totalCards} cards`}
-            </span>
+            <span className={styles.boardStatusLabel}>{isLoading ? "Refreshing…" : "Live"}</span>
           </div>
           <button type="button" className={styles.newTaskButton} onClick={() => setIsCreateOpen(true)}>
             + New task
           </button>
         </div>
-      </div>
-
-      {/* ── Summary strip ── */}
-      <div className={styles.summaryStrip}>
-        <MetricTile label="Active Agents" value={payload.summary.activeAgents} detail="Currently carrying active work." tone="success" />
-        <MetricTile label="Queue" value={payload.summary.tasksInQueue} detail="Planning, inbox, and assigned." tone="neutral" />
-        <MetricTile label="In Flight" value={payload.summary.tasksInProgress} detail="Execution and testing posture." tone="warning" />
-        <MetricTile label="Review" value={payload.summary.reviewNeeded} detail="Approval or handoff needed." tone="warning" />
-        <MetricTile label="Resolved" value={payload.summary.resolved} detail="Terminal tasks confirmed." tone="success" />
       </div>
 
       {/* ── Three-column layout ── */}
@@ -440,16 +425,25 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
         {/* Agent rail */}
         <aside className={styles.agentRail}>
           <div className={cn("glass-panel", styles.sidePanel)}>
-            <div className={styles.panelHeader}>
-              <div className="kicker">Agents</div>
-              <span className={styles.panelCount}>{payload.agents.length}</span>
+            <div className={styles.railHeader}>
+              <div className={styles.railTitle}>
+                <span className="kicker">Agents</span>
+                <span className={styles.panelCount}>{payload.agents.length}</span>
+              </div>
+              <div className={styles.segTabs}>
+                {(["all", "working", "standby"] as const).map((f) => (
+                  <button key={f} type="button"
+                    className={cn(styles.segTab, agentFilter === f && styles.segTabActive)}
+                    onClick={() => setAgentFilter(f)}>
+                    {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className={styles.agentList}>
-              {payload.agents.length ? (
-                payload.agents.map((agent) => <AgentRailItem key={`${agent.id}:${agent.sourceMode}`} agent={agent} />)
-              ) : (
-                <div className={styles.emptyPanel}>No agents visible.</div>
-              )}
+              {filteredAgents.length
+                ? filteredAgents.map((agent) => <AgentRailItem key={`${agent.id}:${agent.sourceMode}`} agent={agent} />)
+                : <div className={styles.emptyPanel}>No agents.</div>}
             </div>
           </div>
         </aside>
@@ -503,13 +497,25 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
         {/* Feed rail */}
         <aside className={styles.feedRail}>
           <div className={cn("glass-panel", styles.sidePanel)}>
-            <div className={styles.panelHeader}>
-              <div className="kicker">Live Feed</div>
-              <span className={styles.panelCount}>{payload.feed.length}</span>
+            <div className={styles.railHeader}>
+              <div className={styles.railTitle}>
+                <span className="kicker">Live Feed</span>
+                <span className={styles.panelCount}>{payload.feed.length}</span>
+              </div>
+              <div className={styles.segTabs}>
+                {(["all", "tasks", "agents"] as const).map((tab) => (
+                  <button key={tab} type="button"
+                    className={cn(styles.segTab, feedTab === tab && styles.segTabActive)}
+                    onClick={() => setFeedTab(tab)}>
+                    {tab === "all" ? "All" : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className={styles.feedGrouped}>
-              <FeedSection title="Operator actions" items={operatorFeed} />
-              <FeedSection title="Runtime signals" items={runtimeFeed} />
+            <div className={styles.feedList}>
+              {filteredFeed.length
+                ? filteredFeed.map((item) => <FeedItem key={item.id} item={item} />)
+                : <div className={styles.emptyPanel}>No events.</div>}
             </div>
           </div>
         </aside>
