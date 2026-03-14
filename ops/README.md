@@ -10,7 +10,113 @@ It is intentionally narrow:
 
 It does not change product behavior by itself.
 
+## Canonical workflow promotion path
+
+This is the canonical operator path for promoting the live workflow `Yh6h9OJyVCfREbp3` behind `POST /webhook/ghost-chat-v3`.
+
+Preferred bounded command:
+
+```bash
+ops/promote-live-workflow-safe.sh
+```
+
+Optional variants:
+
+```bash
+ops/promote-live-workflow-safe.sh --include-delegated-probe
+ops/promote-live-workflow-safe.sh --with-db-backup
+ops/promote-live-workflow-safe.sh --skip-build
+ops/promote-live-workflow-safe.sh --output-dir /tmp/ghost-promotion-artifacts
+```
+
+The safety envelope is:
+- backup (pre-activation workflow export)
+- validate (candidate artifact checks)
+- activate (import/publish/restart/registration checks)
+- probe (`ops/smoke-runtime.sh`)
+- rollback (automatic workflow restore if activation/probe fails)
+
+1. Optional pre-promotion DB backup:
+
+```bash
+scripts/backup-db.sh
+```
+
+2. Run the live activation with smoke gate:
+
+```bash
+ops/activate-live-workflow.sh --smoke
+```
+
+Use delegated smoke when delegation/runtime-worker behavior changed:
+
+```bash
+ops/activate-live-workflow.sh --smoke --delegated-smoke
+```
+
+Promotion contract for `ops/activate-live-workflow.sh`:
+- optionally rebuilds workflow JSON from source
+- captures pre-activation workflow backup at `workflows/ghost-chat-v3-live-backup-<UTCSTAMP>.json`
+- imports workflow, publishes it, restarts `ghost-n8n-main` and `ghost-n8n-worker`
+- verifies workflow active state and `POST /webhook/ghost-chat-v3` registration
+- captures post-activation export at `workflows/ghost-chat-v3-live-post-activate-<UTCSTAMP>.json`
+- fails loudly if any activation check fails
+
+### Smoke gate semantics
+
+Promotion is successful only when activation checks pass and smoke checks pass.
+
+### Rollback semantics
+
+Workflow rollback (first-line rollback):
+1. Use the pre-activation backup path printed by `ops/activate-live-workflow.sh`.
+2. Re-import that backup over workflow `Yh6h9OJyVCfREbp3`.
+3. Publish, restart n8n runtime containers, and re-run smoke.
+
+```bash
+docker cp <pre-activation-backup>.json ghost-n8n-main:/tmp/ghost-chat-v3-rollback.json
+docker exec ghost-n8n-main n8n import:workflow --input=/tmp/ghost-chat-v3-rollback.json
+docker exec ghost-n8n-main n8n publish:workflow --id=Yh6h9OJyVCfREbp3
+docker compose -f base/docker-compose.yml restart ghost-n8n-main ghost-n8n-worker
+ops/smoke-runtime.sh
+```
+
+DB rollback is a separate decision and is not part of default workflow rollback.
+- apply DB down migration or DB restore only when the promoted change included schema/data-contract changes
+- if no DB migration shipped, workflow rollback alone is the expected rollback path
+
+### Artifact handling
+
+- pre-activation backup path is the rollback input of record for that promotion attempt
+- post-activation export is for audit/diff and should not replace the rollback baseline by default
+- workflow backups (`workflows/...`) and DB backups (`backups/...`) are separate artifact classes
+
 ## Scripts
+
+### `ops/promote-live-workflow-safe.sh`
+Bounded promotion wrapper for safer workflow deployment.
+
+Behavior:
+- optionally rebuilds workflow JSON from source
+- validates workflow artifact identity/shape/webhook path before activation
+- runs activation via `ops/activate-live-workflow.sh`
+- runs post-activation smoke probes
+- auto-rolls back to the pre-activation backup if activation or probes fail
+- if `--skip-build` is used, no workflow rebuild is attempted
+
+Examples:
+
+```bash
+ops/promote-live-workflow-safe.sh
+ops/promote-live-workflow-safe.sh --include-delegated-probe
+ops/promote-live-workflow-safe.sh --with-db-backup
+ops/promote-live-workflow-safe.sh --skip-build
+```
+
+Safety boundary:
+- workflow rollback is automatic inside the wrapper on activation/probe failure
+- DB rollback is not automatic and remains an explicit operator decision
+- rollback never targets older pre-existing backups in a reused output directory; it uses the fresh backup produced by the current wrapper run only
 
 ### `ops/activate-live-workflow.sh`
 Primary operator promotion path for the live workflow.
