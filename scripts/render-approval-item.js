@@ -1,18 +1,17 @@
 "use strict";
 
-const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
+const {
+  buildApprovalItem,
+  inferCurrentEnvironment,
+  loadPhase7Foundations,
+} = require("./foundation-runtime");
 
 const projectRoot = path.join(__dirname, "..");
 
 function fail(message) {
   console.error(message);
   process.exit(1);
-}
-
-function loadJson(relPath) {
-  return JSON.parse(fs.readFileSync(path.join(projectRoot, relPath), "utf8"));
 }
 
 function parseArgs(argv) {
@@ -47,9 +46,7 @@ function asArray(value) {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
-  const workers = loadJson("ops/foundation/workers.json");
-  const capabilitiesDoc = loadJson("ops/foundation/capabilities.json");
-  const approvalModel = loadJson("ops/foundation/approval-model.json");
+  const foundations = loadPhase7Foundations(projectRoot);
 
   const workerId = args.worker;
   const requestedBy = args["requested-by"];
@@ -59,56 +56,25 @@ function main() {
   const category = args.category;
   const riskLevel = args["risk-level"] || "caution";
   const capabilities = asArray(args.capability);
+  const requestedForWorkerId = args["requested-for-worker"] || "";
 
   if (!workerId || !requestedBy || !summary || !reason || !environment || !category || capabilities.length === 0) {
     fail("required args: --worker --requested-by --summary --reason --environment --category --capability <cap> [--capability <cap>]");
   }
 
-  const worker = workers.workers.find((entry) => entry.id === workerId);
-  if (!worker) fail(`unknown worker: ${workerId}`);
-
-  const capabilityIds = new Set(capabilitiesDoc.capabilities.map((entry) => entry.id));
-  for (const capability of capabilities) {
-    if (!capabilityIds.has(capability)) {
-      fail(`unknown capability: ${capability}`);
-    }
-  }
-
-  if (!approvalModel.categories.some((entry) => entry.id === category)) {
-    fail(`unknown approval category: ${category}`);
-  }
-  if (!approvalModel.risk_levels.includes(riskLevel)) {
-    fail(`unknown risk level: ${riskLevel}`);
-  }
-
-  const approvalId = crypto.createHash("md5")
-    .update(`${workerId}|${requestedBy}|${summary}|${environment}|${category}|${capabilities.join(",")}`)
-    .digest("hex")
-    .slice(0, 16);
-
-  const item = {
-    approval_id: approvalId,
-    state: approvalModel.lifecycle.initial_state,
-    requested_at: new Date().toISOString(),
-    requested_by: requestedBy,
-    requester_worker_id: workerId,
-    requester_label: worker.visibility_label,
-    environment,
-    category,
-    risk_level: riskLevel,
-    capabilities,
+  const normalizedEnvironment = inferCurrentEnvironment(foundations, environment);
+  const item = buildApprovalItem({
+    foundations,
+    workerId,
+    requestedBy,
     summary,
     reason,
-    governance: {
-      operator_identity: worker.operator_identity,
-      approval_required_capability_count: capabilitiesDoc.capabilities
-        .filter((entry) => capabilities.includes(entry.id) && entry.approval_required)
-        .length,
-      destructive_capability_count: capabilitiesDoc.capabilities
-        .filter((entry) => capabilities.includes(entry.id) && entry.class === "destructive")
-        .length
-    }
-  };
+    category,
+    riskLevel,
+    capabilities,
+    environment: normalizedEnvironment,
+    requestedForWorkerId,
+  });
 
   console.log(JSON.stringify(item, null, 2));
 }

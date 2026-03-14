@@ -8,7 +8,7 @@ function assertHasSingleMainConnection(workflow, fromNode, toNode) {
   }
 }
 
-function applyDelegatedControlTailModule({ workflow, addNode, makeCodeNode, makePostgresNode }) {
+function applyDelegatedControlTailModule({ workflow, addNode, makeCodeNode, makePostgresNode, approvalRuntimeHelpersCode }) {
   addNode(
     workflow,
     makePostgresNode(
@@ -30,10 +30,21 @@ function applyDelegatedControlTailModule({ workflow, addNode, makeCodeNode, make
     workflow,
     makeCodeNode(
       "Build Parent Blocked Delegation Response",
-      `const item = $('Build Delegation Context').item.json;
+      `${approvalRuntimeHelpersCode}
+const item = $('Build Delegation Context').item.json;
 const reasons = Array.isArray(item.risk_reasons) && item.risk_reasons.length
   ? item.risk_reasons.join(' ')
   : 'Risk policy requires review before Ghost can start the delegated worker session.';
+const approvalItem = __buildApprovalItem({
+  workerId: 'ghost_main',
+  requestedBy: 'ghost-main-runtime',
+  summary: 'Delegated worker execution requires approval before the worker session can start.',
+  reason: reasons,
+  category: 'destructive_change',
+  riskLevel: item.risk_level || 'caution',
+  capabilities: ['code.write', 'artifact.publish'],
+  requestedForWorkerId: 'forge',
+});
 const reply = [
   \`\${item.parent_owner_label || 'Ghost'} kept this conversation under its current owner and opened a delegated worker task instead of silently switching models.\`,
   \`Execution is blocked pending approval. The delegated task is now visible on the Task Board for review.\`,
@@ -61,6 +72,10 @@ return [{ json: {
   runtime_task_id: null,
   worker_conversation_id: item.worker_conversation_id || '',
   n8n_execution_id: item.n8n_execution_id || null,
+  approval_item: approvalItem,
+  governance_policy: approvalItem.governance,
+  governance_environment: approvalItem.environment,
+  requested_capabilities: approvalItem.capabilities,
   response_mode: 'delegated_blocked',
   parent_owner_label: item.parent_owner_label || 'Ghost',
 } }];`,
@@ -139,6 +154,9 @@ function assertDelegatedControlTailContract({ workflow, findNode, assertIncludes
     "approval_required: true",
     "codex_command_status: 'blocked_pending_approval'",
     "error_type: 'delegation_blocked_pending_approval'",
+    "approval_item: approvalItem",
+    "governance_policy: approvalItem.governance",
+    "requested_capabilities: approvalItem.capabilities",
     "response_mode: 'delegated_blocked'",
     "runtime_task_id: null",
   ]) {

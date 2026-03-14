@@ -37,6 +37,10 @@ const {
   applyDelegatedWorkerRuntimeTailModule,
   assertDelegatedWorkerRuntimeTailContract,
 } = require("./workflow-modules/delegated-worker-runtime-tail");
+const {
+  loadPhase7Foundations,
+  makeApprovalRuntimeConfig,
+} = require("./foundation-runtime");
 
 const projectRoot = path.join(__dirname, "..");
 const sourcePath = path.join(projectRoot, "workflows", "ghost-chat-v3-phase5d-runtime-ledger.json");
@@ -48,6 +52,71 @@ const postgresCredential = {
 const workflowName = "GHOST by Codex";
 const parentExecutionTarget = "webhook/ghost-chat-v3";
 const delegatedExecutionTarget = "delegated_codex_session";
+const phase7Foundations = loadPhase7Foundations(projectRoot);
+const approvalRuntimeConfigLiteral = JSON.stringify(makeApprovalRuntimeConfig(phase7Foundations));
+
+function makeApprovalRuntimeHelpersCode() {
+  return `const __ghostApprovalConfig = ${approvalRuntimeConfigLiteral};
+const __approvalText = (value) => value === undefined || value === null ? '' : String(value).trim();
+const __approvalList = (value) => Array.isArray(value) ? value.map((entry) => __approvalText(entry)).filter(Boolean) : [];
+const __approvalHash = (value) => {
+  let hash = 0;
+  const text = __approvalText(value);
+  for (let index = 0; index < text.length; index += 1) {
+    hash = ((hash << 5) - hash + text.charCodeAt(index)) | 0;
+  }
+  return \`approval_\${Math.abs(hash).toString(16).slice(0, 12)}\`;
+};
+const __approvalEnvironment = () => {
+  const explicit = typeof process !== 'undefined'
+    ? __approvalText(process.env.GHOST_RUNTIME_ENV || process.env.GHOST_ENV || process.env.NODE_ENV || '')
+    : '';
+  if (explicit === 'production' && __ghostApprovalConfig.environments_by_id.prod) return 'prod';
+  if (explicit && __ghostApprovalConfig.environments_by_id[explicit]) return explicit;
+  return 'lab';
+};
+const __buildApprovalItem = ({ workerId, requestedBy, summary, reason, category, riskLevel, capabilities, requestedForWorkerId }) => {
+  const worker = __ghostApprovalConfig.workers_by_id[workerId] || null;
+  if (!worker) {
+    throw new Error(\`Unknown approval worker: \${workerId}\`);
+  }
+  const targetWorker = requestedForWorkerId ? (__ghostApprovalConfig.workers_by_id[requestedForWorkerId] || null) : null;
+  const environment = __approvalEnvironment();
+  const environmentDoc = __ghostApprovalConfig.environments_by_id[environment] || __ghostApprovalConfig.environments_by_id.lab;
+  const normalizedCapabilities = Array.from(new Set(__approvalList(capabilities))).filter((capabilityId) => __ghostApprovalConfig.capabilities_by_id[capabilityId]);
+  const capabilityRecords = normalizedCapabilities.map((capabilityId) => __ghostApprovalConfig.capabilities_by_id[capabilityId]);
+  const approvalRequiredCapabilities = capabilityRecords.filter((entry) => entry.approval_required).map((entry) => entry.id);
+  const destructiveCapabilities = capabilityRecords.filter((entry) => entry.class === 'destructive').map((entry) => entry.id);
+  const restrictedCapabilities = capabilityRecords.filter((entry) => (environmentDoc.restricted_capabilities || []).includes(entry.id)).map((entry) => entry.id);
+  const outOfScopeCapabilities = capabilityRecords.filter((entry) => !(entry.environment_restriction || []).includes(environment)).map((entry) => entry.id);
+  const approvalSource = [workerId, requestedBy, summary, environment, category, normalizedCapabilities.join(','), targetWorker?.id || ''].join('|');
+  return {
+    approval_id: __approvalHash(approvalSource),
+    state: __ghostApprovalConfig.approval_model.initial_state,
+    requested_at: new Date().toISOString(),
+    requested_by: __approvalText(requestedBy),
+    requester_worker_id: worker.id,
+    requester_label: worker.visibility_label,
+    environment,
+    category: __approvalText(category),
+    risk_level: __approvalText(riskLevel) || 'caution',
+    capabilities: normalizedCapabilities,
+    summary: __approvalText(summary),
+    reason: __approvalText(reason),
+    target_worker_id: targetWorker?.id || null,
+    target_worker_label: targetWorker?.visibility_label || null,
+    governance: {
+      environment_posture: environmentDoc.governance_posture || 'moderate',
+      restricted_capabilities: restrictedCapabilities,
+      out_of_scope_capabilities: outOfScopeCapabilities,
+      approval_required_capabilities: approvalRequiredCapabilities,
+      destructive_capabilities: destructiveCapabilities,
+      operator_identity: worker.operator_identity,
+      worker_environment_scope: Array.isArray(worker.environment_scope) ? worker.environment_scope : [],
+    },
+  };
+};`;
+}
 
 function makeId(label) {
   if (!label) {
@@ -215,10 +284,21 @@ normalizeOpenAIReply.parameters.jsCode = `${normalizeOpenAIReply.parameters.jsCo
 )}`;
 
 const buildApprovalRequiredResponse = findNode(workflow, "Build Approval Required Response");
-buildApprovalRequiredResponse.parameters.jsCode = `const context = $input.first().json;
+buildApprovalRequiredResponse.parameters.jsCode = `${makeApprovalRuntimeHelpersCode()}
+const context = $input.first().json;
 const reasons = Array.isArray(context.risk_reasons) && context.risk_reasons.length
   ? context.risk_reasons.join(' ')
   : 'Risk policy requires review.';
+const approvalItem = __buildApprovalItem({
+  workerId: 'ghost_main',
+  requestedBy: 'ghost-main-runtime',
+  summary: 'Direct Codex execution requires approval before mutation-capable work can start.',
+  reason: reasons,
+  category: 'destructive_change',
+  riskLevel: context.risk_level || 'caution',
+  capabilities: ['code.write', 'artifact.publish'],
+  requestedForWorkerId: 'ghost_main',
+});
 const reply = \`Approval required before Codex execution. Risk level: \${context.risk_level || 'unknown'}. \${reasons}\`;
 return [{ json: {
   ...context,
@@ -226,6 +306,7 @@ return [{ json: {
   provider_used: context.provider || '',
   model_used: context.selected_model || '',
   task_class: context.task_class || '',
+  approval_required: true,
   command_success: false,
   error_type: 'approval_required',
   codex_command_status: 'blocked_pending_approval',
@@ -234,6 +315,10 @@ return [{ json: {
   stderr_summary: reasons,
   command_exit_code: null,
   n8n_execution_id: context.n8n_execution_id || null,
+  approval_item: approvalItem,
+  governance_policy: approvalItem.governance,
+  governance_environment: approvalItem.environment,
+  requested_capabilities: approvalItem.capabilities,
   response_mode: 'direct_owner_reply',
   parent_owner_label: context.parent_owner_label || 'Ghost',
 } }];`;
@@ -406,7 +491,13 @@ applyDelegatedWorkerRuntimeTailModule({
 });
 
 applyDelegatedCompletionTailModule({ workflow, addNode, makeCodeNode, makePostgresNode, delegatedExecutionTarget });
-applyDelegatedControlTailModule({ workflow, addNode, makeCodeNode, makePostgresNode });
+applyDelegatedControlTailModule({
+  workflow,
+  addNode,
+  makeCodeNode,
+  makePostgresNode,
+  approvalRuntimeHelpersCode: makeApprovalRuntimeHelpersCode(),
+});
 
 setMainConnections(workflow.connections, "Conversation Context", [[{ node: "Ensure Conversation Owner" }]]);
 setMainConnections(workflow.connections, "Ensure Conversation Owner", [[{ node: "Conversation Context With Owner" }]]);
