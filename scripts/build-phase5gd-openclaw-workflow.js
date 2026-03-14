@@ -219,6 +219,7 @@ return [{ json: {
   delegation_id: asText(item.delegation_id) || null,
   orchestration_task_id: asText(item.orchestration_task_id) || null,
   runtime_task_id: asText(item.runtime_task_id) || null,
+  runtime_task_run_id: asText(item.runtime_task_run_id) || null,
   worker_conversation_id: asText(item.worker_conversation_id) || null,
   n8n_execution_id: asText(item.n8n_execution_id) || null,
   response_mode: asText(item.response_mode) || 'direct_owner_reply',
@@ -231,7 +232,7 @@ saveUserMessage.parameters.options.queryReplacement =
 
 const saveAssistantReply = findNode(workflow, "Save Assistant Reply");
 saveAssistantReply.parameters.options.queryReplacement =
-  "={{ [$json.conversation_id, $json.reply, $json.model_used || null, { provider_used: $json.provider_used || null, task_class: $json.task_class || null, approval_required: $json.approval_required || false, risk_level: $json.risk_level || 'safe', risk_reasons: $json.risk_reasons || [], task_summary: $json.task_summary || '', command_success: $json.command_success === true, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $json.runtime_task_id || null, worker_conversation_id: $json.worker_conversation_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || 'direct_owner_reply', parent_owner_label: $json.parent_owner_label || null }] }}";
+  "={{ [$json.conversation_id, $json.reply, $json.model_used || null, { provider_used: $json.provider_used || null, task_class: $json.task_class || null, approval_required: $json.approval_required || false, risk_level: $json.risk_level || 'safe', risk_reasons: $json.risk_reasons || [], task_summary: $json.task_summary || '', command_success: $json.command_success === true, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $json.runtime_task_id || null, runtime_task_run_id: $json.runtime_task_run_id || null, worker_conversation_id: $json.worker_conversation_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || 'direct_owner_reply', parent_owner_label: $json.parent_owner_label || null }] }}";
 
 const buildApprovalRequiredResponse = findNode(workflow, "Build Approval Required Response");
 buildApprovalRequiredResponse.parameters.jsCode = `const context = $input.first().json;
@@ -258,6 +259,7 @@ return [{ json: {
 const normalizeCodexReply = findNode(workflow, "Normalize Codex Reply");
 normalizeCodexReply.parameters.jsCode = `const result = $input.first().json;
 const context = $('Expose Route Metadata').item.json;
+const started = $items('Start Runtime Ledger', 0, 0)[0]?.json || {};
 const rawStdout = typeof result.stdout === 'string' ? result.stdout.trim() : '';
 const nodeError = typeof result.error === 'string' ? result.error : (result.error?.message || '');
 let payload = {};
@@ -338,6 +340,8 @@ return [{ json: {
   artifact_path: payload.artifact_path || '',
   codex_command_status: commandSuccess ? 'succeeded' : 'failed',
   error_type: derivedErrorType,
+  runtime_task_id: started.task_id || '',
+  runtime_task_run_id: started.task_run_id || '',
   n8n_execution_id: context.n8n_execution_id || null,
 } }];`;
 
