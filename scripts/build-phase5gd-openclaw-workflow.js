@@ -914,7 +914,7 @@ return [{ json: {
     n8n_execution_id: parent.n8n_execution_id || normalized.n8n_execution_id || null,
   }),
   blocked_result_summary: compact(\`Approval required before delegated worker execution. \${(parent.risk_reasons || []).join(' ')}\`, 400),
-  unsupported_result_summary: compact(\`Delegated work was queued for \${delegation.worker_provider || parent.delegated_provider || 'the selected worker'}, but only explicit Codex execution is wired in this phase.\`, 400),
+  unsupported_result_summary: compact(\`Delegated execution is not available for \${delegation.worker_provider || parent.delegated_provider || 'the selected worker'} in the current runtime. The task cannot start automatically in this phase.\`, 400),
 } }];`,
     [1248, -208],
   ),
@@ -1041,7 +1041,7 @@ addNode(
   $2,
   NULL
 );`,
-    "={{ [$json.delegation_id || '', $json.unsupported_result_summary || 'Delegated worker execution is queued for later handling.'] }}",
+    "={{ [$json.delegation_id || '', $json.unsupported_result_summary || 'Delegated execution is not available in the current runtime.'] }}",
     [2144, 64],
     false,
   ),
@@ -1055,7 +1055,8 @@ addNode(
 const workerLabel = item.worker_agent_label || item.delegated_provider || 'the delegated worker';
 const reply = [
   \`\${item.parent_owner_label || 'Ghost'} kept ownership of this conversation and opened delegated work for \${workerLabel}.\`,
-  'The work is now visible on the Task Board, but only explicit Codex execution is wired in this phase.',
+  'Delegated execution is not available in the current runtime, so the worker task could not be started automatically in this phase.',
+  item.unsupported_result_summary || '',
 ].join('\\n\\n');
 return [{ json: {
   conversation_id: item.conversation_id || '',
@@ -1072,14 +1073,14 @@ return [{ json: {
   stdout_summary: '',
   stderr_summary: item.unsupported_result_summary || '',
   artifact_path: '',
-  codex_command_status: 'queued_for_worker',
+  codex_command_status: 'blocked_execution_unavailable',
   error_type: 'delegation_execution_not_available',
   delegation_id: item.delegation_id || '',
   orchestration_task_id: item.orchestration_task_id || '',
   runtime_task_id: null,
   worker_conversation_id: item.worker_conversation_id || '',
   n8n_execution_id: item.n8n_execution_id || null,
-  response_mode: 'delegated_queued',
+  response_mode: 'delegated_execution_unavailable',
   parent_owner_label: item.parent_owner_label || 'Ghost',
 } }];`,
     [2368, 64],
@@ -1252,7 +1253,7 @@ VALUES (
   NOW()
 )
 RETURNING id::text, conversation_id::text, role, content, created_at;`,
-    "={{ [$json.worker_conversation_id || '', $json.reply || '', $json.model_used || null, { provider_used: $json.provider_used || null, task_class: 'delegated_worker_task', delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $json.task_id || null, command_success: $json.command_success === true, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null, n8n_execution_id: $json.n8n_execution_id || null, worker_execution: true }] }}",
+    "={{ [$json.worker_conversation_id || '', $json.reply || '', $json.model_used || null, { provider_used: $json.provider_used || null, task_class: 'delegated_worker_task', delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $json.task_id || null, runtime_task_run_id: $json.task_run_id || null, command_success: $json.command_success === true, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null, n8n_execution_id: $json.n8n_execution_id || null, worker_execution: true }] }}",
     [3264, -208],
     false,
   ),
@@ -1314,13 +1315,19 @@ SET
   task_run_id = COALESCE(te.task_run_id, NULLIF($2, '')::uuid),
   payload = COALESCE(te.payload, '{}'::jsonb) || jsonb_build_object(
     'task_run_id', NULLIF($2, ''),
-    'n8n_execution_id', NULLIF($3, '')
+    'n8n_execution_id', NULLIF($3, ''),
+    'command_success', $4,
+    'command_exit_code', $5,
+    'error_type', NULLIF($6, ''),
+    'stdout_summary', NULLIF($7, ''),
+    'stderr_summary', NULLIF($8, ''),
+    'artifact_path', NULLIF($9, ''),
+    'codex_command_status', NULLIF($10, '')
   )
 FROM target_event
 WHERE te.id = target_event.id
-  AND NULLIF($3, '') IS NOT NULL
 RETURNING te.id::text AS tool_event_id;`,
-    "={{ [$json.task_id || '', $json.task_run_id || '', $json.n8n_execution_id || ''] }}",
+    "={{ [$json.task_id || '', $json.task_run_id || '', $json.n8n_execution_id || '', $json.command_success === true, $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, $json.error_type || '', $json.stdout_summary || '', $json.stderr_summary || '', $json.artifact_path || '', $json.codex_command_status || 'not_applicable'] }}",
     [3712, -208],
     false,
   ),
@@ -1362,6 +1369,7 @@ return [{ json: {
   delegation_id: parent.delegation_id || '',
   orchestration_task_id: parent.orchestration_task_id || '',
   runtime_task_id: item.task_id || '',
+  runtime_task_run_id: item.task_run_id || '',
   worker_conversation_id: parent.worker_conversation_id || '',
   n8n_execution_id: parent.n8n_execution_id || item.n8n_execution_id || null,
   response_mode: 'delegated_worker_result',
