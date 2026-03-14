@@ -115,6 +115,38 @@ const __buildApprovalItem = ({ workerId, requestedBy, summary, reason, category,
       worker_environment_scope: Array.isArray(worker.environment_scope) ? worker.environment_scope : [],
     },
   };
+};
+const __buildApprovalPolicy = (approvalItem) => {
+  const governance = approvalItem && approvalItem.governance && typeof approvalItem.governance === 'object'
+    ? approvalItem.governance
+    : {};
+  const restricted = Array.isArray(governance.restricted_capabilities) ? governance.restricted_capabilities : [];
+  const outOfScope = Array.isArray(governance.out_of_scope_capabilities) ? governance.out_of_scope_capabilities : [];
+  const approvalRequired = Array.isArray(governance.approval_required_capabilities) ? governance.approval_required_capabilities : [];
+  const blockingCapabilities = Array.from(new Set([...restricted, ...outOfScope]));
+  const state = blockingCapabilities.length > 0
+    ? 'environment_restricted'
+    : approvalRequired.length > 0
+      ? 'approval_required'
+      : 'allowed';
+  const summaryParts = [];
+  if (approvalRequired.length > 0) summaryParts.push(\`approval required for \${approvalRequired.join(', ')}\`);
+  if (restricted.length > 0) summaryParts.push(\`restricted in \${approvalItem.environment}: \${restricted.join(', ')}\`);
+  if (outOfScope.length > 0) summaryParts.push(\`outside \${approvalItem.environment} scope: \${outOfScope.join(', ')}\`);
+  summaryParts.push(\`environment posture \${governance.environment_posture || 'unknown'}\`);
+  return {
+    state,
+    summary: summaryParts.join('; '),
+    blocking_capabilities: blockingCapabilities,
+    environment: approvalItem.environment || null,
+    environment_posture: governance.environment_posture || null,
+    approval_required_capabilities: approvalRequired,
+    restricted_capabilities: restricted,
+    out_of_scope_capabilities: outOfScope,
+    destructive_capabilities: Array.isArray(governance.destructive_capabilities) ? governance.destructive_capabilities : [],
+    operator_identity: governance.operator_identity || null,
+    worker_environment_scope: Array.isArray(governance.worker_environment_scope) ? governance.worker_environment_scope : [],
+  };
 };`;
 }
 
@@ -299,6 +331,7 @@ const approvalItem = __buildApprovalItem({
   capabilities: ['code.write', 'artifact.publish'],
   requestedForWorkerId: 'ghost_main',
 });
+const governancePolicy = __buildApprovalPolicy(approvalItem);
 const reply = \`Approval required before Codex execution. Risk level: \${context.risk_level || 'unknown'}. \${reasons}\`;
 return [{ json: {
   ...context,
@@ -312,11 +345,11 @@ return [{ json: {
   codex_command_status: 'blocked_pending_approval',
   artifact_path: '',
   stdout_summary: '',
-  stderr_summary: reasons,
+  stderr_summary: [reasons, governancePolicy.summary].filter(Boolean).join(' '),
   command_exit_code: null,
   n8n_execution_id: context.n8n_execution_id || null,
   approval_item: approvalItem,
-  governance_policy: approvalItem.governance,
+  governance_policy: governancePolicy,
   governance_environment: approvalItem.environment,
   requested_capabilities: approvalItem.capabilities,
   response_mode: 'direct_owner_reply',

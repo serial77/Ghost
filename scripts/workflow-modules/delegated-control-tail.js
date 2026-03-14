@@ -45,6 +45,7 @@ const approvalItem = __buildApprovalItem({
   capabilities: ['code.write', 'artifact.publish'],
   requestedForWorkerId: 'forge',
 });
+const governancePolicy = __buildApprovalPolicy(approvalItem);
 const reply = [
   \`\${item.parent_owner_label || 'Ghost'} kept this conversation under its current owner and opened a delegated worker task instead of silently switching models.\`,
   \`Execution is blocked pending approval. The delegated task is now visible on the Task Board for review.\`,
@@ -63,7 +64,7 @@ return [{ json: {
   command_success: false,
   command_exit_code: null,
   stdout_summary: '',
-  stderr_summary: reasons,
+  stderr_summary: [reasons, governancePolicy.summary].filter(Boolean).join(' '),
   artifact_path: '',
   codex_command_status: 'blocked_pending_approval',
   error_type: 'delegation_blocked_pending_approval',
@@ -73,7 +74,7 @@ return [{ json: {
   worker_conversation_id: item.worker_conversation_id || '',
   n8n_execution_id: item.n8n_execution_id || null,
   approval_item: approvalItem,
-  governance_policy: approvalItem.governance,
+  governance_policy: governancePolicy,
   governance_environment: approvalItem.environment,
   requested_capabilities: approvalItem.capabilities,
   response_mode: 'delegated_blocked',
@@ -155,7 +156,7 @@ function assertDelegatedControlTailContract({ workflow, findNode, assertIncludes
     "codex_command_status: 'blocked_pending_approval'",
     "error_type: 'delegation_blocked_pending_approval'",
     "approval_item: approvalItem",
-    "governance_policy: approvalItem.governance",
+    "governance_policy: governancePolicy",
     "requested_capabilities: approvalItem.capabilities",
     "response_mode: 'delegated_blocked'",
     "runtime_task_id: null",

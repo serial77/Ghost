@@ -2,6 +2,7 @@
 
 const path = require("path");
 const {
+  buildApprovalPolicy,
   buildApprovalItem,
   inferCurrentEnvironment,
   loadPhase7Foundations,
@@ -76,7 +77,10 @@ function main() {
     requestedForWorkerId,
   });
 
-  console.log(JSON.stringify(item, null, 2));
+  console.log(JSON.stringify({
+    ...item,
+    policy: buildApprovalPolicy(item),
+  }, null, 2));
 }
 
 main();

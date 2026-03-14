@@ -167,7 +167,49 @@ function buildApprovalItem({
   };
 }
 
+function buildApprovalPolicy(approvalItem) {
+  const governance = approvalItem && approvalItem.governance && typeof approvalItem.governance === "object"
+    ? approvalItem.governance
+    : {};
+  const restricted = Array.isArray(governance.restricted_capabilities) ? governance.restricted_capabilities : [];
+  const outOfScope = Array.isArray(governance.out_of_scope_capabilities) ? governance.out_of_scope_capabilities : [];
+  const approvalRequired = Array.isArray(governance.approval_required_capabilities)
+    ? governance.approval_required_capabilities
+    : [];
+  const blockingCapabilities = Array.from(new Set([...restricted, ...outOfScope]));
+  const state = blockingCapabilities.length > 0
+    ? "environment_restricted"
+    : approvalRequired.length > 0
+      ? "approval_required"
+      : "allowed";
+  const summaryParts = [];
+  if (approvalRequired.length > 0) {
+    summaryParts.push(`approval required for ${approvalRequired.join(", ")}`);
+  }
+  if (restricted.length > 0) {
+    summaryParts.push(`restricted in ${approvalItem.environment}: ${restricted.join(", ")}`);
+  }
+  if (outOfScope.length > 0) {
+    summaryParts.push(`outside ${approvalItem.environment} scope: ${outOfScope.join(", ")}`);
+  }
+  summaryParts.push(`environment posture ${governance.environment_posture || "unknown"}`);
+  return {
+    state,
+    summary: summaryParts.join("; "),
+    blocking_capabilities: blockingCapabilities,
+    environment: approvalItem.environment || null,
+    environment_posture: governance.environment_posture || null,
+    approval_required_capabilities: approvalRequired,
+    restricted_capabilities: restricted,
+    out_of_scope_capabilities: outOfScope,
+    destructive_capabilities: Array.isArray(governance.destructive_capabilities) ? governance.destructive_capabilities : [],
+    operator_identity: governance.operator_identity || null,
+    worker_environment_scope: Array.isArray(governance.worker_environment_scope) ? governance.worker_environment_scope : [],
+  };
+}
+
 module.exports = {
+  buildApprovalPolicy,
   buildApprovalItem,
   inferCurrentEnvironment,
   loadPhase7Foundations,
