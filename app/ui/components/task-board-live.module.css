@@ -215,7 +215,10 @@
 
 .sidePanel {
   padding: 14px;
-  min-height: calc(100vh - 220px);
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
 }
 
 .queueShell {
@@ -344,7 +347,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: calc(100vh - 318px);
+  min-height: 200px;
   padding: 12px;
   border-radius: 7px;
   border: 1px solid rgba(255, 255, 255, 0.07);
@@ -673,19 +676,15 @@
   flex-shrink: 0;
 }
 
-.feedRail .sidePanel,
-.agentRail .sidePanel {
-  min-height: calc(100vh - 220px);
-}
-
 /* ── Drawer ── */
 
 .drawerShell {
   padding: 0;
   overflow: hidden;
   position: sticky;
-  top: 16px;
-  min-height: calc(100vh - 220px);
+  top: 12px;
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
 }
 
 .drawerState {

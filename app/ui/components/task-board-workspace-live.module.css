@@ -1,7 +1,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   width: calc(100vw - 56px);
   margin-left: calc(50% - 50vw + 28px);
   margin-right: calc(50% - 50vw + 28px);
@@ -18,28 +18,37 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
+  gap: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .title {
   margin: 0;
-  font-size: clamp(1.55rem, 2vw, 2.2rem);
-  line-height: 1;
-  letter-spacing: -0.05em;
+  font-size: clamp(1.1rem, 1.5vw, 1.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.04em;
 }
 
 .subtitle {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   max-width: 72ch;
   color: var(--text-dim);
-  font-size: 0.92rem;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+/* Hide explanatory subtitle in drawer — wastes space at 520px width */
+.pageDrawer .subtitle {
+  display: none;
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .backLink,
@@ -47,11 +56,12 @@
 .sideLink {
   display: inline-flex;
   align-items: center;
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(165, 196, 255, 0.14);
+  padding: 6px 12px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
   color: var(--text);
-  background: rgba(11, 18, 40, 0.72);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.82rem;
 }
 
 .runtimeLink,
@@ -69,7 +79,7 @@ button.sideLink {
 .signalRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 7px;
 }
 
 .metricStrip {
@@ -109,17 +119,18 @@ button.sideLink {
 
 .tabButton {
   border: 0;
-  padding: 10px 14px;
-  border-radius: 999px;
+  padding: 7px 12px;
+  border-radius: 5px;
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-dim);
   cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
 }
 
 .tabButtonActive {
-  background: linear-gradient(135deg, rgba(106, 125, 255, 0.22), rgba(86, 208, 255, 0.12));
+  background: rgba(255, 255, 255, 0.09);
   color: var(--text);
-  box-shadow: inset 0 1px 0 rgba(165, 196, 255, 0.16);
 }
 
 .tabBody {
@@ -173,11 +184,13 @@ button.sideLink {
 .controlSelect {
   width: 100%;
   margin-top: 4px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(165, 196, 255, 0.12);
-  background: rgba(11, 18, 40, 0.78);
+  padding: 8px 10px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(10, 10, 18, 0.92);
   color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
 }
 
 .planningBlock,
@@ -189,10 +202,10 @@ button.sideLink {
 }
 
 .activityItem {
-  padding: 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(165, 196, 255, 0.1);
-  background: linear-gradient(180deg, rgba(14, 22, 48, 0.78), rgba(8, 12, 27, 0.92));
+  padding: 10px 12px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(180deg, rgba(14, 14, 24, 0.80), rgba(9, 9, 18, 0.92));
 }
 
 .activityTopline {
