@@ -1,0 +1,66 @@
+{
+  "version": "phase7-environments-v1",
+  "environments": [
+    {
+      "id": "prod",
+      "label": "Production",
+      "mutable": true,
+      "promotion_sources": [
+        "staging"
+      ],
+      "restricted_capabilities": [
+        "code.write",
+        "shell.destructive",
+        "git.write",
+        "db.write",
+        "memory.write"
+      ],
+      "governance_posture": "highest",
+      "notes": "Live customer-facing runtime. Promotion and destructive actions require explicit approval."
+    },
+    {
+      "id": "staging",
+      "label": "Staging",
+      "mutable": true,
+      "promotion_sources": [
+        "lab"
+      ],
+      "restricted_capabilities": [
+        "deploy.promote"
+      ],
+      "governance_posture": "high",
+      "notes": "Pre-production validation lane. Promotion into production originates here."
+    },
+    {
+      "id": "lab",
+      "label": "Lab",
+      "mutable": true,
+      "promotion_sources": [
+        "sandbox"
+      ],
+      "restricted_capabilities": [],
+      "governance_posture": "moderate",
+      "notes": "Shared experimentation and hardening environment for supervised backend work."
+    },
+    {
+      "id": "sandbox",
+      "label": "Sandbox",
+      "mutable": true,
+      "promotion_sources": [
+        "scratch"
+      ],
+      "restricted_capabilities": [],
+      "governance_posture": "moderate",
+      "notes": "Isolated execution area for bounded experimentation and verification."
+    },
+    {
+      "id": "scratch",
+      "label": "Scratch",
+      "mutable": true,
+      "promotion_sources": [],
+      "restricted_capabilities": [],
+      "governance_posture": "low",
+      "notes": "Disposable workspace for temporary work and preflight experimentation."
+    }
+  ]
+}

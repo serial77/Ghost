@@ -1,0 +1,43 @@
+{
+  "version": "phase7-diagnostics-v1",
+  "categories": [
+    {
+      "id": "recurring_failures",
+      "description": "Repeated terminal failures across runtime or delegation surfaces."
+    },
+    {
+      "id": "stale_runtime_residue",
+      "description": "Running or queued rows that have aged past the expected window."
+    },
+    {
+      "id": "parity_drift_patterns",
+      "description": "Recent metadata or linkage gaps between persisted truth surfaces."
+    },
+    {
+      "id": "repeated_blocked_approvals",
+      "description": "Blocked delegated actions that may indicate governance friction."
+    },
+    {
+      "id": "approval_queue_pressure",
+      "description": "Durable approval backlog, bottlenecks, and capability/environment pressure."
+    },
+    {
+      "id": "worker_overload_imbalance",
+      "description": "Skewed delegated load concentration by worker provider."
+    },
+    {
+      "id": "action_history_gaps",
+      "description": "Missing or thin durable action history coverage for recent governed/runtime surfaces."
+    },
+    {
+      "id": "fragile_module_hotspots",
+      "description": "Modules that are semantically sensitive and should be watched closely after extraction."
+    }
+  ],
+  "hotspot_modules": [
+    "scripts/workflow-modules/delegated-setup-tail.js",
+    "scripts/workflow-modules/owner-policy-tail.js",
+    "scripts/workflow-modules/delegation-router-tail.js",
+    "scripts/workflow-modules/delegated-worker-runtime-tail.js"
+  ]
+}

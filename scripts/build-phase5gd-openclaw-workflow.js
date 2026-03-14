@@ -1,8 +1,49 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const {
+  applyDirectRuntimeTailModule,
+  assertDirectRuntimeTailContract,
+} = require("./workflow-modules/direct-runtime-tail");
+const {
+  applyMemoryExtractionTailModule,
+  assertMemoryExtractionTailContract,
+} = require("./workflow-modules/memory-extraction-tail");
+const {
+  applyDelegatedCompletionTailModule,
+  assertDelegatedCompletionTailContract,
+} = require("./workflow-modules/delegated-completion-tail");
+const {
+  applyDelegatedControlTailModule,
+  assertDelegatedControlTailContract,
+} = require("./workflow-modules/delegated-control-tail");
+const {
+  applyDelegatedSetupTailModule,
+  assertDelegatedSetupTailContract,
+} = require("./workflow-modules/delegated-setup-tail");
+const {
+  applyIngressConversationTailModule,
+  assertIngressConversationTailContract,
+} = require("./workflow-modules/ingress-conversation-tail");
+const {
+  applyOwnerPolicyTailModule,
+  assertOwnerPolicyTailContract,
+} = require("./workflow-modules/owner-policy-tail");
+const {
+  applyDelegationRouterTailModule,
+  assertDelegationRouterTailContract,
+} = require("./workflow-modules/delegation-router-tail");
+const {
+  applyDelegatedWorkerRuntimeTailModule,
+  assertDelegatedWorkerRuntimeTailContract,
+} = require("./workflow-modules/delegated-worker-runtime-tail");
+const {
+  loadPhase7Foundations,
+  makeApprovalRuntimeConfig,
+  makeWorkerRuntimeConfig,
+} = require("./foundation-runtime");
 
-const projectRoot = "/home/deicide/dev/ghost-stack";
+const projectRoot = path.join(__dirname, "..");
 const sourcePath = path.join(projectRoot, "workflows", "ghost-chat-v3-phase5d-runtime-ledger.json");
 const targetPath = path.join(projectRoot, "workflows", "ghost-chat-v3-phase5gd-openclaw.json");
 const postgresCredential = {
@@ -12,6 +53,104 @@ const postgresCredential = {
 const workflowName = "GHOST by Codex";
 const parentExecutionTarget = "webhook/ghost-chat-v3";
 const delegatedExecutionTarget = "delegated_codex_session";
+const phase7Foundations = loadPhase7Foundations(projectRoot);
+const approvalRuntimeConfigLiteral = JSON.stringify(makeApprovalRuntimeConfig(phase7Foundations));
+const workerRuntimeConfigLiteral = JSON.stringify(makeWorkerRuntimeConfig(phase7Foundations));
+
+function makeApprovalRuntimeHelpersCode() {
+  return `const __ghostApprovalConfig = ${approvalRuntimeConfigLiteral};
+const __approvalText = (value) => value === undefined || value === null ? '' : String(value).trim();
+const __approvalList = (value) => Array.isArray(value) ? value.map((entry) => __approvalText(entry)).filter(Boolean) : [];
+const __approvalHash = (value) => {
+  let hash = 0;
+  const text = __approvalText(value);
+  for (let index = 0; index < text.length; index += 1) {
+    hash = ((hash << 5) - hash + text.charCodeAt(index)) | 0;
+  }
+  return \`approval_\${Math.abs(hash).toString(16).slice(0, 12)}\`;
+};
+const __approvalEnvironment = () => {
+  const explicit = typeof process !== 'undefined'
+    ? __approvalText(process.env.GHOST_RUNTIME_ENV || process.env.GHOST_ENV || process.env.NODE_ENV || '')
+    : '';
+  if (explicit === 'production' && __ghostApprovalConfig.environments_by_id.prod) return 'prod';
+  if (explicit && __ghostApprovalConfig.environments_by_id[explicit]) return explicit;
+  return 'lab';
+};
+const __buildApprovalItem = ({ workerId, requestedBy, summary, reason, category, riskLevel, capabilities, requestedForWorkerId }) => {
+  const worker = __ghostApprovalConfig.workers_by_id[workerId] || null;
+  if (!worker) {
+    throw new Error(\`Unknown approval worker: \${workerId}\`);
+  }
+  const targetWorker = requestedForWorkerId ? (__ghostApprovalConfig.workers_by_id[requestedForWorkerId] || null) : null;
+  const environment = __approvalEnvironment();
+  const environmentDoc = __ghostApprovalConfig.environments_by_id[environment] || __ghostApprovalConfig.environments_by_id.lab;
+  const normalizedCapabilities = Array.from(new Set(__approvalList(capabilities))).filter((capabilityId) => __ghostApprovalConfig.capabilities_by_id[capabilityId]);
+  const capabilityRecords = normalizedCapabilities.map((capabilityId) => __ghostApprovalConfig.capabilities_by_id[capabilityId]);
+  const approvalRequiredCapabilities = capabilityRecords.filter((entry) => entry.approval_required).map((entry) => entry.id);
+  const destructiveCapabilities = capabilityRecords.filter((entry) => entry.class === 'destructive').map((entry) => entry.id);
+  const restrictedCapabilities = capabilityRecords.filter((entry) => (environmentDoc.restricted_capabilities || []).includes(entry.id)).map((entry) => entry.id);
+  const outOfScopeCapabilities = capabilityRecords.filter((entry) => !(entry.environment_restriction || []).includes(environment)).map((entry) => entry.id);
+  const approvalSource = [workerId, requestedBy, summary, environment, category, normalizedCapabilities.join(','), targetWorker?.id || ''].join('|');
+  return {
+    approval_id: __approvalHash(approvalSource),
+    state: __ghostApprovalConfig.approval_model.initial_state,
+    requested_at: new Date().toISOString(),
+    requested_by: __approvalText(requestedBy),
+    requester_worker_id: worker.id,
+    requester_label: worker.visibility_label,
+    environment,
+    category: __approvalText(category),
+    risk_level: __approvalText(riskLevel) || 'caution',
+    capabilities: normalizedCapabilities,
+    summary: __approvalText(summary),
+    reason: __approvalText(reason),
+    target_worker_id: targetWorker?.id || null,
+    target_worker_label: targetWorker?.visibility_label || null,
+    governance: {
+      environment_posture: environmentDoc.governance_posture || 'moderate',
+      restricted_capabilities: restrictedCapabilities,
+      out_of_scope_capabilities: outOfScopeCapabilities,
+      approval_required_capabilities: approvalRequiredCapabilities,
+      destructive_capabilities: destructiveCapabilities,
+      operator_identity: worker.operator_identity,
+      worker_environment_scope: Array.isArray(worker.environment_scope) ? worker.environment_scope : [],
+    },
+  };
+};
+const __buildApprovalPolicy = (approvalItem) => {
+  const governance = approvalItem && approvalItem.governance && typeof approvalItem.governance === 'object'
+    ? approvalItem.governance
+    : {};
+  const restricted = Array.isArray(governance.restricted_capabilities) ? governance.restricted_capabilities : [];
+  const outOfScope = Array.isArray(governance.out_of_scope_capabilities) ? governance.out_of_scope_capabilities : [];
+  const approvalRequired = Array.isArray(governance.approval_required_capabilities) ? governance.approval_required_capabilities : [];
+  const blockingCapabilities = Array.from(new Set([...restricted, ...outOfScope]));
+  const state = blockingCapabilities.length > 0
+    ? 'environment_restricted'
+    : approvalRequired.length > 0
+      ? 'approval_required'
+      : 'allowed';
+  const summaryParts = [];
+  if (approvalRequired.length > 0) summaryParts.push(\`approval required for \${approvalRequired.join(', ')}\`);
+  if (restricted.length > 0) summaryParts.push(\`restricted in \${approvalItem.environment}: \${restricted.join(', ')}\`);
+  if (outOfScope.length > 0) summaryParts.push(\`outside \${approvalItem.environment} scope: \${outOfScope.join(', ')}\`);
+  summaryParts.push(\`environment posture \${governance.environment_posture || 'unknown'}\`);
+  return {
+    state,
+    summary: summaryParts.join('; '),
+    blocking_capabilities: blockingCapabilities,
+    environment: approvalItem.environment || null,
+    environment_posture: governance.environment_posture || null,
+    approval_required_capabilities: approvalRequired,
+    restricted_capabilities: restricted,
+    out_of_scope_capabilities: outOfScope,
+    destructive_capabilities: Array.isArray(governance.destructive_capabilities) ? governance.destructive_capabilities : [],
+    operator_identity: governance.operator_identity || null,
+    worker_environment_scope: Array.isArray(governance.worker_environment_scope) ? governance.worker_environment_scope : [],
+  };
+};`;
+}
 
 function makeId(label) {
   if (!label) {
@@ -46,6 +185,11 @@ function addNode(workflow, node) {
   workflow.nodes.push(node);
 }
 
+function removeNode(workflow, name) {
+  workflow.nodes = workflow.nodes.filter((entry) => entry.name !== name);
+  delete workflow.connections[name];
+}
+
 function ensureAssignment(node, assignment) {
   const assignments = node.parameters.assignments.assignments;
   const existing = assignments.find((entry) => entry.name === assignment.name);
@@ -66,18 +210,6 @@ function setMainConnections(connections, fromNode, outputs) {
       })),
     ),
   };
-}
-
-function appendConnection(connections, fromNode, toNode, outputIndex = 0) {
-  if (!connections[fromNode]) {
-    connections[fromNode] = { main: [] };
-  }
-  if (!connections[fromNode].main[outputIndex]) {
-    connections[fromNode].main[outputIndex] = [];
-  }
-  if (!connections[fromNode].main[outputIndex].some((entry) => entry.node === toNode)) {
-    connections[fromNode].main[outputIndex].push({ node: toNode, type: "main", index: 0 });
-  }
 }
 
 function removeConnection(connections, fromNode, toNode) {
@@ -121,6 +253,12 @@ function makePostgresNode(name, query, queryReplacement, position, continueOnFai
   };
 }
 
+function assertIncludes(haystack, needle, context) {
+  if (!String(haystack || "").includes(needle)) {
+    throw new Error(`Direct-path contract check failed: missing '${needle}' in ${context}`);
+  }
+}
+
 function makeIfNode(name, leftValue, operation, position, rightValue = undefined) {
   const condition = {
     id: makeId(`condition:${name}:${leftValue}:${operation}:${rightValue ?? ""}`),
@@ -160,122 +298,285 @@ function makeIfNode(name, leftValue, operation, position, rightValue = undefined
 
 const [workflow] = loadWorkflow(sourcePath);
 
-const normalizeInput = findNode(workflow, "Normalize Input");
-ensureAssignment(normalizeInput, {
-  id: makeId("assignment:Normalize Input:entrypoint"),
-  name: "entrypoint",
-  value: "={{ $json.headers['x-ghost-entry-point'] || $json.headers['X-Ghost-Entry-Point'] || 'direct_webhook' }}",
-  type: "string",
-});
-ensureAssignment(normalizeInput, {
-  id: makeId("assignment:Normalize Input:n8n_execution_id"),
-  name: "n8n_execution_id",
-  value: "={{ $execution?.id || $executionId || '' }}",
-  type: "string",
+applyIngressConversationTailModule({
+  workflow,
+  findNode,
+  ensureAssignment,
+  makeId,
 });
 
-const exposeRouteMetadata = findNode(workflow, "Expose Route Metadata");
-ensureAssignment(exposeRouteMetadata, {
-  id: makeId("assignment:Expose Route Metadata:n8n_execution_id"),
-  name: "n8n_execution_id",
-  value: "={{ $('Normalize Input').item.json.n8n_execution_id || $execution?.id || $executionId || '' }}",
-  type: "string",
-});
+const normalizeOllamaReply = findNode(workflow, "Normalize Ollama Reply");
+normalizeOllamaReply.parameters.jsCode = `${normalizeOllamaReply.parameters.jsCode.replace(
+  "} }];",
+  "  response_mode: 'direct_owner_reply',\n  parent_owner_label: context.parent_owner_label || 'Ghost',\n} }];",
+)}`;
 
-const buildApiResponse = findNode(workflow, "Build API Response");
-buildApiResponse.parameters.jsCode = `const item = $input.first().json;
-const asText = (value) => value === undefined || value === null ? '' : String(value).trim();
-const summarize = (value) => asText(value).replace(/\\s+/g, ' ').trim().slice(0, 600);
-const normalizeExitCode = (value) => {
-  if (value === undefined || value === null || value === '') return null;
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : asText(value);
-};
-const normalizeNullableBoolean = (value) => (
-  value === undefined || value === null || value === '' ? null : Boolean(value)
-);
-return [{ json: {
-  conversation_id: asText(item.conversation_id),
-  reply: asText(item.reply),
-  provider_used: asText(item.provider_used),
-  model_used: asText(item.model_used),
-  task_class: asText(item.task_class),
-  approval_required: Boolean(item.approval_required),
-  risk_level: asText(item.risk_level) || 'safe',
-  risk_reasons: Array.isArray(item.risk_reasons) ? item.risk_reasons : [],
-  task_summary: summarize(item.task_summary),
-  command_success: normalizeNullableBoolean(item.command_success),
-  command_exit_code: normalizeExitCode(item.command_exit_code),
-  stdout_summary: summarize(item.stdout_summary),
-  stderr_summary: summarize(item.stderr_summary),
-  artifact_path: asText(item.artifact_path) || null,
-  codex_command_status: asText(item.codex_command_status) || 'not_applicable',
-  error_type: asText(item.error_type) || null,
-  delegation_id: asText(item.delegation_id) || null,
-  orchestration_task_id: asText(item.orchestration_task_id) || null,
-  runtime_task_id: asText(item.runtime_task_id) || null,
-  worker_conversation_id: asText(item.worker_conversation_id) || null,
-  n8n_execution_id: asText(item.n8n_execution_id) || null,
-  response_mode: asText(item.response_mode) || 'direct_owner_reply',
-  parent_owner_label: asText(item.parent_owner_label) || null,
-} }];`;
-
-const saveUserMessage = findNode(workflow, "Save User Message");
-saveUserMessage.parameters.options.queryReplacement =
-  "={{ [$json.conversation_id, $('Normalize Input').item.json.message, JSON.stringify({ source: 'ghost-chat-v3', type: 'user_message', entrypoint: $('Normalize Input').item.json.entrypoint || 'direct_webhook', n8n_execution_id: $('Normalize Input').item.json.n8n_execution_id || null })] }}";
-
-const saveAssistantReply = findNode(workflow, "Save Assistant Reply");
-saveAssistantReply.parameters.options.queryReplacement =
-  "={{ [$json.conversation_id, $json.reply, $json.model_used || null, { provider_used: $json.provider_used || null, task_class: $json.task_class || null, approval_required: $json.approval_required || false, risk_level: $json.risk_level || 'safe', risk_reasons: $json.risk_reasons || [], task_summary: $json.task_summary || '', command_success: $json.command_success === true, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $json.runtime_task_id || null, worker_conversation_id: $json.worker_conversation_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || 'direct_owner_reply', parent_owner_label: $json.parent_owner_label || null }] }}";
+const normalizeOpenAIReply = findNode(workflow, "Normalize OpenAI Reply");
+normalizeOpenAIReply.parameters.jsCode = `${normalizeOpenAIReply.parameters.jsCode.replace(
+  "} }];",
+  "  response_mode: 'direct_owner_reply',\n  parent_owner_label: context.parent_owner_label || 'Ghost',\n} }];",
+)}`;
 
 const buildApprovalRequiredResponse = findNode(workflow, "Build Approval Required Response");
-buildApprovalRequiredResponse.parameters.jsCode = `const context = $input.first().json;
+buildApprovalRequiredResponse.parameters.jsCode = `${makeApprovalRuntimeHelpersCode()}
+const context = $input.first().json;
 const reasons = Array.isArray(context.risk_reasons) && context.risk_reasons.length
   ? context.risk_reasons.join(' ')
   : 'Risk policy requires review.';
-const reply = \`Approval required before Codex execution. Risk level: \${context.risk_level || 'unknown'}. \${reasons}\`;
+const approvalItem = __buildApprovalItem({
+  workerId: 'ghost_main',
+  requestedBy: 'ghost-main-runtime',
+  summary: 'Direct Codex execution requires approval before mutation-capable work can start.',
+  reason: reasons,
+  category: 'destructive_change',
+  riskLevel: context.risk_level || 'caution',
+  capabilities: ['code.write', 'artifact.publish'],
+  requestedForWorkerId: 'ghost_main',
+});
+const governancePolicy = __buildApprovalPolicy(approvalItem);
+const blockedByEnvironment = governancePolicy.state === 'environment_restricted';
+const reply = blockedByEnvironment
+  ? \`Codex execution is blocked by \${approvalItem.environment} environment policy. Risk level: \${context.risk_level || 'unknown'}. \${governancePolicy.summary} \${reasons}\`
+  : \`Approval required before Codex execution. Risk level: \${context.risk_level || 'unknown'}. \${reasons}\`;
 return [{ json: {
   ...context,
   reply,
   provider_used: context.provider || '',
   model_used: context.selected_model || '',
   task_class: context.task_class || '',
+  approval_required: true,
   command_success: false,
-  error_type: 'approval_required',
-  codex_command_status: 'blocked_pending_approval',
+  error_type: blockedByEnvironment ? 'environment_capability_blocked' : 'approval_required',
+  codex_command_status: blockedByEnvironment ? 'blocked_environment_policy' : 'blocked_pending_approval',
   artifact_path: '',
   stdout_summary: '',
-  stderr_summary: reasons,
+  stderr_summary: [reasons, governancePolicy.summary].filter(Boolean).join(' '),
   command_exit_code: null,
   n8n_execution_id: context.n8n_execution_id || null,
+  approval_item: approvalItem,
+  governance_policy: governancePolicy,
+  governance_environment: approvalItem.environment,
+  requested_capabilities: approvalItem.capabilities,
+  response_mode: 'direct_owner_reply',
+  parent_owner_label: context.parent_owner_label || 'Ghost',
 } }];`;
+
+const assessApprovalRisk = findNode(workflow, "Assess Approval Risk");
+assessApprovalRisk.parameters.jsCode = `${makeApprovalRuntimeHelpersCode()}
+const item = $input.first().json;
+const messages = Array.isArray(item.messages) ? item.messages : [];
+const lastUser = [...messages].reverse().find((message) => message.role === 'user');
+const sourceText = (lastUser?.content || item.prompt || '').trim();
+const findings = [];
+let riskLevel = 'safe';
+
+const destructiveRules = [
+  { label: 'delete_or_rm', pattern: /(^|\\s)(rm\\s+-rf|rm\\s+-r|rm\\s+|delete\\s+(the\\s+)?file|delete\\s+(the\\s+)?directory|remove\\s+(the\\s+)?file|unlink\\s+|shred\\s+)/i, reason: 'Requests file deletion or removal.' },
+  { label: 'docker_live_change', pattern: /docker\\s+compose\\s+(down|restart|up|stop)|docker\\s+(restart|stop)\\b/i, reason: 'Requests live container lifecycle changes.' },
+  { label: 'destructive_sql', pattern: /\\b(drop\\s+table|drop\\s+database|truncate\\s+table|delete\\s+from|alter\\s+table\\s+.*drop\\s+column)\\b/i, reason: 'Contains destructive SQL operations.' },
+  { label: 'critical_move', pattern: /\\b(move|mv|rename)\\b.*\\b(docker-compose\\.ya?ml|\\.env|systemd|workflow|workflows\\/|base\\/)\\b/i, reason: 'Moves or renames critical runtime files.' },
+];
+
+const cautionRules = [
+  { label: 'critical_file_edit', pattern: /\\b(edit|modify|change|update|patch|rewrite)\\b.*\\b(docker-compose\\.ya?ml|\\.env(\\.|\\b)|systemd|service unit|workflow id|production workflow|ghost-chat-v3|Yh6h9OJyVCfREbp3)\\b/i, reason: 'Touches critical runtime configuration or live workflow identifiers.' },
+  { label: 'broad_sql', pattern: /\\b(update|delete)\\b.*\\b(sql|postgres|database|table)\\b/i, reason: 'Requests a database-changing operation.' },
+  { label: 'infrastructure_change', pattern: /\\b(deploy|deployment|infrastructure|nginx|kubernetes|compose file|dockerfile)\\b/i, reason: 'Requests infrastructure-related changes.' },
+];
+
+for (const rule of destructiveRules) {
+  if (rule.pattern.test(sourceText)) findings.push({ level: 'destructive', code: rule.label, reason: rule.reason });
+}
+if (!findings.length) {
+  for (const rule of cautionRules) {
+    if (rule.pattern.test(sourceText)) findings.push({ level: 'caution', code: rule.label, reason: rule.reason });
+  }
+}
+if (findings.some((finding) => finding.level === 'destructive')) riskLevel = 'destructive';
+else if (findings.some((finding) => finding.level === 'caution')) riskLevel = 'caution';
+
+const isCodexDirect = item.provider === 'codex_oauth_worker';
+const directCapabilities = isCodexDirect ? ['code.write', 'artifact.publish'] : [];
+const approvalItem = isCodexDirect ? __buildApprovalItem({
+  workerId: 'ghost_main',
+  requestedBy: 'ghost-main-runtime',
+  summary: 'Direct Codex execution requires approval before mutation-capable work can start.',
+  reason: findings.map((finding) => finding.reason).join(' ') || 'Risk policy requires review.',
+  category: 'destructive_change',
+  riskLevel,
+  capabilities: directCapabilities,
+  requestedForWorkerId: 'ghost_main',
+}) : null;
+const governancePolicy = approvalItem ? __buildApprovalPolicy(approvalItem) : null;
+const blockedByEnvironment = governancePolicy?.state === 'environment_restricted';
+const approvalRequired = isCodexDirect && (riskLevel !== 'safe' || blockedByEnvironment);
+const taskSummary = sourceText.replace(/\\s+/g, ' ').trim().slice(0, 180);
+
+return [{ json: {
+  ...item,
+  task_summary: taskSummary,
+  approval_required: approvalRequired,
+  risk_level: riskLevel,
+  risk_reasons: findings.map((finding) => finding.reason),
+  risk_codes: findings.map((finding) => finding.code),
+  governance_policy: governancePolicy,
+  governance_environment: approvalItem?.environment || item.governance_environment || null,
+  requested_capabilities: directCapabilities,
+  codex_command_status: approvalRequired
+    ? (blockedByEnvironment ? 'blocked_environment_policy' : 'blocked_pending_approval')
+    : (isCodexDirect ? 'pending' : 'not_applicable'),
+} }];`;
+
+addNode(
+  workflow,
+  makePostgresNode(
+    "Persist Approval Queue Item",
+    `WITH payload AS (
+  SELECT
+    NULLIF($1, '')::uuid AS task_id,
+    NULLIF($2, '') AS approval_contract_id,
+    NULLIF($3, '') AS approval_type,
+    NULLIF($4, '') AS prompt_text,
+    COALESCE($5::jsonb, '{}'::jsonb) AS approval_metadata,
+    NULLIF($6, '') AS requester_agent_key,
+    COALESCE($7::jsonb, '{}'::jsonb) AS payload_json
+), existing AS (
+  SELECT
+    a.id::text AS approval_queue_id,
+    a.status AS approval_queue_status,
+    a.requested_at
+  FROM approvals a
+  JOIN payload p ON TRUE
+  WHERE a.task_id = p.task_id
+    AND COALESCE(a.metadata ->> 'approval_contract_id', '') = COALESCE(p.approval_contract_id, '')
+  ORDER BY a.requested_at DESC, a.id DESC
+  LIMIT 1
+), inserted AS (
+  INSERT INTO approvals (
+    task_id,
+    requested_by_agent_id,
+    approval_type,
+    status,
+    prompt_text,
+    metadata
+  )
+  SELECT
+    p.task_id,
+    (SELECT id FROM agents WHERE agent_key = p.requester_agent_key LIMIT 1),
+    COALESCE(p.approval_type, 'governed_approval'),
+    'pending',
+    COALESCE(p.prompt_text, 'Approval required before execution can continue.'),
+    p.approval_metadata
+  FROM payload p
+  WHERE p.task_id IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM existing)
+  RETURNING id::text AS approval_queue_id, status AS approval_queue_status, requested_at
+)
+SELECT
+  COALESCE(inserted.approval_queue_id, existing.approval_queue_id, '') AS approval_queue_id,
+  COALESCE(inserted.approval_queue_status, existing.approval_queue_status, '') AS approval_queue_status,
+  COALESCE(inserted.requested_at, existing.requested_at)::text AS approval_requested_at,
+  payload.payload_json::text AS approval_payload_json
+FROM payload
+LEFT JOIN inserted ON TRUE
+LEFT JOIN existing ON TRUE;`,
+    "={{ [$items('Start Runtime Ledger', 0, 0)[0]?.json.task_id || '', $json.approval_item?.approval_id || '', ($json.governance_policy?.state === 'environment_restricted' ? ($json.response_mode === 'delegated_blocked' ? 'delegated_environment_restricted' : 'direct_environment_restricted') : ($json.response_mode === 'delegated_blocked' ? 'delegated_blocked' : 'direct_approval_required')), $json.reply || 'Approval required before execution can continue.', { approval_contract_id: $json.approval_item?.approval_id || null, approval_item: $json.approval_item || null, governance_policy: $json.governance_policy || null, governance_environment: $json.governance_environment || null, requested_capabilities: $json.requested_capabilities || [], conversation_id: $json.conversation_id || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $items('Start Runtime Ledger', 0, 0)[0]?.json.task_id || null, runtime_task_run_id: $items('Start Runtime Ledger', 0, 0)[0]?.json.task_run_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || null, parent_owner_label: $json.parent_owner_label || null, source_path: ($json.governance_policy?.state === 'environment_restricted' ? ($json.response_mode === 'delegated_blocked' ? 'delegated_environment_restricted' : 'direct_environment_restricted') : ($json.response_mode === 'delegated_blocked' ? 'delegated_blocked' : 'direct_approval_required')) }, 'ghost-main', $json] }}",
+    [2144, -544],
+    false,
+  ),
+);
+
+addNode(
+  workflow,
+  makeCodeNode(
+    "Attach Persisted Approval Queue Metadata",
+    `const row = $input.first().json || {};
+let payload = {};
+try {
+  payload = row.approval_payload_json ? JSON.parse(row.approval_payload_json) : {};
+} catch (error) {
+  payload = {};
+}
+const approvalItem = payload.approval_item && typeof payload.approval_item === 'object' && !Array.isArray(payload.approval_item)
+  ? {
+      ...payload.approval_item,
+      queue_id: row.approval_queue_id || null,
+      queue_status: row.approval_queue_status || 'pending',
+      queue_requested_at: row.approval_requested_at || null,
+    }
+  : payload.approval_item || null;
+return [{ json: {
+  ...payload,
+  approval_item: approvalItem,
+  approval_queue_id: row.approval_queue_id || null,
+  approval_queue_status: row.approval_queue_status || null,
+} }];`,
+    [2368, -544],
+  ),
+);
 
 const normalizeCodexReply = findNode(workflow, "Normalize Codex Reply");
 normalizeCodexReply.parameters.jsCode = `const result = $input.first().json;
 const context = $('Expose Route Metadata').item.json;
+const started = $items('Start Runtime Ledger', 0, 0)[0]?.json || {};
 const rawStdout = typeof result.stdout === 'string' ? result.stdout.trim() : '';
 const nodeError = typeof result.error === 'string' ? result.error : (result.error?.message || '');
 let payload = {};
+let payloadParseFailed = false;
 if (rawStdout) {
   try {
     payload = JSON.parse(rawStdout);
   } catch (error) {
+    payloadParseFailed = true;
     payload = {
       reply: rawStdout,
-      success: true,
-      command_exit_code: 0,
+      success: false,
+      command_exit_code: typeof result.exitCode === 'number' ? result.exitCode : 0,
       stdout_summary: rawStdout.slice(0, 600),
       stderr_summary: typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '',
       artifact_path: '',
     };
   }
 }
-const stderrSummary = payload.stderr_summary || (typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '') || nodeError.slice(0, 600);
-const commandExitCode = payload.command_exit_code ?? (nodeError ? 127 : null);
-const commandSuccess = Boolean(payload.success);
+const commandExitCode = payload.command_exit_code ?? (typeof result.exitCode === 'number' ? result.exitCode : (nodeError ? 127 : null));
+const stderrSummaryBase = payload.stderr_summary || (typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '') || nodeError.slice(0, 600);
+const replyText = typeof payload.reply === 'string' ? payload.reply.trim() : '';
+const invalidPayload = payloadParseFailed || !payload || typeof payload !== 'object' || Array.isArray(payload);
+const timedOut = /timed?\\s*out|timeout/i.test((nodeError || '') + ' ' + (stderrSummaryBase || ''));
+const commandFailedWithoutStructuredOutput = !rawStdout
+  && !replyText.length
+  && !payloadParseFailed
+  && Boolean(nodeError || stderrSummaryBase || (commandExitCode !== null && commandExitCode !== 0));
+const commandSuccess = Boolean(payload.success) && !invalidPayload && replyText.length > 0;
+const derivedErrorType = commandSuccess
+  ? ''
+  : timedOut
+      ? 'codex_command_timeout'
+      : commandFailedWithoutStructuredOutput
+          ? 'codex_command_failed'
+      : invalidPayload || !replyText.length
+          ? 'codex_invalid_result'
+          : 'codex_command_failed';
+const stderrSummary = commandSuccess
+  ? stderrSummaryBase
+  : stderrSummaryBase || (timedOut
+      ? 'Codex execution timed out.'
+      : commandFailedWithoutStructuredOutput
+          ? 'Codex execution failed.'
+      : invalidPayload
+          ? 'Codex returned an invalid result payload.'
+          : !replyText.length
+              ? 'Codex returned no reply content.'
+              : 'Codex execution failed.');
 const failureSuffix = commandExitCode !== undefined && commandExitCode !== null ? \` (exit \${commandExitCode})\` : '';
 const failureReason = stderrSummary || 'No additional stderr was captured.';
-const reply = (payload.reply || '').trim() || (commandSuccess ? '[no-codex-reply]' : \`Codex execution failed\${failureSuffix}. \${failureReason}\`);
+const failureLabel = derivedErrorType === 'codex_command_timeout'
+  ? 'timed out'
+  : derivedErrorType === 'codex_invalid_result'
+      ? 'returned an invalid result'
+      : 'failed';
+const reply = commandSuccess
+  ? replyText
+  : \`Codex execution \${failureLabel}\${failureSuffix}. \${failureReason}\`;
 return [{ json: {
   ...context,
   ...result,
@@ -296,8 +597,12 @@ return [{ json: {
   stderr_summary: stderrSummary,
   artifact_path: payload.artifact_path || '',
   codex_command_status: commandSuccess ? 'succeeded' : 'failed',
-  error_type: commandSuccess ? '' : 'codex_command_failed',
+  error_type: derivedErrorType,
+  runtime_task_id: started.task_id || '',
+  runtime_task_run_id: started.task_run_id || '',
   n8n_execution_id: context.n8n_execution_id || null,
+  response_mode: 'direct_owner_reply',
+  parent_owner_label: context.parent_owner_label || 'Ghost',
 } }];`;
 
 const buildRuntimeLedgerStartPayload = findNode(workflow, "Build Runtime Ledger Start Payload");
@@ -339,753 +644,52 @@ FROM public.ghost_runtime_start_task_ledger(
   $4::jsonb,
   $5::jsonb
 );`;
+applyDirectRuntimeTailModule({ workflow, findNode, addNode, makePostgresNode });
+applyMemoryExtractionTailModule({ workflow, findNode });
 
-const buildRuntimeLedgerCompletionPayload = findNode(workflow, "Build Runtime Ledger Completion Payload");
-buildRuntimeLedgerCompletionPayload.parameters.jsCode = `const item = $input.first().json;
-const startRows = $items('Start Runtime Ledger', 0, 0);
-const started = startRows[0]?.json || {};
-const normalized = $('Normalize Input').item.json;
-return [{ json: {
-  task_id: started.task_id || '',
-  task_run_id: started.task_run_id || '',
-  output_payload_json: JSON.stringify(item),
-  conversation_id: item.conversation_id || '',
-  task_class: item.task_class || '',
-  provider_used: item.provider_used || '',
-  model_used: item.model_used || '',
-  approval_required: item.approval_required === true,
-  command_success: item.command_success === undefined ? null : item.command_success,
-  error_type: item.error_type || '',
-  task_summary: item.task_summary || '',
-  artifact_path: item.artifact_path || '',
-  n8n_execution_id: item.n8n_execution_id || normalized.n8n_execution_id || '',
-  entrypoint: normalized.entrypoint || 'direct_webhook',
-} }];`;
-
-const buildMemoryExtractionInput = findNode(workflow, "Build Memory Extraction Input");
-buildMemoryExtractionInput.parameters.jsCode = `const savedMessage = $input.first().json;
-const replyContext = $('Build API Response').item.json;
-let routeContext = { messages: [] };
-try {
-  routeContext = $('Expose Route Metadata').item.json;
-} catch (error) {
-  routeContext = { messages: [] };
-}
-const responseMode = replyContext.response_mode || 'direct_owner_reply';
-const messages = Array.isArray(routeContext.messages) ? routeContext.messages : [];
-const lastUserFromRoute = [...messages].reverse().find((message) => message.role === 'user');
-const latestUserMessage = (lastUserFromRoute?.content || $('Normalize Input').item.json.message || '').trim();
-const assistantReply = (replyContext.reply || '').trim();
-const memoryTestMode = $('Normalize Input').item.json.memory_test_mode || '';
-const taskClass = replyContext.task_class || 'chat';
-const meaningfulTechnicalWork = taskClass === 'technical_work'
-  && replyContext.command_success === true
-  && /(implement|implemented|fix|fixed|update|updated|patch|patched|migrate|migration|refactor|created|added|write|wrote|build|built)/i.test(\`\${latestUserMessage} \${assistantReply}\`)
-  && assistantReply.length >= 24;
-const explicitMemoryCue = /(decision|architectural decision|architecture decision|environment fact|runtime fact|operational note|runtime note|user preference|durable preference|remember this|preference|for future responses|always|never)/i.test(latestUserMessage);
-const delegatedResponse = responseMode.startsWith('delegated_');
-const shouldExtractMemory = Boolean(savedMessage.id && assistantReply)
-  && !delegatedResponse
-  && !replyContext.approval_required
-  && replyContext.error_type !== 'approval_required'
-  && (taskClass !== 'technical_work' || replyContext.command_success !== false)
-  && (explicitMemoryCue || meaningfulTechnicalWork || assistantReply.length >= 40);
-const extractionContract = {
-  items: [
-    {
-      scope: 'global|conversation|task',
-      memory_type: 'task_summary|decision|environment_fact|operational_note|conversation_summary',
-      title: 'short title or empty string',
-      summary: 'durable compact summary',
-      details_json: {},
-      importance: 1,
-    },
-  ],
-};
-const extractionPrompt = [
-  'You extract durable structured Ghost memory.',
-  'Return JSON only. No markdown. No explanation. No surrounding prose.',
-  'Return exactly one object with one key: items.',
-  'If nothing qualifies, return {"items":[]}.',
-  'Each item must contain exactly these keys: scope, memory_type, title, summary, details_json, importance.',
-  'Allowed scope: global, conversation, task.',
-  'Allowed memory_type: task_summary, decision, environment_fact, operational_note, conversation_summary.',
-  'importance must be an integer 1..5.',
-  'title should be short. summary should be compact, durable, and under 240 characters.',
-  'details_json must be a small object. Use {} when not needed.',
-  'Do not store chit-chat, greetings, vague acknowledgements, raw runtime noise, stack traces, banners, code fences, or duplicate restatements.',
-  'Prefer decision, environment_fact, operational_note over weak summaries.',
-  'Only emit task_summary when meaningful work completed successfully.',
-  'Return at most 3 items.',
-  '',
-  'JSON schema shape:',
-  JSON.stringify(extractionContract),
-  '',
-  'Turn context JSON:',
-  JSON.stringify({
-    task_class: taskClass,
-    provider_used: replyContext.provider_used || '',
-    model_used: replyContext.model_used || '',
-    command_success: replyContext.command_success,
-    risk_level: replyContext.risk_level || 'safe',
-    meaningful_technical_work: meaningfulTechnicalWork,
-    response_mode: responseMode,
-    latest_user_message: latestUserMessage,
-    assistant_reply: assistantReply,
-  }),
-].join('\\n');
-
-return [{ json: {
-  conversation_id: replyContext.conversation_id || '',
-  source_message_id: savedMessage.id || '',
-  task_class: taskClass,
-  latest_user_message: latestUserMessage,
-  assistant_reply: assistantReply,
-  memory_test_mode: memoryTestMode,
-  should_extract_memory: shouldExtractMemory,
-  meaningful_technical_work: meaningfulTechnicalWork,
-  extraction_prompt: extractionPrompt,
-  memory_debug: {
-    extractor_attempted: shouldExtractMemory,
-    extractor_skipped: !shouldExtractMemory,
-    fallback_used: false,
-    candidate_count: 0,
-    filtered_count: 0,
-    saved_count: 0,
-  },
-} }];`;
-
-addNode(
+applyOwnerPolicyTailModule({
   workflow,
-  makePostgresNode(
-    "Ensure Conversation Owner",
-    `SELECT
-  conversation_id::text,
-  owner_agent_id::text,
-  owner_agent_key,
-  owner_label,
-  owner_provider,
-  owner_model,
-  owner_locked_at,
-  owner_was_created
-FROM public.ghost_ensure_conversation_owner(
-  NULLIF($1, '')::uuid
-);`,
-    "={{ [$json.conversation_id || ''] }}",
-    [-2420, -96],
-    false,
-  ),
-);
+  addNode,
+  makePostgresNode,
+  makeCodeNode,
+});
 
-addNode(
+removeNode(workflow, "Build Finalize Delegation Context");
+removeNode(workflow, "Finalize Successful Delegation");
+applyDelegationRouterTailModule({
   workflow,
-  makeCodeNode(
-    "Conversation Context With Owner",
-    `const context = $('Conversation Context').item.json;
-const owner = $input.first().json;
-return [{ json: { ...context, ...owner } }];`,
-    [-2196, -96],
-  ),
-);
+  addNode,
+  makeIfNode,
+  setMainConnections,
+});
 
-addNode(
+applyDelegatedSetupTailModule({
   workflow,
-  makeCodeNode(
-    "Resolve Parent Conversation Strategy",
-    `const item = $input.first().json;
-const owner = $items('Ensure Conversation Owner', 0, 0)[0]?.json || {};
-const taskClass = item.task_class || item.request_type || 'chat';
-const parentProvider = String(owner.owner_provider || item.provider || 'ollama').trim() || 'ollama';
-const parentModel = String(owner.owner_model || item.selected_model || 'qwen3:14b').trim() || 'qwen3:14b';
-const delegatedProvider = String(item.provider || '').trim();
-const delegatedModel = String(item.selected_model || '').trim();
-const delegationRequired = taskClass === 'technical_work';
-return [{ json: {
-  ...item,
-  task_class: taskClass,
-  parent_owner_agent_id: owner.owner_agent_id || '',
-  parent_owner_agent_key: owner.owner_agent_key || 'ghost-main',
-  parent_owner_label: owner.owner_label || 'Ghost',
-  parent_provider: parentProvider,
-  parent_model: parentModel,
-  delegated_provider: delegatedProvider,
-  delegated_model: delegatedModel,
-  delegation_required: delegationRequired,
-  provider: parentProvider,
-  selected_model: parentModel,
-  owner_locked_at: owner.owner_locked_at || '',
-  n8n_execution_id: $('Normalize Input').item.json.n8n_execution_id || item.n8n_execution_id || '',
-} }];`,
-    [352, -64],
-  ),
-);
+  addNode,
+  makeCodeNode,
+  makePostgresNode,
+  delegatedExecutionTarget,
+  workflowName,
+  workerRuntimeConfigLiteral,
+});
 
-addNode(
+applyDelegatedWorkerRuntimeTailModule({
   workflow,
-  makeCodeNode(
-    "Build Delegation Execution Context",
-    `const context = $('Build Delegation Context').item.json;
-const saved = $input.first().json;
-return [{ json: {
-  ...context,
-  worker_user_message_id: saved.id || '',
-} }];`,
-    [1600, -208],
-  ),
-);
+  findNode,
+  addNode,
+  makeCodeNode,
+  makeId,
+  setMainConnections,
+});
 
-addNode(
+applyDelegatedCompletionTailModule({ workflow, addNode, makeCodeNode, makePostgresNode, delegatedExecutionTarget });
+applyDelegatedControlTailModule({
   workflow,
-  makeIfNode(
-    "Delegation Required?",
-    "={{ $json.delegation_required }}",
-    "true",
-    [576, -64],
-  ),
-);
-
-addNode(
-  workflow,
-  makeCodeNode(
-    "Build Delegation Request",
-    `const item = $input.first().json;
-const normalized = $('Normalize Input').item.json;
-const userMessage = $items('Save User Message', 0, 0)[0]?.json || {};
-const compact = (value, limit = 600) => String(value || '').replace(/\\s+/g, ' ').trim().slice(0, limit);
-const requestTitle = compact(item.task_summary || normalized.message || 'Ghost delegated worker task', 160) || 'Ghost delegated worker task';
-const requestSummary = compact(normalized.message || item.task_summary || '');
-const metadata = {
-  source: 'conversation_delegation',
-  entrypoint: normalized.entrypoint || 'direct_webhook',
-  parent_owner_agent_id: item.parent_owner_agent_id || null,
-  parent_owner_agent_key: item.parent_owner_agent_key || 'ghost-main',
-  parent_owner_label: item.parent_owner_label || 'Ghost',
-  parent_provider: item.parent_provider || '',
-  parent_model: item.parent_model || '',
-  delegated_provider: item.delegated_provider || '',
-  delegated_model: item.delegated_model || '',
-  parent_message_id: userMessage.id || null,
-  n8n_execution_id: item.n8n_execution_id || normalized.n8n_execution_id || null,
-};
-return [{ json: {
-  ...item,
-  parent_message_id: userMessage.id || '',
-  request_title: requestTitle,
-  request_summary: requestSummary,
-  worker_message_content: normalized.message || requestSummary || requestTitle,
-  worker_execution_prompt: item.prompt || normalized.message || requestSummary || requestTitle,
-  delegation_metadata_json: JSON.stringify(metadata),
-} }];`,
-    [800, -208],
-  ),
-);
-
-addNode(
-  workflow,
-  makeCodeNode(
-    "Build Delegated Completion Context",
-    `const worker = $('Normalize Delegated Codex Reply').item.json;
-const saved = $input.first().json;
-return [{ json: {
-  ...worker,
-  worker_assistant_message_id: saved.id || '',
-} }];`,
-    [3376, -208],
-  ),
-);
-
-addNode(
-  workflow,
-  makeCodeNode(
-    "Build Finalize Delegation Context",
-    `const item = $('Build Delegated Completion Context').item.json;
-return [{ json: { ...item } }];`,
-    [3600, -208],
-  ),
-);
-
-addNode(
-  workflow,
-  makePostgresNode(
-    "Create Conversation Delegation",
-    `SELECT
-  delegation_id::text,
-  orchestration_task_id::text,
-  worker_conversation_id::text,
-  worker_agent_id::text,
-  worker_agent_label,
-  worker_provider,
-  worker_model
-FROM public.ghost_create_conversation_delegation(
-  NULLIF($1, '')::uuid,
-  NULLIF($2, '')::uuid,
-  NULLIF($3, ''),
-  NULLIF($4, ''),
-  NULLIF($5, ''),
-  $6,
-  $7::jsonb
-);`,
-    "={{ [$json.conversation_id || '', $json.parent_message_id || '', $json.delegated_provider || 'codex_oauth_worker', $json.delegated_model || '', $json.request_title || '', $json.request_summary || '', $json.delegation_metadata_json || '{}'] }}",
-    [1024, -208],
-    false,
-  ),
-);
-
-addNode(
-  workflow,
-  makeCodeNode(
-    "Build Delegation Context",
-    `const parent = $('Build Delegation Request').item.json;
-const delegation = $input.first().json;
-const normalized = $('Normalize Input').item.json;
-const compact = (value, limit = 800) => String(value || '').replace(/\\s+/g, ' ').trim().slice(0, limit);
-const workerRuntimeInput = {
-  request_summary: parent.request_summary || '',
-  delegated_from_conversation_id: parent.conversation_id || '',
-  delegated_from_message_id: parent.parent_message_id || '',
-  delegated_provider: delegation.worker_provider || parent.delegated_provider || '',
-  delegated_model: delegation.worker_model || parent.delegated_model || '',
-};
-const workerRuntimeContext = {
-  delegation_id: delegation.delegation_id || '',
-  orchestration_task_id: delegation.orchestration_task_id || '',
-  parent_conversation_id: parent.conversation_id || '',
-  parent_owner_label: parent.parent_owner_label || 'Ghost',
-  delegated_provider: delegation.worker_provider || parent.delegated_provider || '',
-  delegated_model: delegation.worker_model || parent.delegated_model || '',
-  entrypoint: normalized.entrypoint || 'direct_webhook',
-  n8n_execution_id: parent.n8n_execution_id || normalized.n8n_execution_id || '',
-};
-return [{ json: {
-  ...parent,
-  delegation_id: delegation.delegation_id || '',
-  orchestration_task_id: delegation.orchestration_task_id || '',
-  worker_conversation_id: delegation.worker_conversation_id || '',
-  worker_agent_id: delegation.worker_agent_id || '',
-  worker_agent_label: delegation.worker_agent_label || 'Delegated worker',
-  delegated_provider: delegation.worker_provider || parent.delegated_provider || '',
-  delegated_model: delegation.worker_model || parent.delegated_model || '',
-  worker_runtime_input_json: JSON.stringify(workerRuntimeInput),
-  worker_runtime_context_json: JSON.stringify(workerRuntimeContext),
-  worker_user_metadata_json: JSON.stringify({
-    source: 'conversation_delegation',
-    delegation_id: delegation.delegation_id || null,
-    orchestration_task_id: delegation.orchestration_task_id || null,
-    parent_conversation_id: parent.conversation_id || null,
-    parent_message_id: parent.parent_message_id || null,
-    delegated_provider: delegation.worker_provider || parent.delegated_provider || null,
-    delegated_model: delegation.worker_model || parent.delegated_model || null,
-    parent_owner_label: parent.parent_owner_label || 'Ghost',
-    n8n_execution_id: parent.n8n_execution_id || normalized.n8n_execution_id || null,
-  }),
-  blocked_result_summary: compact(\`Approval required before delegated worker execution. \${(parent.risk_reasons || []).join(' ')}\`, 400),
-  unsupported_result_summary: compact(\`Delegated work was queued for \${delegation.worker_provider || parent.delegated_provider || 'the selected worker'}, but only explicit Codex execution is wired in this phase.\`, 400),
-} }];`,
-    [1248, -208],
-  ),
-);
-
-addNode(
-  workflow,
-  makePostgresNode(
-    "Save Delegated Worker Message",
-    `INSERT INTO messages (
-  id,
-  conversation_id,
-  role,
-  content,
-  content_format,
-  model_name,
-  metadata,
-  created_at
-)
-VALUES (
-  gen_random_uuid(),
-  NULLIF($1, '')::uuid,
-  'user',
-  $2,
-  'text',
-  NULL,
-  $3::jsonb,
-  NOW()
-)
-RETURNING id::text, conversation_id::text, role, content, created_at;`,
-    "={{ [$json.worker_conversation_id || '', $json.worker_message_content || '', $json.worker_user_metadata_json || '{}'] }}",
-    [1472, -208],
-    false,
-  ),
-);
-
-addNode(
-  workflow,
-  makeIfNode(
-    "Delegation Approval Required?",
-    "={{ $('Build Delegation Context').item.json.approval_required }}",
-    "true",
-    [1696, -208],
-  ),
-);
-
-addNode(
-  workflow,
-  makePostgresNode(
-    "Finalize Blocked Delegation",
-    `SELECT public.ghost_finalize_delegation(
-  NULLIF($1, '')::uuid,
-  NULL,
-  'blocked',
-  $2,
-  NULL
-);`,
-    "={{ [$json.delegation_id || '', $json.blocked_result_summary || 'Approval required before delegated worker execution.'] }}",
-    [1920, -352],
-    false,
-  ),
-);
-
-addNode(
-  workflow,
-  makeCodeNode(
-    "Build Parent Blocked Delegation Response",
-    `const item = $('Build Delegation Context').item.json;
-const reasons = Array.isArray(item.risk_reasons) && item.risk_reasons.length
-  ? item.risk_reasons.join(' ')
-  : 'Risk policy requires review before Ghost can start the delegated worker session.';
-const reply = [
-  \`\${item.parent_owner_label || 'Ghost'} kept this conversation under its current owner and opened a delegated worker task instead of silently switching models.\`,
-  \`Execution is blocked pending approval. The delegated task is now visible on the Task Board for review.\`,
-  reasons,
-].join('\\n\\n');
-return [{ json: {
-  conversation_id: item.conversation_id || '',
-  reply,
-  provider_used: item.parent_provider || '',
-  model_used: item.parent_model || '',
-  task_class: item.task_class || 'technical_work',
-  approval_required: true,
-  risk_level: item.risk_level || 'caution',
-  risk_reasons: item.risk_reasons || [],
-  task_summary: item.task_summary || '',
-  command_success: false,
-  command_exit_code: null,
-  stdout_summary: '',
-  stderr_summary: reasons,
-  artifact_path: '',
-  codex_command_status: 'blocked_pending_approval',
-  error_type: 'delegation_blocked_pending_approval',
-  delegation_id: item.delegation_id || '',
-  orchestration_task_id: item.orchestration_task_id || '',
-  runtime_task_id: null,
-  worker_conversation_id: item.worker_conversation_id || '',
-  n8n_execution_id: item.n8n_execution_id || null,
-  response_mode: 'delegated_blocked',
-  parent_owner_label: item.parent_owner_label || 'Ghost',
-} }];`,
-    [2144, -352],
-  ),
-);
-
-addNode(
-  workflow,
-  makeIfNode(
-    "Delegated Worker Is Codex?",
-    "={{ ($json.delegated_provider || '') === 'codex_oauth_worker' }}",
-    "true",
-    [1920, -64],
-  ),
-);
-
-addNode(
-  workflow,
-  makePostgresNode(
-    "Finalize Unsupported Delegation",
-    `SELECT public.ghost_finalize_delegation(
-  NULLIF($1, '')::uuid,
-  NULL,
-  'blocked',
-  $2,
-  NULL
-);`,
-    "={{ [$json.delegation_id || '', $json.unsupported_result_summary || 'Delegated worker execution is queued for later handling.'] }}",
-    [2144, 64],
-    false,
-  ),
-);
-
-addNode(
-  workflow,
-  makeCodeNode(
-    "Build Parent Unsupported Delegation Response",
-    `const item = $('Build Delegation Context').item.json;
-const workerLabel = item.worker_agent_label || item.delegated_provider || 'the delegated worker';
-const reply = [
-  \`\${item.parent_owner_label || 'Ghost'} kept ownership of this conversation and opened delegated work for \${workerLabel}.\`,
-  'The work is now visible on the Task Board, but only explicit Codex execution is wired in this phase.',
-].join('\\n\\n');
-return [{ json: {
-  conversation_id: item.conversation_id || '',
-  reply,
-  provider_used: item.parent_provider || '',
-  model_used: item.parent_model || '',
-  task_class: item.task_class || 'technical_work',
-  approval_required: false,
-  risk_level: item.risk_level || 'safe',
-  risk_reasons: item.risk_reasons || [],
-  task_summary: item.task_summary || '',
-  command_success: false,
-  command_exit_code: null,
-  stdout_summary: '',
-  stderr_summary: item.unsupported_result_summary || '',
-  artifact_path: '',
-  codex_command_status: 'queued_for_worker',
-  error_type: 'delegation_execution_not_available',
-  delegation_id: item.delegation_id || '',
-  orchestration_task_id: item.orchestration_task_id || '',
-  runtime_task_id: null,
-  worker_conversation_id: item.worker_conversation_id || '',
-  n8n_execution_id: item.n8n_execution_id || null,
-  response_mode: 'delegated_queued',
-  parent_owner_label: item.parent_owner_label || 'Ghost',
-} }];`,
-    [2368, 64],
-  ),
-);
-
-addNode(
-  workflow,
-  makePostgresNode(
-    "Start Delegated Runtime",
-    `SELECT
-  task_id::text,
-  task_run_id::text
-FROM public.ghost_start_delegation_runtime(
-  NULLIF($1, '')::uuid,
-  '${delegatedExecutionTarget}',
-  '${workflowName}',
-  $2::jsonb,
-  $3::jsonb
-);`,
-    "={{ [$json.delegation_id || '', $json.worker_runtime_input_json || '{}', $json.worker_runtime_context_json || '{}'] }}",
-    [2144, -208],
-    false,
-  ),
-);
-
-addNode(
-  workflow,
-  makeCodeNode(
-    "Build Delegated Codex Context",
-    `const item = $('Build Delegation Context').item.json;
-const runtime = $input.first().json;
-return [{ json: {
-  ...item,
-  task_id: runtime.task_id || '',
-  task_run_id: runtime.task_run_id || '',
-  conversation_id: item.worker_conversation_id || '',
-  selected_model: item.delegated_model || 'gpt-5.4',
-  provider: item.delegated_provider || 'codex_oauth_worker',
-  provider_used: item.delegated_provider || 'codex_oauth_worker',
-  model_used: item.delegated_model || 'gpt-5.4',
-  prompt: item.worker_execution_prompt || item.worker_message_content || item.task_summary || '',
-  config: item.config || {},
-  approval_required: false,
-  risk_level: item.risk_level || 'safe',
-  risk_reasons: item.risk_reasons || [],
-  task_summary: item.task_summary || '',
-  n8n_execution_id: item.n8n_execution_id || '',
-} }];`,
-    [2368, -208],
-  ),
-);
-
-const buildCodexCommand = findNode(workflow, "Build Codex Command");
-buildCodexCommand.parameters.jsCode = buildCodexCommand.parameters.jsCode.replace(
-  "if (/^mcp startup:/i.test(line)) return false;",
-  "if (/^mcp startup:/i.test(line)) return false; if (/state db returned stale rollout path/i.test(line)) return false; if (/^codex_core::rollout::list:/i.test(line)) return false;",
-);
-addNode(
-  workflow,
-  {
-    ...buildCodexCommand,
-    id: makeId("node:Build Delegated Codex Command"),
-    name: "Build Delegated Codex Command",
-    position: [2592, -208],
-  },
-);
-
-const executeCodexCommand = findNode(workflow, "Execute Codex Command");
-addNode(
-  workflow,
-  {
-    ...executeCodexCommand,
-    id: makeId("node:Execute Delegated Codex Command"),
-    name: "Execute Delegated Codex Command",
-    position: [2816, -208],
-  },
-);
-
-addNode(
-  workflow,
-  makeCodeNode(
-    "Normalize Delegated Codex Reply",
-    `const result = $input.first().json;
-const context = $('Build Delegated Codex Context').item.json;
-const rawStdout = typeof result.stdout === 'string' ? result.stdout.trim() : '';
-const nodeError = typeof result.error === 'string' ? result.error : (result.error?.message || '');
-let payload = {};
-if (rawStdout) {
-  try {
-    payload = JSON.parse(rawStdout);
-  } catch (error) {
-    payload = {
-      reply: rawStdout,
-      success: true,
-      command_exit_code: 0,
-      stdout_summary: rawStdout.slice(0, 600),
-      stderr_summary: typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '',
-      artifact_path: '',
-    };
-  }
-}
-const stderrSummary = payload.stderr_summary || (typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '') || nodeError.slice(0, 600);
-const commandExitCode = payload.command_exit_code ?? (nodeError ? 127 : null);
-const commandSuccess = Boolean(payload.success);
-const failureSuffix = commandExitCode !== undefined && commandExitCode !== null ? \` (exit \${commandExitCode})\` : '';
-const failureReason = stderrSummary || 'No additional stderr was captured.';
-const reply = (payload.reply || '').trim() || (commandSuccess ? '[no-codex-reply]' : \`Codex execution failed\${failureSuffix}. \${failureReason}\`);
-return [{ json: {
-  ...context,
-  ...result,
-  codex_raw_result: payload,
-  reply,
-  command_success: commandSuccess,
-  command_exit_code: commandExitCode,
-  stdout_summary: payload.stdout_summary || '',
-  stderr_summary: stderrSummary,
-  artifact_path: payload.artifact_path || '',
-  codex_command_status: commandSuccess ? 'succeeded' : 'failed',
-  error_type: commandSuccess ? '' : 'codex_command_failed',
-  n8n_execution_id: context.n8n_execution_id || null,
-  runtime_status: commandSuccess ? 'succeeded' : 'failed',
-  result_summary: reply.replace(/\\s+/g, ' ').trim().slice(0, 600),
-} }];`,
-    [3040, -208],
-  ),
-);
-
-addNode(
-  workflow,
-  makePostgresNode(
-    "Save Delegated Worker Reply",
-    `INSERT INTO messages (
-  id,
-  conversation_id,
-  role,
-  content,
-  content_format,
-  model_name,
-  metadata,
-  created_at
-)
-VALUES (
-  gen_random_uuid(),
-  NULLIF($1, '')::uuid,
-  'assistant',
-  $2,
-  'text',
-  $3,
-  $4::jsonb,
-  NOW()
-)
-RETURNING id::text, conversation_id::text, role, content, created_at;`,
-    "={{ [$json.worker_conversation_id || '', $json.reply || '', $json.model_used || null, { provider_used: $json.provider_used || null, task_class: 'delegated_worker_task', delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $json.task_id || null, command_success: $json.command_success === true, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null, n8n_execution_id: $json.n8n_execution_id || null, worker_execution: true }] }}",
-    [3264, -208],
-    false,
-  ),
-);
-
-addNode(
-  workflow,
-  makePostgresNode(
-    "Complete Delegated Runtime",
-    `SELECT public.ghost_runtime_complete_task_ledger(
-  NULLIF($1, '')::uuid,
-  NULLIF($2, '')::uuid,
-  200,
-  $3::jsonb,
-  NULLIF($4, '')::uuid,
-  'delegated_worker_task',
-  NULLIF($5, ''),
-  NULLIF($6, ''),
-  FALSE,
-  $7,
-  NULLIF($8, ''),
-  NULLIF($9, ''),
-  NULLIF($10, ''),
-  '${delegatedExecutionTarget}'
-);`,
-    "={{ [$json.task_id || '', $json.task_run_id || '', JSON.stringify($json), $json.worker_conversation_id || '', $json.provider_used || '', $json.model_used || '', $json.command_success === true, $json.error_type || '', $json.task_summary || '', $json.artifact_path || ''] }}",
-    [3488, -208],
-    false,
-  ),
-);
-
-addNode(
-  workflow,
-  makePostgresNode(
-    "Finalize Successful Delegation",
-    `SELECT public.ghost_finalize_delegation(
-  NULLIF($1, '')::uuid,
-  NULLIF($2, '')::uuid,
-  NULLIF($3, ''),
-  $4,
-  NULLIF($5, '')
-);`,
-    "={{ [$json.delegation_id || '', $json.task_id || '', $json.runtime_status || 'failed', $json.result_summary || '', $json.artifact_path || ''] }}",
-    [3712, -208],
-    false,
-  ),
-);
-
-addNode(
-  workflow,
-  makeCodeNode(
-    "Build Parent Delegation Response",
-    `const item = $('Normalize Delegated Codex Reply').item.json;
-const parent = $('Build Delegation Context').item.json;
-const workerLabel = parent.worker_agent_label || 'Codex Worker';
-const summary = item.command_success
-  ? \`\${parent.parent_owner_label || 'Ghost'} delegated this work to \${workerLabel} in a separate worker session and kept the parent conversation under Ghost ownership.\`
-  : \`\${parent.parent_owner_label || 'Ghost'} delegated this work to \${workerLabel}, but the worker session reported a failure.\`;
-const workerBlock = item.reply ? \`Worker result:\\n\${item.reply}\` : (item.stderr_summary || 'No additional worker output was captured.');
-return [{ json: {
-  conversation_id: parent.conversation_id || '',
-  reply: [summary, workerBlock].join('\\n\\n'),
-  provider_used: parent.parent_provider || '',
-  model_used: parent.parent_model || '',
-  task_class: parent.task_class || 'technical_work',
-  approval_required: false,
-  risk_level: parent.risk_level || 'safe',
-  risk_reasons: parent.risk_reasons || [],
-  task_summary: parent.task_summary || '',
-  command_success: item.command_success === true,
-  command_exit_code: item.command_exit_code !== undefined ? item.command_exit_code : null,
-  stdout_summary: item.stdout_summary || '',
-  stderr_summary: item.stderr_summary || '',
-  artifact_path: item.artifact_path || '',
-  codex_command_status: item.codex_command_status || 'not_applicable',
-  error_type: item.error_type || null,
-  delegation_id: parent.delegation_id || '',
-  orchestration_task_id: parent.orchestration_task_id || '',
-  runtime_task_id: item.task_id || '',
-  worker_conversation_id: parent.worker_conversation_id || '',
-  n8n_execution_id: parent.n8n_execution_id || item.n8n_execution_id || null,
-  response_mode: 'delegated_worker_result',
-  parent_owner_label: parent.parent_owner_label || 'Ghost',
-} }];`,
-    [3936, -208],
-  ),
-);
+  addNode,
+  makeCodeNode,
+  makePostgresNode,
+  approvalRuntimeHelpersCode: makeApprovalRuntimeHelpersCode(),
+});
 
 setMainConnections(workflow.connections, "Conversation Context", [[{ node: "Ensure Conversation Owner" }]]);
 setMainConnections(workflow.connections, "Ensure Conversation Owner", [[{ node: "Conversation Context With Owner" }]]);
@@ -1098,39 +702,52 @@ setMainConnections(workflow.connections, "Conversation Context With Owner", [
 
 removeConnection(workflow.connections, "Assess Approval Risk", "Expose Route Metadata");
 setMainConnections(workflow.connections, "Assess Approval Risk", [[{ node: "Resolve Parent Conversation Strategy" }]]);
-setMainConnections(workflow.connections, "Resolve Parent Conversation Strategy", [[{ node: "Delegation Required?" }]]);
-setMainConnections(workflow.connections, "Delegation Required?", [
-  [{ node: "Build Delegation Request" }],
-  [{ node: "Expose Route Metadata" }],
-]);
 setMainConnections(workflow.connections, "Build Delegation Request", [[{ node: "Create Conversation Delegation" }]]);
 setMainConnections(workflow.connections, "Create Conversation Delegation", [[{ node: "Build Delegation Context" }]]);
 setMainConnections(workflow.connections, "Build Delegation Context", [[{ node: "Save Delegated Worker Message" }]]);
 setMainConnections(workflow.connections, "Save Delegated Worker Message", [[{ node: "Build Delegation Execution Context" }]]);
-setMainConnections(workflow.connections, "Build Delegation Execution Context", [[{ node: "Delegation Approval Required?" }]]);
-setMainConnections(workflow.connections, "Delegation Approval Required?", [
-  [{ node: "Finalize Blocked Delegation" }],
-  [{ node: "Delegated Worker Is Codex?" }],
-]);
 setMainConnections(workflow.connections, "Finalize Blocked Delegation", [[{ node: "Build Parent Blocked Delegation Response" }]]);
-setMainConnections(workflow.connections, "Build Parent Blocked Delegation Response", [[{ node: "Build API Response" }]]);
-setMainConnections(workflow.connections, "Delegated Worker Is Codex?", [
-  [{ node: "Start Delegated Runtime" }],
-  [{ node: "Finalize Unsupported Delegation" }],
-]);
+setMainConnections(workflow.connections, "Build Parent Blocked Delegation Response", [[{ node: "Persist Approval Queue Item" }]]);
 setMainConnections(workflow.connections, "Finalize Unsupported Delegation", [[{ node: "Build Parent Unsupported Delegation Response" }]]);
 setMainConnections(workflow.connections, "Build Parent Unsupported Delegation Response", [[{ node: "Build API Response" }]]);
-setMainConnections(workflow.connections, "Start Delegated Runtime", [[{ node: "Build Delegated Codex Context" }]]);
-setMainConnections(workflow.connections, "Build Delegated Codex Context", [[{ node: "Build Delegated Codex Command" }]]);
-setMainConnections(workflow.connections, "Build Delegated Codex Command", [[{ node: "Execute Delegated Codex Command" }]]);
-setMainConnections(workflow.connections, "Execute Delegated Codex Command", [[{ node: "Normalize Delegated Codex Reply" }]]);
-setMainConnections(workflow.connections, "Normalize Delegated Codex Reply", [[{ node: "Save Delegated Worker Reply" }]]);
+setMainConnections(workflow.connections, "Build Approval Required Response", [[{ node: "Persist Approval Queue Item" }]]);
+setMainConnections(workflow.connections, "Persist Approval Queue Item", [[{ node: "Attach Persisted Approval Queue Metadata" }]]);
+setMainConnections(workflow.connections, "Attach Persisted Approval Queue Metadata", [[{ node: "Build API Response" }]]);
 setMainConnections(workflow.connections, "Save Delegated Worker Reply", [[{ node: "Build Delegated Completion Context" }]]);
 setMainConnections(workflow.connections, "Build Delegated Completion Context", [[{ node: "Complete Delegated Runtime" }]]);
-setMainConnections(workflow.connections, "Complete Delegated Runtime", [[{ node: "Build Finalize Delegation Context" }]]);
-setMainConnections(workflow.connections, "Build Finalize Delegation Context", [[{ node: "Finalize Successful Delegation" }]]);
-setMainConnections(workflow.connections, "Finalize Successful Delegation", [[{ node: "Build Parent Delegation Response" }]]);
+setMainConnections(workflow.connections, "Complete Delegated Runtime", [[{ node: "Annotate Delegation Completion Event" }]]);
+setMainConnections(workflow.connections, "Annotate Delegation Completion Event", [[{ node: "Build Parent Delegation Response" }]]);
 setMainConnections(workflow.connections, "Build Parent Delegation Response", [[{ node: "Build API Response" }]]);
+setMainConnections(workflow.connections, "Complete Runtime Ledger", [[{ node: "Annotate Direct Runtime Event" }]]);
 
+const persistApprovalQueueItem = findNode(workflow, "Persist Approval Queue Item");
+const attachPersistedApprovalQueueMetadata = findNode(workflow, "Attach Persisted Approval Queue Metadata");
+for (const field of [
+  "INSERT INTO approvals",
+  "approval_contract_id",
+  "requested_by_agent_id",
+  "approval_queue_id",
+  "approval_payload_json",
+]) {
+  assertIncludes(persistApprovalQueueItem.parameters.query, field, "Persist Approval Queue Item query");
+}
+for (const field of [
+  "approval_queue_id",
+  "approval_queue_status",
+  "approval_item",
+  "queue_requested_at",
+]) {
+  assertIncludes(attachPersistedApprovalQueueMetadata.parameters.jsCode, field, "Attach Persisted Approval Queue Metadata");
+}
+
+assertDirectRuntimeTailContract({ workflow, findNode, assertIncludes });
+assertMemoryExtractionTailContract({ workflow, findNode, assertIncludes });
+assertDelegatedCompletionTailContract({ workflow, findNode, assertIncludes });
+assertDelegatedControlTailContract({ workflow, findNode, assertIncludes });
+assertDelegatedSetupTailContract({ workflow, findNode, assertIncludes });
+assertIngressConversationTailContract({ workflow, findNode, assertIncludes });
+assertOwnerPolicyTailContract({ workflow, findNode, assertIncludes });
+assertDelegationRouterTailContract({ workflow, findNode, assertIncludes });
+assertDelegatedWorkerRuntimeTailContract({ workflow, findNode, assertIncludes });
 fs.writeFileSync(targetPath, JSON.stringify([workflow], null, 2) + "\n");
 console.log(targetPath);

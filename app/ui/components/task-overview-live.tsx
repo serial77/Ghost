@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { ApprovalQueueItem, ApprovalQueuePayload } from "@/lib/server/approval-queue";
 import type { OperationalEvent, OperationalRunStatus, OperationalTask, TaskOverviewPayload } from "@/lib/operations";
 import { getOrCreateOperatorSession } from "@/lib/operator-session-client";
 import { Card, SectionHeader, StatusPill } from "@/components/ui";
@@ -90,6 +91,40 @@ export function TaskOverviewLive({
   const [operatorSessionStartedAt, setOperatorSessionStartedAt] = useState("");
   const [reconcileNote, setReconcileNote] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [approvalPayload, setApprovalPayload] = useState<ApprovalQueuePayload | null>(null);
+  const [resolvingApprovalId, setResolvingApprovalId] = useState<string | null>(null);
+  const [approvalError, setApprovalError] = useState<string | null>(null);
+
+  async function loadApprovals() {
+    try {
+      const response = await fetch("/api/operations/approvals", { cache: "no-store" });
+      const next = (await response.json()) as ApprovalQueuePayload;
+      setApprovalPayload(next);
+    } catch {
+      // non-fatal: approval panel shows stale data
+    }
+  }
+
+  async function resolveApproval(approvalId: string, outcome: "approved" | "rejected") {
+    setResolvingApprovalId(approvalId);
+    setApprovalError(null);
+    try {
+      const response = await fetch(`/api/operations/approvals/${approvalId}/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outcome, resolved_by: operatorIdentity || "operator-ui" }),
+      });
+      if (!response.ok) {
+        const body = (await response.json()) as { error?: string };
+        throw new Error(body.error ?? "Resolve failed.");
+      }
+      await loadApprovals();
+    } catch (nextError) {
+      setApprovalError(nextError instanceof Error ? nextError.message : "Resolve failed.");
+    } finally {
+      setResolvingApprovalId(null);
+    }
+  }
 
   async function load() {
     setIsLoading(true);
@@ -131,7 +166,11 @@ export function TaskOverviewLive({
     }
 
     loadWithCancellation();
-    const interval = window.setInterval(loadWithCancellation, pollingIntervalMs);
+    void loadApprovals();
+    const interval = window.setInterval(() => {
+      void loadWithCancellation();
+      void loadApprovals();
+    }, pollingIntervalMs);
 
     return () => {
       cancelled = true;
@@ -243,6 +282,92 @@ export function TaskOverviewLive({
           <p className="caption" style={{ marginTop: 12 }}>
             Stale means running long enough, with no recent ledger activity, to justify review. It does not mean runtime-confirmed failure.
           </p>
+        </Card>
+      ) : null}
+
+      {approvalPayload && (approvalPayload.counts.pending > 0 || approvalPayload.counts.resolved > 0) ? (
+        <Card>
+          <div className="panel-header">
+            <div>
+              <div className="kicker">Approval Queue</div>
+              <h3>{approvalPayload.counts.pending > 0 ? "Governed requests awaiting operator action" : "Governed approval queue"}</h3>
+            </div>
+            <StatusPill
+              label={approvalPayload.counts.pending > 0 ? `${approvalPayload.counts.pending} pending` : "No pending"}
+              tone={approvalPayload.counts.pending > 0 ? "warning" : "neutral"}
+            />
+          </div>
+          {approvalError ? (
+            <p className="caption" style={{ marginTop: 8, color: "var(--color-danger)" }}>{approvalError}</p>
+          ) : null}
+          <div className="list" style={{ marginTop: 16 }}>
+            {approvalPayload.approvals.map((approval: ApprovalQueueItem) => (
+              <div key={approval.approvalId} className="list-row" style={{ alignItems: "flex-start", gap: 12 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <StatusPill
+                      label={approval.status}
+                      tone={
+                        approval.status === "pending" ? "warning"
+                        : approval.status === "approved" ? "success"
+                        : approval.status === "rejected" ? "danger"
+                        : "neutral"
+                      }
+                    />
+                    <span className="caption">{approval.approvalType}</span>
+                    {approval.governanceEnvironment ? (
+                      <span className="caption" style={{ opacity: 0.6 }}>{approval.governanceEnvironment}</span>
+                    ) : null}
+                  </div>
+                  <p style={{ fontSize: "0.82rem", margin: "0 0 4px", lineHeight: 1.4 }}>
+                    {approval.promptText.slice(0, 200)}
+                  </p>
+                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    {approval.requestedCapabilities.length > 0 ? (
+                      <span className="caption" style={{ opacity: 0.7 }}>
+                        caps: {approval.requestedCapabilities.join(", ")}
+                      </span>
+                    ) : null}
+                    {approval.conversationId ? (
+                      <span className="caption" style={{ opacity: 0.6 }}>conv: {approval.conversationId.slice(0, 8)}…</span>
+                    ) : null}
+                    <span className="caption" style={{ opacity: 0.5 }}>{relativeTime(approval.requestedAt)}</span>
+                  </div>
+                  {approval.status !== "pending" && approval.resolvedBy ? (
+                    <p className="caption" style={{ marginTop: 4, opacity: 0.6 }}>
+                      resolved by {approval.resolvedBy}
+                      {approval.outcomeStatus ? ` · ${approval.outcomeStatus}` : ""}
+                    </p>
+                  ) : null}
+                  {approval.status === "approved" ? (
+                    <p className="caption" style={{ marginTop: 6, padding: "4px 8px", background: "var(--color-surface-2, rgba(255,255,255,0.04))", borderRadius: 4, fontFamily: "monospace", fontSize: "0.75rem" }}>
+                      Follow-through is manual. Run: <code>bash ops/resolve-approval-queue.sh</code> then <code>bash ops/execute-governed-followthrough.sh</code>
+                    </p>
+                  ) : null}
+                </div>
+                {approval.status === "pending" ? (
+                  <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                    <button
+                      className="btn btn-sm"
+                      disabled={resolvingApprovalId === approval.approvalId}
+                      onClick={() => void resolveApproval(approval.approvalId, "approved")}
+                      style={{ background: "var(--color-success-muted, #1a3a2a)", color: "var(--color-success, #4ade80)", border: "1px solid var(--color-success, #4ade80)", borderRadius: 4, padding: "4px 10px", fontSize: "0.78rem", cursor: "pointer" }}
+                    >
+                      {resolvingApprovalId === approval.approvalId ? "…" : "Approve"}
+                    </button>
+                    <button
+                      className="btn btn-sm"
+                      disabled={resolvingApprovalId === approval.approvalId}
+                      onClick={() => void resolveApproval(approval.approvalId, "rejected")}
+                      style={{ background: "var(--color-danger-muted, #3a1a1a)", color: "var(--color-danger, #f87171)", border: "1px solid var(--color-danger, #f87171)", borderRadius: 4, padding: "4px 10px", fontSize: "0.78rem", cursor: "pointer" }}
+                    >
+                      {resolvingApprovalId === approval.approvalId ? "…" : "Reject"}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
         </Card>
       ) : null}
 

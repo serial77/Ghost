@@ -1,0 +1,97 @@
+{
+  "version": "phase7-baseline-v1",
+  "workflow": {
+    "name": "GHOST by Codex",
+    "id": "Yh6h9OJyVCfREbp3",
+    "builder": "scripts/build-phase5gd-openclaw-workflow.js",
+    "workflow_json": "workflows/ghost-chat-v3-phase5gd-openclaw.json"
+  },
+  "frozen_contracts": [
+    {
+      "id": "direct_truth_contract",
+      "scope": "direct_path",
+      "description": "Direct-path reply, persistence, runtime, and tool-event truth surfaces must remain aligned.",
+      "primary_reference": "ops/README.md#direct-path-contract"
+    },
+    {
+      "id": "delegated_truth_contract",
+      "scope": "delegated_path",
+      "description": "Delegated creation, worker runtime, completion, parent reply, and completion-event truth surfaces must remain aligned.",
+      "primary_reference": "docs/phase-6-completion-summary.md"
+    },
+    {
+      "id": "reconciliation_contract",
+      "scope": "ops_visibility",
+      "description": "Recent direct and delegated parity checks must stay meaningful and green for fresh rows.",
+      "primary_reference": "ops/reconcile-runtime.sh"
+    },
+    {
+      "id": "builder_modularization_contract",
+      "scope": "builder_architecture",
+      "description": "Current builder-level module boundaries and assertions are the stable modular baseline for Phase 7.",
+      "primary_reference": "docs/phase-6-completion-summary.md"
+    },
+    {
+      "id": "deployment_safety_contract",
+      "scope": "operator_promotion",
+      "description": "Promotion remains backup-first, validation-first, smoke-verified, and rollback-capable.",
+      "primary_reference": "ops/activate-live-workflow.sh"
+    }
+  ],
+  "truth_surfaces": {
+    "runtime": [
+      "tasks",
+      "task_runs"
+    ],
+    "conversation": [
+      "conversations",
+      "messages"
+    ],
+    "delegation": [
+      "conversation_delegations",
+      "orchestration_task_id",
+      "worker_conversation_id"
+    ],
+    "events": [
+      "tool_events"
+    ],
+    "ops": [
+      "ops/reconcile-runtime.sh",
+      "ops/trace-runtime.sh",
+      "ops/trace-memory.sh"
+    ]
+  },
+  "builder_modules": [
+    "scripts/workflow-modules/direct-runtime-tail.js",
+    "scripts/workflow-modules/memory-extraction-tail.js",
+    "scripts/workflow-modules/delegated-completion-tail.js",
+    "scripts/workflow-modules/delegated-control-tail.js",
+    "scripts/workflow-modules/delegated-setup-tail.js",
+    "scripts/workflow-modules/ingress-conversation-tail.js",
+    "scripts/workflow-modules/owner-policy-tail.js",
+    "scripts/workflow-modules/delegation-router-tail.js",
+    "scripts/workflow-modules/delegated-worker-runtime-tail.js"
+  ],
+  "do_not_touch_casually": [
+    {
+      "boundary": "direct_path_truth",
+      "reason": "Direct-path persistence and event surfaces are freeze-sensitive."
+    },
+    {
+      "boundary": "delegated_path_truth",
+      "reason": "Delegated creation/runtime/completion truth depends on cross-surface consistency."
+    },
+    {
+      "boundary": "reconciliation_queries",
+      "reason": "Parity checks are now part of the stable operator trust surface."
+    },
+    {
+      "boundary": "promotion_path",
+      "reason": "Activation/rollback semantics are the current operator safety envelope."
+    },
+    {
+      "boundary": "builder_module_boundaries",
+      "reason": "Phase 6 module boundaries are now the modular baseline and should not be churned casually."
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "version": "phase7-approval-v1",
+  "states": [
+    "proposed",
+    "pending",
+    "approved",
+    "rejected",
+    "expired",
+    "cancelled",
+    "superseded"
+  ],
+  "risk_levels": [
+    "safe",
+    "caution",
+    "high",
+    "critical"
+  ],
+  "categories": [
+    {
+      "id": "destructive_change",
+      "description": "Any request that mutates code, runtime state, or durable records."
+    },
+    {
+      "id": "production_promotion",
+      "description": "Live activation, rollback, or publish operations against a promoted environment."
+    },
+    {
+      "id": "database_mutation",
+      "description": "Changes to application or workflow database state."
+    },
+    {
+      "id": "runtime_control",
+      "description": "Actions that restart, stop, reconfigure, or otherwise alter runtime behavior."
+    },
+    {
+      "id": "memory_or_artifact_write",
+      "description": "Durable writes to memory, evidence packages, or published artifacts."
+    }
+  ],
+  "required_fields": [
+    "approval_id",
+    "state",
+    "requested_at",
+    "requested_by",
+    "requester_worker_id",
+    "environment",
+    "category",
+    "risk_level",
+    "capabilities",
+    "summary",
+    "reason"
+  ],
+  "lifecycle": {
+    "initial_state": "proposed",
+    "operator_queue_state": "pending",
+    "terminal_states": [
+      "approved",
+      "rejected",
+      "expired",
+      "cancelled",
+      "superseded"
+    ],
+    "allowed_transitions": {
+      "proposed": [
+        "pending",
+        "cancelled"
+      ],
+      "pending": [
+        "approved",
+        "rejected",
+        "expired",
+        "cancelled",
+        "superseded"
+      ],
+      "approved": [
+        "superseded"
+      ],
+      "rejected": [],
+      "expired": [],
+      "cancelled": [],
+      "superseded": []
+    }
+  }
+}

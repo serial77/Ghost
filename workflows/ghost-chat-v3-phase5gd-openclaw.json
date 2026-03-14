@@ -381,7 +381,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const item = $input.first().json;\nconst messages = Array.isArray(item.messages) ? item.messages : [];\nconst lastUser = [...messages].reverse().find((message) => message.role === 'user');\nconst sourceText = (lastUser?.content || item.prompt || '').trim();\nconst findings = [];\nlet riskLevel = 'safe';\n\nconst destructiveRules = [\n  { label: 'delete_or_rm', pattern: /(^|\\s)(rm\\s+-rf|rm\\s+-r|rm\\s+|delete\\s+(the\\s+)?file|delete\\s+(the\\s+)?directory|remove\\s+(the\\s+)?file|unlink\\s+|shred\\s+)/i, reason: 'Requests file deletion or removal.' },\n  { label: 'docker_live_change', pattern: /docker\\s+compose\\s+(down|restart|up|stop)|docker\\s+(restart|stop)\\b/i, reason: 'Requests live container lifecycle changes.' },\n  { label: 'destructive_sql', pattern: /\\b(drop\\s+table|drop\\s+database|truncate\\s+table|delete\\s+from|alter\\s+table\\s+.*drop\\s+column)\\b/i, reason: 'Contains destructive SQL operations.' },\n  { label: 'critical_move', pattern: /\\b(move|mv|rename)\\b.*\\b(docker-compose\\.ya?ml|\\.env|systemd|workflow|workflows\\/|base\\/)\\b/i, reason: 'Moves or renames critical runtime files.' },\n];\n\nconst cautionRules = [\n  { label: 'critical_file_edit', pattern: /\\b(edit|modify|change|update|patch|rewrite)\\b.*\\b(docker-compose\\.ya?ml|\\.env(\\.|\\b)|systemd|service unit|workflow id|production workflow|ghost-chat-v3|Yh6h9OJyVCfREbp3)\\b/i, reason: 'Touches critical runtime configuration or live workflow identifiers.' },\n  { label: 'broad_sql', pattern: /\\b(update|delete)\\b.*\\b(sql|postgres|database|table)\\b/i, reason: 'Requests a database-changing operation.' },\n  { label: 'infrastructure_change', pattern: /\\b(deploy|deployment|infrastructure|nginx|kubernetes|compose file|dockerfile)\\b/i, reason: 'Requests infrastructure-related changes.' },\n];\n\nfor (const rule of destructiveRules) {\n  if (rule.pattern.test(sourceText)) findings.push({ level: 'destructive', code: rule.label, reason: rule.reason });\n}\nif (!findings.length) {\n  for (const rule of cautionRules) {\n    if (rule.pattern.test(sourceText)) findings.push({ level: 'caution', code: rule.label, reason: rule.reason });\n  }\n}\nif (findings.some((finding) => finding.level === 'destructive')) riskLevel = 'destructive';\nelse if (findings.some((finding) => finding.level === 'caution')) riskLevel = 'caution';\n\nconst approvalRequired = item.provider === 'codex_oauth_worker' && riskLevel !== 'safe';\nconst taskSummary = sourceText.replace(/\\s+/g, ' ').trim().slice(0, 180);\n\nreturn [{ json: {\n  ...item,\n  task_summary: taskSummary,\n  approval_required: approvalRequired,\n  risk_level: riskLevel,\n  risk_reasons: findings.map((finding) => finding.reason),\n  risk_codes: findings.map((finding) => finding.code),\n  codex_command_status: approvalRequired ? 'blocked_pending_approval' : (item.provider === 'codex_oauth_worker' ? 'pending' : 'not_applicable'),\n} }];"
+          "jsCode": "const __ghostApprovalConfig = {\"approval_model\":{\"version\":\"phase7-approval-v1\",\"initial_state\":\"proposed\",\"categories\":[{\"id\":\"destructive_change\",\"description\":\"Any request that mutates code, runtime state, or durable records.\"},{\"id\":\"production_promotion\",\"description\":\"Live activation, rollback, or publish operations against a promoted environment.\"},{\"id\":\"database_mutation\",\"description\":\"Changes to application or workflow database state.\"},{\"id\":\"runtime_control\",\"description\":\"Actions that restart, stop, reconfigure, or otherwise alter runtime behavior.\"},{\"id\":\"memory_or_artifact_write\",\"description\":\"Durable writes to memory, evidence packages, or published artifacts.\"}],\"risk_levels\":[\"safe\",\"caution\",\"high\",\"critical\"],\"required_fields\":[\"approval_id\",\"state\",\"requested_at\",\"requested_by\",\"requester_worker_id\",\"environment\",\"category\",\"risk_level\",\"capabilities\",\"summary\",\"reason\"]},\"workers_by_id\":{\"ghost_main\":{\"id\":\"ghost_main\",\"visibility_label\":\"Ghost Main\",\"operator_identity\":\"parent-owner\",\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"]},\"forge\":{\"id\":\"forge\",\"visibility_label\":\"Forge\",\"operator_identity\":\"delegated-worker\",\"environment_scope\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"]},\"probe\":{\"id\":\"probe\",\"visibility_label\":\"Probe\",\"operator_identity\":\"verification-worker\",\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\"]},\"rector\":{\"id\":\"rector\",\"visibility_label\":\"Rector\",\"operator_identity\":\"governed-change-worker\",\"environment_scope\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"]},\"archivist\":{\"id\":\"archivist\",\"visibility_label\":\"Archivist\",\"operator_identity\":\"memory-audit-worker\",\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\"]},\"operator\":{\"id\":\"operator\",\"visibility_label\":\"Operator\",\"operator_identity\":\"ops-worker\",\"environment_scope\":[\"prod\",\"staging\",\"lab\"]},\"scout\":{\"id\":\"scout\",\"visibility_label\":\"Scout\",\"operator_identity\":\"research-worker\",\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"]}},\"capabilities_by_id\":{\"code.read\":{\"id\":\"code.read\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Read source files, generated artifacts, and builder modules.\"},\"code.write\":{\"id\":\"code.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Modify source files or generated workflow artifacts.\"},\"shell.safe\":{\"id\":\"shell.safe\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Run bounded, non-destructive shell commands for inspection or validation.\"},\"shell.destructive\":{\"id\":\"shell.destructive\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Run commands that can mutate runtime state or remove data.\"},\"git.inspect\":{\"id\":\"git.inspect\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Inspect repository history, status, and diffs.\"},\"git.write\":{\"id\":\"git.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Create commits or otherwise mutate repository state.\"},\"deploy.promote\":{\"id\":\"deploy.promote\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"prod\",\"staging\"],\"description\":\"Promote, publish, or roll back live workflows.\"},\"db.read\":{\"id\":\"db.read\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\"],\"description\":\"Read application or workflow database state.\"},\"db.write\":{\"id\":\"db.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Mutate application or workflow database state.\"},\"memory.write\":{\"id\":\"memory.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\"],\"description\":\"Persist durable memory or history records.\"},\"web.research\":{\"id\":\"web.research\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Perform external or internal research for discovery and preflight work.\"},\"artifact.publish\":{\"id\":\"artifact.publish\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\"],\"description\":\"Publish or persist generated artifacts intended for wider system use.\"}},\"worker_capabilities\":{\"ghost_main\":[\"code.read\",\"shell.safe\",\"git.inspect\",\"db.read\"],\"forge\":[\"code.read\",\"code.write\",\"shell.safe\",\"git.inspect\",\"artifact.publish\"],\"probe\":[\"code.read\",\"shell.safe\",\"git.inspect\",\"db.read\",\"web.research\"],\"rector\":[\"code.read\",\"code.write\",\"shell.safe\",\"shell.destructive\",\"git.inspect\",\"git.write\",\"db.read\",\"db.write\"],\"archivist\":[\"code.read\",\"db.read\",\"memory.write\",\"artifact.publish\"],\"operator\":[\"code.read\",\"shell.safe\",\"shell.destructive\",\"git.inspect\",\"git.write\",\"deploy.promote\",\"db.read\",\"db.write\",\"artifact.publish\"],\"scout\":[\"code.read\",\"shell.safe\",\"git.inspect\",\"db.read\",\"web.research\"]},\"environments_by_id\":{\"prod\":{\"id\":\"prod\",\"label\":\"Production\",\"governance_posture\":\"highest\",\"restricted_capabilities\":[\"code.write\",\"shell.destructive\",\"git.write\",\"db.write\",\"memory.write\"],\"mutable\":true},\"staging\":{\"id\":\"staging\",\"label\":\"Staging\",\"governance_posture\":\"high\",\"restricted_capabilities\":[\"deploy.promote\"],\"mutable\":true},\"lab\":{\"id\":\"lab\",\"label\":\"Lab\",\"governance_posture\":\"moderate\",\"restricted_capabilities\":[],\"mutable\":true},\"sandbox\":{\"id\":\"sandbox\",\"label\":\"Sandbox\",\"governance_posture\":\"moderate\",\"restricted_capabilities\":[],\"mutable\":true},\"scratch\":{\"id\":\"scratch\",\"label\":\"Scratch\",\"governance_posture\":\"low\",\"restricted_capabilities\":[],\"mutable\":true}}};\nconst __approvalText = (value) => value === undefined || value === null ? '' : String(value).trim();\nconst __approvalList = (value) => Array.isArray(value) ? value.map((entry) => __approvalText(entry)).filter(Boolean) : [];\nconst __approvalHash = (value) => {\n  let hash = 0;\n  const text = __approvalText(value);\n  for (let index = 0; index < text.length; index += 1) {\n    hash = ((hash << 5) - hash + text.charCodeAt(index)) | 0;\n  }\n  return `approval_${Math.abs(hash).toString(16).slice(0, 12)}`;\n};\nconst __approvalEnvironment = () => {\n  const explicit = typeof process !== 'undefined'\n    ? __approvalText(process.env.GHOST_RUNTIME_ENV || process.env.GHOST_ENV || process.env.NODE_ENV || '')\n    : '';\n  if (explicit === 'production' && __ghostApprovalConfig.environments_by_id.prod) return 'prod';\n  if (explicit && __ghostApprovalConfig.environments_by_id[explicit]) return explicit;\n  return 'lab';\n};\nconst __buildApprovalItem = ({ workerId, requestedBy, summary, reason, category, riskLevel, capabilities, requestedForWorkerId }) => {\n  const worker = __ghostApprovalConfig.workers_by_id[workerId] || null;\n  if (!worker) {\n    throw new Error(`Unknown approval worker: ${workerId}`);\n  }\n  const targetWorker = requestedForWorkerId ? (__ghostApprovalConfig.workers_by_id[requestedForWorkerId] || null) : null;\n  const environment = __approvalEnvironment();\n  const environmentDoc = __ghostApprovalConfig.environments_by_id[environment] || __ghostApprovalConfig.environments_by_id.lab;\n  const normalizedCapabilities = Array.from(new Set(__approvalList(capabilities))).filter((capabilityId) => __ghostApprovalConfig.capabilities_by_id[capabilityId]);\n  const capabilityRecords = normalizedCapabilities.map((capabilityId) => __ghostApprovalConfig.capabilities_by_id[capabilityId]);\n  const approvalRequiredCapabilities = capabilityRecords.filter((entry) => entry.approval_required).map((entry) => entry.id);\n  const destructiveCapabilities = capabilityRecords.filter((entry) => entry.class === 'destructive').map((entry) => entry.id);\n  const restrictedCapabilities = capabilityRecords.filter((entry) => (environmentDoc.restricted_capabilities || []).includes(entry.id)).map((entry) => entry.id);\n  const outOfScopeCapabilities = capabilityRecords.filter((entry) => !(entry.environment_restriction || []).includes(environment)).map((entry) => entry.id);\n  const approvalSource = [workerId, requestedBy, summary, environment, category, normalizedCapabilities.join(','), targetWorker?.id || ''].join('|');\n  return {\n    approval_id: __approvalHash(approvalSource),\n    state: __ghostApprovalConfig.approval_model.initial_state,\n    requested_at: new Date().toISOString(),\n    requested_by: __approvalText(requestedBy),\n    requester_worker_id: worker.id,\n    requester_label: worker.visibility_label,\n    environment,\n    category: __approvalText(category),\n    risk_level: __approvalText(riskLevel) || 'caution',\n    capabilities: normalizedCapabilities,\n    summary: __approvalText(summary),\n    reason: __approvalText(reason),\n    target_worker_id: targetWorker?.id || null,\n    target_worker_label: targetWorker?.visibility_label || null,\n    governance: {\n      environment_posture: environmentDoc.governance_posture || 'moderate',\n      restricted_capabilities: restrictedCapabilities,\n      out_of_scope_capabilities: outOfScopeCapabilities,\n      approval_required_capabilities: approvalRequiredCapabilities,\n      destructive_capabilities: destructiveCapabilities,\n      operator_identity: worker.operator_identity,\n      worker_environment_scope: Array.isArray(worker.environment_scope) ? worker.environment_scope : [],\n    },\n  };\n};\nconst __buildApprovalPolicy = (approvalItem) => {\n  const governance = approvalItem && approvalItem.governance && typeof approvalItem.governance === 'object'\n    ? approvalItem.governance\n    : {};\n  const restricted = Array.isArray(governance.restricted_capabilities) ? governance.restricted_capabilities : [];\n  const outOfScope = Array.isArray(governance.out_of_scope_capabilities) ? governance.out_of_scope_capabilities : [];\n  const approvalRequired = Array.isArray(governance.approval_required_capabilities) ? governance.approval_required_capabilities : [];\n  const blockingCapabilities = Array.from(new Set([...restricted, ...outOfScope]));\n  const state = blockingCapabilities.length > 0\n    ? 'environment_restricted'\n    : approvalRequired.length > 0\n      ? 'approval_required'\n      : 'allowed';\n  const summaryParts = [];\n  if (approvalRequired.length > 0) summaryParts.push(`approval required for ${approvalRequired.join(', ')}`);\n  if (restricted.length > 0) summaryParts.push(`restricted in ${approvalItem.environment}: ${restricted.join(', ')}`);\n  if (outOfScope.length > 0) summaryParts.push(`outside ${approvalItem.environment} scope: ${outOfScope.join(', ')}`);\n  summaryParts.push(`environment posture ${governance.environment_posture || 'unknown'}`);\n  return {\n    state,\n    summary: summaryParts.join('; '),\n    blocking_capabilities: blockingCapabilities,\n    environment: approvalItem.environment || null,\n    environment_posture: governance.environment_posture || null,\n    approval_required_capabilities: approvalRequired,\n    restricted_capabilities: restricted,\n    out_of_scope_capabilities: outOfScope,\n    destructive_capabilities: Array.isArray(governance.destructive_capabilities) ? governance.destructive_capabilities : [],\n    operator_identity: governance.operator_identity || null,\n    worker_environment_scope: Array.isArray(governance.worker_environment_scope) ? governance.worker_environment_scope : [],\n  };\n};\nconst item = $input.first().json;\nconst messages = Array.isArray(item.messages) ? item.messages : [];\nconst lastUser = [...messages].reverse().find((message) => message.role === 'user');\nconst sourceText = (lastUser?.content || item.prompt || '').trim();\nconst findings = [];\nlet riskLevel = 'safe';\n\nconst destructiveRules = [\n  { label: 'delete_or_rm', pattern: /(^|\\s)(rm\\s+-rf|rm\\s+-r|rm\\s+|delete\\s+(the\\s+)?file|delete\\s+(the\\s+)?directory|remove\\s+(the\\s+)?file|unlink\\s+|shred\\s+)/i, reason: 'Requests file deletion or removal.' },\n  { label: 'docker_live_change', pattern: /docker\\s+compose\\s+(down|restart|up|stop)|docker\\s+(restart|stop)\\b/i, reason: 'Requests live container lifecycle changes.' },\n  { label: 'destructive_sql', pattern: /\\b(drop\\s+table|drop\\s+database|truncate\\s+table|delete\\s+from|alter\\s+table\\s+.*drop\\s+column)\\b/i, reason: 'Contains destructive SQL operations.' },\n  { label: 'critical_move', pattern: /\\b(move|mv|rename)\\b.*\\b(docker-compose\\.ya?ml|\\.env|systemd|workflow|workflows\\/|base\\/)\\b/i, reason: 'Moves or renames critical runtime files.' },\n];\n\nconst cautionRules = [\n  { label: 'critical_file_edit', pattern: /\\b(edit|modify|change|update|patch|rewrite)\\b.*\\b(docker-compose\\.ya?ml|\\.env(\\.|\\b)|systemd|service unit|workflow id|production workflow|ghost-chat-v3|Yh6h9OJyVCfREbp3)\\b/i, reason: 'Touches critical runtime configuration or live workflow identifiers.' },\n  { label: 'broad_sql', pattern: /\\b(update|delete)\\b.*\\b(sql|postgres|database|table)\\b/i, reason: 'Requests a database-changing operation.' },\n  { label: 'infrastructure_change', pattern: /\\b(deploy|deployment|infrastructure|nginx|kubernetes|compose file|dockerfile)\\b/i, reason: 'Requests infrastructure-related changes.' },\n];\n\nfor (const rule of destructiveRules) {\n  if (rule.pattern.test(sourceText)) findings.push({ level: 'destructive', code: rule.label, reason: rule.reason });\n}\nif (!findings.length) {\n  for (const rule of cautionRules) {\n    if (rule.pattern.test(sourceText)) findings.push({ level: 'caution', code: rule.label, reason: rule.reason });\n  }\n}\nif (findings.some((finding) => finding.level === 'destructive')) riskLevel = 'destructive';\nelse if (findings.some((finding) => finding.level === 'caution')) riskLevel = 'caution';\n\nconst isCodexDirect = item.provider === 'codex_oauth_worker';\nconst directCapabilities = isCodexDirect ? ['code.write', 'artifact.publish'] : [];\nconst approvalItem = isCodexDirect ? __buildApprovalItem({\n  workerId: 'ghost_main',\n  requestedBy: 'ghost-main-runtime',\n  summary: 'Direct Codex execution requires approval before mutation-capable work can start.',\n  reason: findings.map((finding) => finding.reason).join(' ') || 'Risk policy requires review.',\n  category: 'destructive_change',\n  riskLevel,\n  capabilities: directCapabilities,\n  requestedForWorkerId: 'ghost_main',\n}) : null;\nconst governancePolicy = approvalItem ? __buildApprovalPolicy(approvalItem) : null;\nconst blockedByEnvironment = governancePolicy?.state === 'environment_restricted';\nconst approvalRequired = isCodexDirect && (riskLevel !== 'safe' || blockedByEnvironment);\nconst taskSummary = sourceText.replace(/\\s+/g, ' ').trim().slice(0, 180);\n\nreturn [{ json: {\n  ...item,\n  task_summary: taskSummary,\n  approval_required: approvalRequired,\n  risk_level: riskLevel,\n  risk_reasons: findings.map((finding) => finding.reason),\n  risk_codes: findings.map((finding) => finding.code),\n  governance_policy: governancePolicy,\n  governance_environment: approvalItem?.environment || item.governance_environment || null,\n  requested_capabilities: directCapabilities,\n  codex_command_status: approvalRequired\n    ? (blockedByEnvironment ? 'blocked_environment_policy' : 'blocked_pending_approval')\n    : (isCodexDirect ? 'pending' : 'not_applicable'),\n} }];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -429,7 +429,7 @@
           "operation": "executeQuery",
           "query": "INSERT INTO messages (\n  id,\n  conversation_id,\n  role,\n  content,\n  content_format,\n  model_name,\n  metadata,\n  created_at\n)\nVALUES (\n  gen_random_uuid(),\n  $1,\n  'assistant',\n  $2,\n  'text',\n  $3,\n  $4::jsonb,\n  NOW()\n)\nRETURNING id, conversation_id, role, content, created_at;",
           "options": {
-            "queryReplacement": "={{ [$json.conversation_id, $json.reply, $json.model_used || null, { provider_used: $json.provider_used || null, task_class: $json.task_class || null, approval_required: $json.approval_required || false, risk_level: $json.risk_level || 'safe', risk_reasons: $json.risk_reasons || [], task_summary: $json.task_summary || '', command_success: $json.command_success === true, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $json.runtime_task_id || null, worker_conversation_id: $json.worker_conversation_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || 'direct_owner_reply', parent_owner_label: $json.parent_owner_label || null }] }}"
+            "queryReplacement": "={{ [$json.conversation_id, $json.reply, $json.model_used || null, { provider_used: $json.provider_used || null, task_class: $json.task_class || null, approval_required: $json.approval_required || false, risk_level: $json.risk_level || 'safe', risk_reasons: $json.risk_reasons || [], approval_item: $json.approval_item || null, governance_policy: $json.governance_policy || null, governance_environment: $json.governance_environment || null, requested_capabilities: $json.requested_capabilities || [], approval_queue_id: $json.approval_queue_id || null, approval_queue_status: $json.approval_queue_status || null, task_summary: $json.task_summary || '', command_success: $json.command_success === true, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $json.runtime_task_id || null, runtime_task_run_id: $json.runtime_task_run_id || null, worker_conversation_id: $json.worker_conversation_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || 'direct_owner_reply', parent_owner_label: $json.parent_owner_label || null }] }}"
           }
         },
         "type": "n8n-nodes-base.postgres",
@@ -449,7 +449,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const item = $input.first().json;\nconst asText = (value) => value === undefined || value === null ? '' : String(value).trim();\nconst summarize = (value) => asText(value).replace(/\\s+/g, ' ').trim().slice(0, 600);\nconst normalizeExitCode = (value) => {\n  if (value === undefined || value === null || value === '') return null;\n  const numeric = Number(value);\n  return Number.isFinite(numeric) ? numeric : asText(value);\n};\nconst normalizeNullableBoolean = (value) => (\n  value === undefined || value === null || value === '' ? null : Boolean(value)\n);\nreturn [{ json: {\n  conversation_id: asText(item.conversation_id),\n  reply: asText(item.reply),\n  provider_used: asText(item.provider_used),\n  model_used: asText(item.model_used),\n  task_class: asText(item.task_class),\n  approval_required: Boolean(item.approval_required),\n  risk_level: asText(item.risk_level) || 'safe',\n  risk_reasons: Array.isArray(item.risk_reasons) ? item.risk_reasons : [],\n  task_summary: summarize(item.task_summary),\n  command_success: normalizeNullableBoolean(item.command_success),\n  command_exit_code: normalizeExitCode(item.command_exit_code),\n  stdout_summary: summarize(item.stdout_summary),\n  stderr_summary: summarize(item.stderr_summary),\n  artifact_path: asText(item.artifact_path) || null,\n  codex_command_status: asText(item.codex_command_status) || 'not_applicable',\n  error_type: asText(item.error_type) || null,\n  delegation_id: asText(item.delegation_id) || null,\n  orchestration_task_id: asText(item.orchestration_task_id) || null,\n  runtime_task_id: asText(item.runtime_task_id) || null,\n  worker_conversation_id: asText(item.worker_conversation_id) || null,\n  n8n_execution_id: asText(item.n8n_execution_id) || null,\n  response_mode: asText(item.response_mode) || 'direct_owner_reply',\n  parent_owner_label: asText(item.parent_owner_label) || null,\n} }];"
+          "jsCode": "const item = $input.first().json;\nconst asText = (value) => value === undefined || value === null ? '' : String(value).trim();\nconst summarize = (value) => asText(value).replace(/\\s+/g, ' ').trim().slice(0, 600);\nconst normalizeExitCode = (value) => {\n  if (value === undefined || value === null || value === '') return null;\n  const numeric = Number(value);\n  return Number.isFinite(numeric) ? numeric : asText(value);\n};\nconst normalizeNullableBoolean = (value) => (\n  value === undefined || value === null || value === '' ? null : Boolean(value)\n);\nconst normalizeArray = (value) => Array.isArray(value) ? value : [];\nconst normalizeObject = (value) => (\n  value && typeof value === 'object' && !Array.isArray(value) ? value : null\n);\nreturn [{ json: {\n  conversation_id: asText(item.conversation_id),\n  reply: asText(item.reply),\n  provider_used: asText(item.provider_used),\n  model_used: asText(item.model_used),\n  task_class: asText(item.task_class),\n  approval_required: Boolean(item.approval_required),\n  risk_level: asText(item.risk_level) || 'safe',\n  risk_reasons: normalizeArray(item.risk_reasons),\n  approval_item: normalizeObject(item.approval_item),\n  governance_policy: normalizeObject(item.governance_policy),\n  governance_environment: asText(item.governance_environment) || null,\n  requested_capabilities: normalizeArray(item.requested_capabilities),\n  approval_queue_id: asText(item.approval_queue_id) || null,\n  approval_queue_status: asText(item.approval_queue_status) || null,\n  task_summary: summarize(item.task_summary),\n  command_success: normalizeNullableBoolean(item.command_success),\n  command_exit_code: normalizeExitCode(item.command_exit_code),\n  stdout_summary: summarize(item.stdout_summary),\n  stderr_summary: summarize(item.stderr_summary),\n  artifact_path: asText(item.artifact_path) || null,\n  codex_command_status: asText(item.codex_command_status) || 'not_applicable',\n  error_type: asText(item.error_type) || null,\n  delegation_id: asText(item.delegation_id) || null,\n  orchestration_task_id: asText(item.orchestration_task_id) || null,\n  runtime_task_id: asText(item.runtime_task_id) || null,\n  runtime_task_run_id: asText(item.runtime_task_run_id) || null,\n  worker_conversation_id: asText(item.worker_conversation_id) || null,\n  n8n_execution_id: asText(item.n8n_execution_id) || null,\n  response_mode: asText(item.response_mode) || 'direct_owner_reply',\n  parent_owner_label: asText(item.parent_owner_label) || null,\n} }];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -462,7 +462,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const response = $input.first().json;\nconst context = $('Expose Route Metadata').item.json;\nconst reply = response.response ?? response.message?.content ?? response.data?.response ?? '[no-reply]';\nreturn [{ json: {\n  ...context,\n  ...response,\n  reply,\n  approval_required: context.approval_required || false,\n  risk_level: context.risk_level || 'safe',\n  risk_reasons: context.risk_reasons || [],\n  risk_codes: context.risk_codes || [],\n  task_summary: context.task_summary || '',\n  command_success: true,\n  command_exit_code: null,\n  stdout_summary: '',\n  stderr_summary: '',\n  artifact_path: '',\n  codex_command_status: 'not_applicable',\n  error_type: '',\n} }];"
+          "jsCode": "const response = $input.first().json;\nconst context = $('Expose Route Metadata').item.json;\nconst reply = response.response ?? response.message?.content ?? response.data?.response ?? '[no-reply]';\nreturn [{ json: {\n  ...context,\n  ...response,\n  reply,\n  approval_required: context.approval_required || false,\n  risk_level: context.risk_level || 'safe',\n  risk_reasons: context.risk_reasons || [],\n  risk_codes: context.risk_codes || [],\n  task_summary: context.task_summary || '',\n  command_success: true,\n  command_exit_code: null,\n  stdout_summary: '',\n  stderr_summary: '',\n  artifact_path: '',\n  codex_command_status: 'not_applicable',\n  error_type: '',\n  response_mode: 'direct_owner_reply',\n  parent_owner_label: context.parent_owner_label || 'Ghost',\n} }];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -622,7 +622,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const response = $input.first().json;\nconst context = $('Build OpenAI Chat Request').item.json;\nconst output = Array.isArray(response.output) ? response.output : [];\nconst outputText = response.output_text\n  || output.flatMap(part => Array.isArray(part.content) ? part.content : [])\n    .map(content => content.text || content.value || '')\n    .join('')\n  || response.response?.output_text\n  || response.response\n  || '[no-openai-reply]';\nreturn [{ json: {\n  ...context,\n  ...response,\n  reply: outputText,\n  approval_required: context.approval_required || false,\n  risk_level: context.risk_level || 'safe',\n  risk_reasons: context.risk_reasons || [],\n  risk_codes: context.risk_codes || [],\n  task_summary: context.task_summary || '',\n  command_success: true,\n  command_exit_code: null,\n  stdout_summary: '',\n  stderr_summary: '',\n  artifact_path: '',\n  codex_command_status: 'not_applicable',\n  error_type: '',\n} }];"
+          "jsCode": "const response = $input.first().json;\nconst context = $('Build OpenAI Chat Request').item.json;\nconst output = Array.isArray(response.output) ? response.output : [];\nconst outputText = response.output_text\n  || output.flatMap(part => Array.isArray(part.content) ? part.content : [])\n    .map(content => content.text || content.value || '')\n    .join('')\n  || response.response?.output_text\n  || response.response\n  || '[no-openai-reply]';\nreturn [{ json: {\n  ...context,\n  ...response,\n  reply: outputText,\n  approval_required: context.approval_required || false,\n  risk_level: context.risk_level || 'safe',\n  risk_reasons: context.risk_reasons || [],\n  risk_codes: context.risk_codes || [],\n  task_summary: context.task_summary || '',\n  command_success: true,\n  command_exit_code: null,\n  stdout_summary: '',\n  stderr_summary: '',\n  artifact_path: '',\n  codex_command_status: 'not_applicable',\n  error_type: '',\n  response_mode: 'direct_owner_reply',\n  parent_owner_label: context.parent_owner_label || 'Ghost',\n} }];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -662,7 +662,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const result = $input.first().json;\nconst context = $('Expose Route Metadata').item.json;\nconst rawStdout = typeof result.stdout === 'string' ? result.stdout.trim() : '';\nconst nodeError = typeof result.error === 'string' ? result.error : (result.error?.message || '');\nlet payload = {};\nif (rawStdout) {\n  try {\n    payload = JSON.parse(rawStdout);\n  } catch (error) {\n    payload = {\n      reply: rawStdout,\n      success: true,\n      command_exit_code: 0,\n      stdout_summary: rawStdout.slice(0, 600),\n      stderr_summary: typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '',\n      artifact_path: '',\n    };\n  }\n}\nconst stderrSummary = payload.stderr_summary || (typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '') || nodeError.slice(0, 600);\nconst commandExitCode = payload.command_exit_code ?? (nodeError ? 127 : null);\nconst commandSuccess = Boolean(payload.success);\nconst failureSuffix = commandExitCode !== undefined && commandExitCode !== null ? ` (exit ${commandExitCode})` : '';\nconst failureReason = stderrSummary || 'No additional stderr was captured.';\nconst reply = (payload.reply || '').trim() || (commandSuccess ? '[no-codex-reply]' : `Codex execution failed${failureSuffix}. ${failureReason}`);\nreturn [{ json: {\n  ...context,\n  ...result,\n  codex_raw_result: payload,\n  conversation_id: context.conversation_id || '',\n  reply,\n  provider_used: context.provider || '',\n  model_used: context.selected_model || '',\n  task_class: context.task_class || '',\n  approval_required: context.approval_required || false,\n  risk_level: context.risk_level || 'safe',\n  risk_reasons: context.risk_reasons || [],\n  risk_codes: context.risk_codes || [],\n  task_summary: context.task_summary || '',\n  command_success: commandSuccess,\n  command_exit_code: commandExitCode,\n  stdout_summary: payload.stdout_summary || '',\n  stderr_summary: stderrSummary,\n  artifact_path: payload.artifact_path || '',\n  codex_command_status: commandSuccess ? 'succeeded' : 'failed',\n  error_type: commandSuccess ? '' : 'codex_command_failed',\n  n8n_execution_id: context.n8n_execution_id || null,\n} }];"
+          "jsCode": "const result = $input.first().json;\nconst context = $('Expose Route Metadata').item.json;\nconst started = $items('Start Runtime Ledger', 0, 0)[0]?.json || {};\nconst rawStdout = typeof result.stdout === 'string' ? result.stdout.trim() : '';\nconst nodeError = typeof result.error === 'string' ? result.error : (result.error?.message || '');\nlet payload = {};\nlet payloadParseFailed = false;\nif (rawStdout) {\n  try {\n    payload = JSON.parse(rawStdout);\n  } catch (error) {\n    payloadParseFailed = true;\n    payload = {\n      reply: rawStdout,\n      success: false,\n      command_exit_code: typeof result.exitCode === 'number' ? result.exitCode : 0,\n      stdout_summary: rawStdout.slice(0, 600),\n      stderr_summary: typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '',\n      artifact_path: '',\n    };\n  }\n}\nconst commandExitCode = payload.command_exit_code ?? (typeof result.exitCode === 'number' ? result.exitCode : (nodeError ? 127 : null));\nconst stderrSummaryBase = payload.stderr_summary || (typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '') || nodeError.slice(0, 600);\nconst replyText = typeof payload.reply === 'string' ? payload.reply.trim() : '';\nconst invalidPayload = payloadParseFailed || !payload || typeof payload !== 'object' || Array.isArray(payload);\nconst timedOut = /timed?\\s*out|timeout/i.test((nodeError || '') + ' ' + (stderrSummaryBase || ''));\nconst commandFailedWithoutStructuredOutput = !rawStdout\n  && !replyText.length\n  && !payloadParseFailed\n  && Boolean(nodeError || stderrSummaryBase || (commandExitCode !== null && commandExitCode !== 0));\nconst commandSuccess = Boolean(payload.success) && !invalidPayload && replyText.length > 0;\nconst derivedErrorType = commandSuccess\n  ? ''\n  : timedOut\n      ? 'codex_command_timeout'\n      : commandFailedWithoutStructuredOutput\n          ? 'codex_command_failed'\n      : invalidPayload || !replyText.length\n          ? 'codex_invalid_result'\n          : 'codex_command_failed';\nconst stderrSummary = commandSuccess\n  ? stderrSummaryBase\n  : stderrSummaryBase || (timedOut\n      ? 'Codex execution timed out.'\n      : commandFailedWithoutStructuredOutput\n          ? 'Codex execution failed.'\n      : invalidPayload\n          ? 'Codex returned an invalid result payload.'\n          : !replyText.length\n              ? 'Codex returned no reply content.'\n              : 'Codex execution failed.');\nconst failureSuffix = commandExitCode !== undefined && commandExitCode !== null ? ` (exit ${commandExitCode})` : '';\nconst failureReason = stderrSummary || 'No additional stderr was captured.';\nconst failureLabel = derivedErrorType === 'codex_command_timeout'\n  ? 'timed out'\n  : derivedErrorType === 'codex_invalid_result'\n      ? 'returned an invalid result'\n      : 'failed';\nconst reply = commandSuccess\n  ? replyText\n  : `Codex execution ${failureLabel}${failureSuffix}. ${failureReason}`;\nreturn [{ json: {\n  ...context,\n  ...result,\n  codex_raw_result: payload,\n  conversation_id: context.conversation_id || '',\n  reply,\n  provider_used: context.provider || '',\n  model_used: context.selected_model || '',\n  task_class: context.task_class || '',\n  approval_required: context.approval_required || false,\n  risk_level: context.risk_level || 'safe',\n  risk_reasons: context.risk_reasons || [],\n  risk_codes: context.risk_codes || [],\n  task_summary: context.task_summary || '',\n  command_success: commandSuccess,\n  command_exit_code: commandExitCode,\n  stdout_summary: payload.stdout_summary || '',\n  stderr_summary: stderrSummary,\n  artifact_path: payload.artifact_path || '',\n  codex_command_status: commandSuccess ? 'succeeded' : 'failed',\n  error_type: derivedErrorType,\n  runtime_task_id: started.task_id || '',\n  runtime_task_run_id: started.task_run_id || '',\n  n8n_execution_id: context.n8n_execution_id || null,\n  response_mode: 'direct_owner_reply',\n  parent_owner_label: context.parent_owner_label || 'Ghost',\n} }];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -889,7 +889,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const context = $input.first().json;\nconst reasons = Array.isArray(context.risk_reasons) && context.risk_reasons.length\n  ? context.risk_reasons.join(' ')\n  : 'Risk policy requires review.';\nconst reply = `Approval required before Codex execution. Risk level: ${context.risk_level || 'unknown'}. ${reasons}`;\nreturn [{ json: {\n  ...context,\n  reply,\n  provider_used: context.provider || '',\n  model_used: context.selected_model || '',\n  task_class: context.task_class || '',\n  command_success: false,\n  error_type: 'approval_required',\n  codex_command_status: 'blocked_pending_approval',\n  artifact_path: '',\n  stdout_summary: '',\n  stderr_summary: reasons,\n  command_exit_code: null,\n  n8n_execution_id: context.n8n_execution_id || null,\n} }];"
+          "jsCode": "const __ghostApprovalConfig = {\"approval_model\":{\"version\":\"phase7-approval-v1\",\"initial_state\":\"proposed\",\"categories\":[{\"id\":\"destructive_change\",\"description\":\"Any request that mutates code, runtime state, or durable records.\"},{\"id\":\"production_promotion\",\"description\":\"Live activation, rollback, or publish operations against a promoted environment.\"},{\"id\":\"database_mutation\",\"description\":\"Changes to application or workflow database state.\"},{\"id\":\"runtime_control\",\"description\":\"Actions that restart, stop, reconfigure, or otherwise alter runtime behavior.\"},{\"id\":\"memory_or_artifact_write\",\"description\":\"Durable writes to memory, evidence packages, or published artifacts.\"}],\"risk_levels\":[\"safe\",\"caution\",\"high\",\"critical\"],\"required_fields\":[\"approval_id\",\"state\",\"requested_at\",\"requested_by\",\"requester_worker_id\",\"environment\",\"category\",\"risk_level\",\"capabilities\",\"summary\",\"reason\"]},\"workers_by_id\":{\"ghost_main\":{\"id\":\"ghost_main\",\"visibility_label\":\"Ghost Main\",\"operator_identity\":\"parent-owner\",\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"]},\"forge\":{\"id\":\"forge\",\"visibility_label\":\"Forge\",\"operator_identity\":\"delegated-worker\",\"environment_scope\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"]},\"probe\":{\"id\":\"probe\",\"visibility_label\":\"Probe\",\"operator_identity\":\"verification-worker\",\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\"]},\"rector\":{\"id\":\"rector\",\"visibility_label\":\"Rector\",\"operator_identity\":\"governed-change-worker\",\"environment_scope\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"]},\"archivist\":{\"id\":\"archivist\",\"visibility_label\":\"Archivist\",\"operator_identity\":\"memory-audit-worker\",\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\"]},\"operator\":{\"id\":\"operator\",\"visibility_label\":\"Operator\",\"operator_identity\":\"ops-worker\",\"environment_scope\":[\"prod\",\"staging\",\"lab\"]},\"scout\":{\"id\":\"scout\",\"visibility_label\":\"Scout\",\"operator_identity\":\"research-worker\",\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"]}},\"capabilities_by_id\":{\"code.read\":{\"id\":\"code.read\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Read source files, generated artifacts, and builder modules.\"},\"code.write\":{\"id\":\"code.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Modify source files or generated workflow artifacts.\"},\"shell.safe\":{\"id\":\"shell.safe\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Run bounded, non-destructive shell commands for inspection or validation.\"},\"shell.destructive\":{\"id\":\"shell.destructive\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Run commands that can mutate runtime state or remove data.\"},\"git.inspect\":{\"id\":\"git.inspect\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Inspect repository history, status, and diffs.\"},\"git.write\":{\"id\":\"git.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Create commits or otherwise mutate repository state.\"},\"deploy.promote\":{\"id\":\"deploy.promote\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"prod\",\"staging\"],\"description\":\"Promote, publish, or roll back live workflows.\"},\"db.read\":{\"id\":\"db.read\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\"],\"description\":\"Read application or workflow database state.\"},\"db.write\":{\"id\":\"db.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Mutate application or workflow database state.\"},\"memory.write\":{\"id\":\"memory.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\"],\"description\":\"Persist durable memory or history records.\"},\"web.research\":{\"id\":\"web.research\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Perform external or internal research for discovery and preflight work.\"},\"artifact.publish\":{\"id\":\"artifact.publish\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\"],\"description\":\"Publish or persist generated artifacts intended for wider system use.\"}},\"worker_capabilities\":{\"ghost_main\":[\"code.read\",\"shell.safe\",\"git.inspect\",\"db.read\"],\"forge\":[\"code.read\",\"code.write\",\"shell.safe\",\"git.inspect\",\"artifact.publish\"],\"probe\":[\"code.read\",\"shell.safe\",\"git.inspect\",\"db.read\",\"web.research\"],\"rector\":[\"code.read\",\"code.write\",\"shell.safe\",\"shell.destructive\",\"git.inspect\",\"git.write\",\"db.read\",\"db.write\"],\"archivist\":[\"code.read\",\"db.read\",\"memory.write\",\"artifact.publish\"],\"operator\":[\"code.read\",\"shell.safe\",\"shell.destructive\",\"git.inspect\",\"git.write\",\"deploy.promote\",\"db.read\",\"db.write\",\"artifact.publish\"],\"scout\":[\"code.read\",\"shell.safe\",\"git.inspect\",\"db.read\",\"web.research\"]},\"environments_by_id\":{\"prod\":{\"id\":\"prod\",\"label\":\"Production\",\"governance_posture\":\"highest\",\"restricted_capabilities\":[\"code.write\",\"shell.destructive\",\"git.write\",\"db.write\",\"memory.write\"],\"mutable\":true},\"staging\":{\"id\":\"staging\",\"label\":\"Staging\",\"governance_posture\":\"high\",\"restricted_capabilities\":[\"deploy.promote\"],\"mutable\":true},\"lab\":{\"id\":\"lab\",\"label\":\"Lab\",\"governance_posture\":\"moderate\",\"restricted_capabilities\":[],\"mutable\":true},\"sandbox\":{\"id\":\"sandbox\",\"label\":\"Sandbox\",\"governance_posture\":\"moderate\",\"restricted_capabilities\":[],\"mutable\":true},\"scratch\":{\"id\":\"scratch\",\"label\":\"Scratch\",\"governance_posture\":\"low\",\"restricted_capabilities\":[],\"mutable\":true}}};\nconst __approvalText = (value) => value === undefined || value === null ? '' : String(value).trim();\nconst __approvalList = (value) => Array.isArray(value) ? value.map((entry) => __approvalText(entry)).filter(Boolean) : [];\nconst __approvalHash = (value) => {\n  let hash = 0;\n  const text = __approvalText(value);\n  for (let index = 0; index < text.length; index += 1) {\n    hash = ((hash << 5) - hash + text.charCodeAt(index)) | 0;\n  }\n  return `approval_${Math.abs(hash).toString(16).slice(0, 12)}`;\n};\nconst __approvalEnvironment = () => {\n  const explicit = typeof process !== 'undefined'\n    ? __approvalText(process.env.GHOST_RUNTIME_ENV || process.env.GHOST_ENV || process.env.NODE_ENV || '')\n    : '';\n  if (explicit === 'production' && __ghostApprovalConfig.environments_by_id.prod) return 'prod';\n  if (explicit && __ghostApprovalConfig.environments_by_id[explicit]) return explicit;\n  return 'lab';\n};\nconst __buildApprovalItem = ({ workerId, requestedBy, summary, reason, category, riskLevel, capabilities, requestedForWorkerId }) => {\n  const worker = __ghostApprovalConfig.workers_by_id[workerId] || null;\n  if (!worker) {\n    throw new Error(`Unknown approval worker: ${workerId}`);\n  }\n  const targetWorker = requestedForWorkerId ? (__ghostApprovalConfig.workers_by_id[requestedForWorkerId] || null) : null;\n  const environment = __approvalEnvironment();\n  const environmentDoc = __ghostApprovalConfig.environments_by_id[environment] || __ghostApprovalConfig.environments_by_id.lab;\n  const normalizedCapabilities = Array.from(new Set(__approvalList(capabilities))).filter((capabilityId) => __ghostApprovalConfig.capabilities_by_id[capabilityId]);\n  const capabilityRecords = normalizedCapabilities.map((capabilityId) => __ghostApprovalConfig.capabilities_by_id[capabilityId]);\n  const approvalRequiredCapabilities = capabilityRecords.filter((entry) => entry.approval_required).map((entry) => entry.id);\n  const destructiveCapabilities = capabilityRecords.filter((entry) => entry.class === 'destructive').map((entry) => entry.id);\n  const restrictedCapabilities = capabilityRecords.filter((entry) => (environmentDoc.restricted_capabilities || []).includes(entry.id)).map((entry) => entry.id);\n  const outOfScopeCapabilities = capabilityRecords.filter((entry) => !(entry.environment_restriction || []).includes(environment)).map((entry) => entry.id);\n  const approvalSource = [workerId, requestedBy, summary, environment, category, normalizedCapabilities.join(','), targetWorker?.id || ''].join('|');\n  return {\n    approval_id: __approvalHash(approvalSource),\n    state: __ghostApprovalConfig.approval_model.initial_state,\n    requested_at: new Date().toISOString(),\n    requested_by: __approvalText(requestedBy),\n    requester_worker_id: worker.id,\n    requester_label: worker.visibility_label,\n    environment,\n    category: __approvalText(category),\n    risk_level: __approvalText(riskLevel) || 'caution',\n    capabilities: normalizedCapabilities,\n    summary: __approvalText(summary),\n    reason: __approvalText(reason),\n    target_worker_id: targetWorker?.id || null,\n    target_worker_label: targetWorker?.visibility_label || null,\n    governance: {\n      environment_posture: environmentDoc.governance_posture || 'moderate',\n      restricted_capabilities: restrictedCapabilities,\n      out_of_scope_capabilities: outOfScopeCapabilities,\n      approval_required_capabilities: approvalRequiredCapabilities,\n      destructive_capabilities: destructiveCapabilities,\n      operator_identity: worker.operator_identity,\n      worker_environment_scope: Array.isArray(worker.environment_scope) ? worker.environment_scope : [],\n    },\n  };\n};\nconst __buildApprovalPolicy = (approvalItem) => {\n  const governance = approvalItem && approvalItem.governance && typeof approvalItem.governance === 'object'\n    ? approvalItem.governance\n    : {};\n  const restricted = Array.isArray(governance.restricted_capabilities) ? governance.restricted_capabilities : [];\n  const outOfScope = Array.isArray(governance.out_of_scope_capabilities) ? governance.out_of_scope_capabilities : [];\n  const approvalRequired = Array.isArray(governance.approval_required_capabilities) ? governance.approval_required_capabilities : [];\n  const blockingCapabilities = Array.from(new Set([...restricted, ...outOfScope]));\n  const state = blockingCapabilities.length > 0\n    ? 'environment_restricted'\n    : approvalRequired.length > 0\n      ? 'approval_required'\n      : 'allowed';\n  const summaryParts = [];\n  if (approvalRequired.length > 0) summaryParts.push(`approval required for ${approvalRequired.join(', ')}`);\n  if (restricted.length > 0) summaryParts.push(`restricted in ${approvalItem.environment}: ${restricted.join(', ')}`);\n  if (outOfScope.length > 0) summaryParts.push(`outside ${approvalItem.environment} scope: ${outOfScope.join(', ')}`);\n  summaryParts.push(`environment posture ${governance.environment_posture || 'unknown'}`);\n  return {\n    state,\n    summary: summaryParts.join('; '),\n    blocking_capabilities: blockingCapabilities,\n    environment: approvalItem.environment || null,\n    environment_posture: governance.environment_posture || null,\n    approval_required_capabilities: approvalRequired,\n    restricted_capabilities: restricted,\n    out_of_scope_capabilities: outOfScope,\n    destructive_capabilities: Array.isArray(governance.destructive_capabilities) ? governance.destructive_capabilities : [],\n    operator_identity: governance.operator_identity || null,\n    worker_environment_scope: Array.isArray(governance.worker_environment_scope) ? governance.worker_environment_scope : [],\n  };\n};\nconst context = $input.first().json;\nconst reasons = Array.isArray(context.risk_reasons) && context.risk_reasons.length\n  ? context.risk_reasons.join(' ')\n  : 'Risk policy requires review.';\nconst approvalItem = __buildApprovalItem({\n  workerId: 'ghost_main',\n  requestedBy: 'ghost-main-runtime',\n  summary: 'Direct Codex execution requires approval before mutation-capable work can start.',\n  reason: reasons,\n  category: 'destructive_change',\n  riskLevel: context.risk_level || 'caution',\n  capabilities: ['code.write', 'artifact.publish'],\n  requestedForWorkerId: 'ghost_main',\n});\nconst governancePolicy = __buildApprovalPolicy(approvalItem);\nconst blockedByEnvironment = governancePolicy.state === 'environment_restricted';\nconst reply = blockedByEnvironment\n  ? `Codex execution is blocked by ${approvalItem.environment} environment policy. Risk level: ${context.risk_level || 'unknown'}. ${governancePolicy.summary} ${reasons}`\n  : `Approval required before Codex execution. Risk level: ${context.risk_level || 'unknown'}. ${reasons}`;\nreturn [{ json: {\n  ...context,\n  reply,\n  provider_used: context.provider || '',\n  model_used: context.selected_model || '',\n  task_class: context.task_class || '',\n  approval_required: true,\n  command_success: false,\n  error_type: blockedByEnvironment ? 'environment_capability_blocked' : 'approval_required',\n  codex_command_status: blockedByEnvironment ? 'blocked_environment_policy' : 'blocked_pending_approval',\n  artifact_path: '',\n  stdout_summary: '',\n  stderr_summary: [reasons, governancePolicy.summary].filter(Boolean).join(' '),\n  command_exit_code: null,\n  n8n_execution_id: context.n8n_execution_id || null,\n  approval_item: approvalItem,\n  governance_policy: governancePolicy,\n  governance_environment: approvalItem.environment,\n  requested_capabilities: approvalItem.capabilities,\n  response_mode: 'direct_owner_reply',\n  parent_owner_label: context.parent_owner_label || 'Ghost',\n} }];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -1183,7 +1183,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const item = $input.first().json;\nconst startRows = $items('Start Runtime Ledger', 0, 0);\nconst started = startRows[0]?.json || {};\nconst normalized = $('Normalize Input').item.json;\nreturn [{ json: {\n  task_id: started.task_id || '',\n  task_run_id: started.task_run_id || '',\n  output_payload_json: JSON.stringify(item),\n  conversation_id: item.conversation_id || '',\n  task_class: item.task_class || '',\n  provider_used: item.provider_used || '',\n  model_used: item.model_used || '',\n  approval_required: item.approval_required === true,\n  command_success: item.command_success === undefined ? null : item.command_success,\n  error_type: item.error_type || '',\n  task_summary: item.task_summary || '',\n  artifact_path: item.artifact_path || '',\n  n8n_execution_id: item.n8n_execution_id || normalized.n8n_execution_id || '',\n  entrypoint: normalized.entrypoint || 'direct_webhook',\n} }];"
+          "jsCode": "const item = $input.first().json;\nconst startRows = $items('Start Runtime Ledger', 0, 0);\nconst started = startRows[0]?.json || {};\nconst normalized = $('Normalize Input').item.json;\nreturn [{ json: {\n  task_id: started.task_id || '',\n  task_run_id: started.task_run_id || '',\n  output_payload_json: JSON.stringify(item),\n  conversation_id: item.conversation_id || '',\n  task_class: item.task_class || '',\n  provider_used: item.provider_used || '',\n  model_used: item.model_used || '',\n  approval_required: item.approval_required === true,\n  command_success: item.command_success === undefined ? null : item.command_success,\n  command_exit_code: item.command_exit_code === undefined ? null : item.command_exit_code,\n  error_type: item.error_type || '',\n  task_summary: item.task_summary || '',\n  artifact_path: item.artifact_path || '',\n  stdout_summary: item.stdout_summary || '',\n  stderr_summary: item.stderr_summary || '',\n  codex_command_status: item.codex_command_status || 'not_applicable',\n  n8n_execution_id: item.n8n_execution_id || normalized.n8n_execution_id || '',\n  entrypoint: normalized.entrypoint || 'direct_webhook',\n  response_mode: item.response_mode || 'direct_owner_reply',\n  parent_owner_label: item.parent_owner_label || 'Ghost',\n} }];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -1217,6 +1217,67 @@
           }
         },
         "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "WITH payload AS (\n  SELECT\n    NULLIF($1, '')::uuid AS task_id,\n    NULLIF($2, '') AS approval_contract_id,\n    NULLIF($3, '') AS approval_type,\n    NULLIF($4, '') AS prompt_text,\n    COALESCE($5::jsonb, '{}'::jsonb) AS approval_metadata,\n    NULLIF($6, '') AS requester_agent_key,\n    COALESCE($7::jsonb, '{}'::jsonb) AS payload_json\n), existing AS (\n  SELECT\n    a.id::text AS approval_queue_id,\n    a.status AS approval_queue_status,\n    a.requested_at\n  FROM approvals a\n  JOIN payload p ON TRUE\n  WHERE a.task_id = p.task_id\n    AND COALESCE(a.metadata ->> 'approval_contract_id', '') = COALESCE(p.approval_contract_id, '')\n  ORDER BY a.requested_at DESC, a.id DESC\n  LIMIT 1\n), inserted AS (\n  INSERT INTO approvals (\n    task_id,\n    requested_by_agent_id,\n    approval_type,\n    status,\n    prompt_text,\n    metadata\n  )\n  SELECT\n    p.task_id,\n    (SELECT id FROM agents WHERE agent_key = p.requester_agent_key LIMIT 1),\n    COALESCE(p.approval_type, 'governed_approval'),\n    'pending',\n    COALESCE(p.prompt_text, 'Approval required before execution can continue.'),\n    p.approval_metadata\n  FROM payload p\n  WHERE p.task_id IS NOT NULL\n    AND NOT EXISTS (SELECT 1 FROM existing)\n  RETURNING id::text AS approval_queue_id, status AS approval_queue_status, requested_at\n)\nSELECT\n  COALESCE(inserted.approval_queue_id, existing.approval_queue_id, '') AS approval_queue_id,\n  COALESCE(inserted.approval_queue_status, existing.approval_queue_status, '') AS approval_queue_status,\n  COALESCE(inserted.requested_at, existing.requested_at)::text AS approval_requested_at,\n  payload.payload_json::text AS approval_payload_json\nFROM payload\nLEFT JOIN inserted ON TRUE\nLEFT JOIN existing ON TRUE;",
+          "options": {
+            "queryReplacement": "={{ [$items('Start Runtime Ledger', 0, 0)[0]?.json.task_id || '', $json.approval_item?.approval_id || '', ($json.governance_policy?.state === 'environment_restricted' ? ($json.response_mode === 'delegated_blocked' ? 'delegated_environment_restricted' : 'direct_environment_restricted') : ($json.response_mode === 'delegated_blocked' ? 'delegated_blocked' : 'direct_approval_required')), $json.reply || 'Approval required before execution can continue.', { approval_contract_id: $json.approval_item?.approval_id || null, approval_item: $json.approval_item || null, governance_policy: $json.governance_policy || null, governance_environment: $json.governance_environment || null, requested_capabilities: $json.requested_capabilities || [], conversation_id: $json.conversation_id || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $items('Start Runtime Ledger', 0, 0)[0]?.json.task_id || null, runtime_task_run_id: $items('Start Runtime Ledger', 0, 0)[0]?.json.task_run_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || null, parent_owner_label: $json.parent_owner_label || null, source_path: ($json.governance_policy?.state === 'environment_restricted' ? ($json.response_mode === 'delegated_blocked' ? 'delegated_environment_restricted' : 'direct_environment_restricted') : ($json.response_mode === 'delegated_blocked' ? 'delegated_blocked' : 'direct_approval_required')) }, 'ghost-main', $json] }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          2144,
+          -544
+        ],
+        "id": "302f0519-682d-c365-bee5-b569000bcc30",
+        "name": "Persist Approval Queue Item",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        },
+        "continueOnFail": false
+      },
+      {
+        "parameters": {
+          "jsCode": "const row = $input.first().json || {};\nlet payload = {};\ntry {\n  payload = row.approval_payload_json ? JSON.parse(row.approval_payload_json) : {};\n} catch (error) {\n  payload = {};\n}\nconst approvalItem = payload.approval_item && typeof payload.approval_item === 'object' && !Array.isArray(payload.approval_item)\n  ? {\n      ...payload.approval_item,\n      queue_id: row.approval_queue_id || null,\n      queue_status: row.approval_queue_status || 'pending',\n      queue_requested_at: row.approval_requested_at || null,\n    }\n  : payload.approval_item || null;\nreturn [{ json: {\n  ...payload,\n  approval_item: approvalItem,\n  approval_queue_id: row.approval_queue_id || null,\n  approval_queue_status: row.approval_queue_status || null,\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2368,
+          -544
+        ],
+        "id": "aad99149-2582-61f7-5784-1b4f21ac7804",
+        "name": "Attach Persisted Approval Queue Metadata"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "WITH target_event AS (\n  SELECT id\n  FROM tool_events\n  WHERE task_id = NULLIF($1, '')::uuid\n  ORDER BY created_at DESC, id DESC\n  LIMIT 1\n)\nUPDATE tool_events AS te\nSET\n  task_run_id = COALESCE(te.task_run_id, NULLIF($2, '')::uuid),\n  payload = COALESCE(te.payload, '{}'::jsonb) || jsonb_build_object(\n    'n8n_execution_id', NULLIF($3, ''),\n    'entrypoint', NULLIF($4, ''),\n    'response_mode', NULLIF($5, ''),\n    'parent_owner_label', NULLIF($6, ''),\n    'provider_used', NULLIF($7, ''),\n    'model_used', NULLIF($8, ''),\n    'task_class', NULLIF($9, ''),\n    'command_success', $10,\n    'command_exit_code', $11,\n    'error_type', NULLIF($12, ''),\n    'stdout_summary', NULLIF($13, ''),\n    'stderr_summary', NULLIF($14, ''),\n    'artifact_path', NULLIF($15, ''),\n    'codex_command_status', NULLIF($16, ''),\n    'direct_execution', TRUE\n  )\nFROM target_event\nWHERE te.id = target_event.id\nRETURNING te.id::text AS tool_event_id;",
+          "options": {
+            "queryReplacement": "={{ [$json.task_id || '', $json.task_run_id || '', $json.n8n_execution_id || '', $json.entrypoint || 'direct_webhook', $json.response_mode || 'direct_owner_reply', $json.parent_owner_label || 'Ghost', $json.provider_used || '', $json.model_used || '', $json.task_class || '', $json.command_success, $json.command_exit_code !== undefined ? $json.command_exit_code : null, $json.error_type || '', $json.stdout_summary || '', $json.stderr_summary || '', $json.artifact_path || '', $json.codex_command_status || 'not_applicable'] }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          2032,
+          96
+        ],
+        "id": "6199b64a-3ae6-d87e-3b5a-b4159135ad37",
+        "name": "Annotate Direct Runtime Event",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        },
+        "continueOnFail": false
       },
       {
         "parameters": {
@@ -1270,19 +1331,6 @@
       },
       {
         "parameters": {
-          "jsCode": "const context = $('Build Delegation Context').item.json;\nconst saved = $input.first().json;\nreturn [{ json: {\n  ...context,\n  worker_user_message_id: saved.id || '',\n} }];"
-        },
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          1600,
-          -208
-        ],
-        "id": "8785096e-fc34-d3d2-2949-d5dc2df27bd6",
-        "name": "Build Delegation Execution Context"
-      },
-      {
-        "parameters": {
           "conditions": {
             "options": {
               "caseSensitive": true,
@@ -1313,106 +1361,6 @@
         ],
         "id": "9d474ed3-c37a-a85b-0849-0d8302a6579e",
         "name": "Delegation Required?"
-      },
-      {
-        "parameters": {
-          "jsCode": "const item = $input.first().json;\nconst normalized = $('Normalize Input').item.json;\nconst userMessage = $items('Save User Message', 0, 0)[0]?.json || {};\nconst compact = (value, limit = 600) => String(value || '').replace(/\\s+/g, ' ').trim().slice(0, limit);\nconst requestTitle = compact(item.task_summary || normalized.message || 'Ghost delegated worker task', 160) || 'Ghost delegated worker task';\nconst requestSummary = compact(normalized.message || item.task_summary || '');\nconst metadata = {\n  source: 'conversation_delegation',\n  entrypoint: normalized.entrypoint || 'direct_webhook',\n  parent_owner_agent_id: item.parent_owner_agent_id || null,\n  parent_owner_agent_key: item.parent_owner_agent_key || 'ghost-main',\n  parent_owner_label: item.parent_owner_label || 'Ghost',\n  parent_provider: item.parent_provider || '',\n  parent_model: item.parent_model || '',\n  delegated_provider: item.delegated_provider || '',\n  delegated_model: item.delegated_model || '',\n  parent_message_id: userMessage.id || null,\n  n8n_execution_id: item.n8n_execution_id || normalized.n8n_execution_id || null,\n};\nreturn [{ json: {\n  ...item,\n  parent_message_id: userMessage.id || '',\n  request_title: requestTitle,\n  request_summary: requestSummary,\n  worker_message_content: normalized.message || requestSummary || requestTitle,\n  worker_execution_prompt: item.prompt || normalized.message || requestSummary || requestTitle,\n  delegation_metadata_json: JSON.stringify(metadata),\n} }];"
-        },
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          800,
-          -208
-        ],
-        "id": "71c8b260-fda1-212a-9d94-a7318ce5503c",
-        "name": "Build Delegation Request"
-      },
-      {
-        "parameters": {
-          "jsCode": "const worker = $('Normalize Delegated Codex Reply').item.json;\nconst saved = $input.first().json;\nreturn [{ json: {\n  ...worker,\n  worker_assistant_message_id: saved.id || '',\n} }];"
-        },
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          3376,
-          -208
-        ],
-        "id": "bd8a0069-880c-aa28-e95e-7e412c0b31a6",
-        "name": "Build Delegated Completion Context"
-      },
-      {
-        "parameters": {
-          "jsCode": "const item = $('Build Delegated Completion Context').item.json;\nreturn [{ json: { ...item } }];"
-        },
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          3600,
-          -208
-        ],
-        "id": "6a6df5ae-faa3-178f-7054-3fee5780eec9",
-        "name": "Build Finalize Delegation Context"
-      },
-      {
-        "parameters": {
-          "operation": "executeQuery",
-          "query": "SELECT\n  delegation_id::text,\n  orchestration_task_id::text,\n  worker_conversation_id::text,\n  worker_agent_id::text,\n  worker_agent_label,\n  worker_provider,\n  worker_model\nFROM public.ghost_create_conversation_delegation(\n  NULLIF($1, '')::uuid,\n  NULLIF($2, '')::uuid,\n  NULLIF($3, ''),\n  NULLIF($4, ''),\n  NULLIF($5, ''),\n  $6,\n  $7::jsonb\n);",
-          "options": {
-            "queryReplacement": "={{ [$json.conversation_id || '', $json.parent_message_id || '', $json.delegated_provider || 'codex_oauth_worker', $json.delegated_model || '', $json.request_title || '', $json.request_summary || '', $json.delegation_metadata_json || '{}'] }}"
-          }
-        },
-        "type": "n8n-nodes-base.postgres",
-        "typeVersion": 2.6,
-        "position": [
-          1024,
-          -208
-        ],
-        "id": "e7eed125-11d7-5d27-3d60-b43ded0907cf",
-        "name": "Create Conversation Delegation",
-        "credentials": {
-          "postgres": {
-            "id": "r4pH8PimgUf2t9oM",
-            "name": "Postgres account"
-          }
-        },
-        "continueOnFail": false
-      },
-      {
-        "parameters": {
-          "jsCode": "const parent = $('Build Delegation Request').item.json;\nconst delegation = $input.first().json;\nconst normalized = $('Normalize Input').item.json;\nconst compact = (value, limit = 800) => String(value || '').replace(/\\s+/g, ' ').trim().slice(0, limit);\nconst workerRuntimeInput = {\n  request_summary: parent.request_summary || '',\n  delegated_from_conversation_id: parent.conversation_id || '',\n  delegated_from_message_id: parent.parent_message_id || '',\n  delegated_provider: delegation.worker_provider || parent.delegated_provider || '',\n  delegated_model: delegation.worker_model || parent.delegated_model || '',\n};\nconst workerRuntimeContext = {\n  delegation_id: delegation.delegation_id || '',\n  orchestration_task_id: delegation.orchestration_task_id || '',\n  parent_conversation_id: parent.conversation_id || '',\n  parent_owner_label: parent.parent_owner_label || 'Ghost',\n  delegated_provider: delegation.worker_provider || parent.delegated_provider || '',\n  delegated_model: delegation.worker_model || parent.delegated_model || '',\n  entrypoint: normalized.entrypoint || 'direct_webhook',\n  n8n_execution_id: parent.n8n_execution_id || normalized.n8n_execution_id || '',\n};\nreturn [{ json: {\n  ...parent,\n  delegation_id: delegation.delegation_id || '',\n  orchestration_task_id: delegation.orchestration_task_id || '',\n  worker_conversation_id: delegation.worker_conversation_id || '',\n  worker_agent_id: delegation.worker_agent_id || '',\n  worker_agent_label: delegation.worker_agent_label || 'Delegated worker',\n  delegated_provider: delegation.worker_provider || parent.delegated_provider || '',\n  delegated_model: delegation.worker_model || parent.delegated_model || '',\n  worker_runtime_input_json: JSON.stringify(workerRuntimeInput),\n  worker_runtime_context_json: JSON.stringify(workerRuntimeContext),\n  worker_user_metadata_json: JSON.stringify({\n    source: 'conversation_delegation',\n    delegation_id: delegation.delegation_id || null,\n    orchestration_task_id: delegation.orchestration_task_id || null,\n    parent_conversation_id: parent.conversation_id || null,\n    parent_message_id: parent.parent_message_id || null,\n    delegated_provider: delegation.worker_provider || parent.delegated_provider || null,\n    delegated_model: delegation.worker_model || parent.delegated_model || null,\n    parent_owner_label: parent.parent_owner_label || 'Ghost',\n    n8n_execution_id: parent.n8n_execution_id || normalized.n8n_execution_id || null,\n  }),\n  blocked_result_summary: compact(`Approval required before delegated worker execution. ${(parent.risk_reasons || []).join(' ')}`, 400),\n  unsupported_result_summary: compact(`Delegated work was queued for ${delegation.worker_provider || parent.delegated_provider || 'the selected worker'}, but only explicit Codex execution is wired in this phase.`, 400),\n} }];"
-        },
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          1248,
-          -208
-        ],
-        "id": "36fdb14c-6220-e1ed-09dc-13e288c05f9b",
-        "name": "Build Delegation Context"
-      },
-      {
-        "parameters": {
-          "operation": "executeQuery",
-          "query": "INSERT INTO messages (\n  id,\n  conversation_id,\n  role,\n  content,\n  content_format,\n  model_name,\n  metadata,\n  created_at\n)\nVALUES (\n  gen_random_uuid(),\n  NULLIF($1, '')::uuid,\n  'user',\n  $2,\n  'text',\n  NULL,\n  $3::jsonb,\n  NOW()\n)\nRETURNING id::text, conversation_id::text, role, content, created_at;",
-          "options": {
-            "queryReplacement": "={{ [$json.worker_conversation_id || '', $json.worker_message_content || '', $json.worker_user_metadata_json || '{}'] }}"
-          }
-        },
-        "type": "n8n-nodes-base.postgres",
-        "typeVersion": 2.6,
-        "position": [
-          1472,
-          -208
-        ],
-        "id": "e5b291e7-1c1b-986d-3834-89b055a6c876",
-        "name": "Save Delegated Worker Message",
-        "credentials": {
-          "postgres": {
-            "id": "r4pH8PimgUf2t9oM",
-            "name": "Postgres account"
-          }
-        },
-        "continueOnFail": false
       },
       {
         "parameters": {
@@ -1449,43 +1397,6 @@
       },
       {
         "parameters": {
-          "operation": "executeQuery",
-          "query": "SELECT public.ghost_finalize_delegation(\n  NULLIF($1, '')::uuid,\n  NULL,\n  'blocked',\n  $2,\n  NULL\n);",
-          "options": {
-            "queryReplacement": "={{ [$json.delegation_id || '', $json.blocked_result_summary || 'Approval required before delegated worker execution.'] }}"
-          }
-        },
-        "type": "n8n-nodes-base.postgres",
-        "typeVersion": 2.6,
-        "position": [
-          1920,
-          -352
-        ],
-        "id": "72ce655e-2ccc-f6b1-5653-1c80509ba7fa",
-        "name": "Finalize Blocked Delegation",
-        "credentials": {
-          "postgres": {
-            "id": "r4pH8PimgUf2t9oM",
-            "name": "Postgres account"
-          }
-        },
-        "continueOnFail": false
-      },
-      {
-        "parameters": {
-          "jsCode": "const item = $('Build Delegation Context').item.json;\nconst reasons = Array.isArray(item.risk_reasons) && item.risk_reasons.length\n  ? item.risk_reasons.join(' ')\n  : 'Risk policy requires review before Ghost can start the delegated worker session.';\nconst reply = [\n  `${item.parent_owner_label || 'Ghost'} kept this conversation under its current owner and opened a delegated worker task instead of silently switching models.`,\n  `Execution is blocked pending approval. The delegated task is now visible on the Task Board for review.`,\n  reasons,\n].join('\\n\\n');\nreturn [{ json: {\n  conversation_id: item.conversation_id || '',\n  reply,\n  provider_used: item.parent_provider || '',\n  model_used: item.parent_model || '',\n  task_class: item.task_class || 'technical_work',\n  approval_required: true,\n  risk_level: item.risk_level || 'caution',\n  risk_reasons: item.risk_reasons || [],\n  task_summary: item.task_summary || '',\n  command_success: false,\n  command_exit_code: null,\n  stdout_summary: '',\n  stderr_summary: reasons,\n  artifact_path: '',\n  codex_command_status: 'blocked_pending_approval',\n  error_type: 'delegation_blocked_pending_approval',\n  delegation_id: item.delegation_id || '',\n  orchestration_task_id: item.orchestration_task_id || '',\n  runtime_task_id: null,\n  worker_conversation_id: item.worker_conversation_id || '',\n  n8n_execution_id: item.n8n_execution_id || null,\n  response_mode: 'delegated_blocked',\n  parent_owner_label: item.parent_owner_label || 'Ghost',\n} }];"
-        },
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          2144,
-          -352
-        ],
-        "id": "15bb4536-847b-ef38-ed45-b3158018740b",
-        "name": "Build Parent Blocked Delegation Response"
-      },
-      {
-        "parameters": {
           "conditions": {
             "options": {
               "caseSensitive": true,
@@ -1519,20 +1430,46 @@
       },
       {
         "parameters": {
+          "jsCode": "const context = $('Build Delegation Context').item.json;\nconst saved = $input.first().json;\nreturn [{ json: {\n  ...context,\n  worker_user_message_id: saved.id || '',\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1600,
+          -208
+        ],
+        "id": "8785096e-fc34-d3d2-2949-d5dc2df27bd6",
+        "name": "Build Delegation Execution Context"
+      },
+      {
+        "parameters": {
+          "jsCode": "const __ghostWorkerRuntime = {\"workers_by_id\":{\"ghost_main\":{\"id\":\"ghost_main\",\"visibility_label\":\"Ghost Main\",\"role\":\"primary_orchestrator\",\"purpose\":\"Owns the parent conversation, resolves route/policy decisions, and returns the canonical parent-facing reply.\",\"invocation_intent\":[\"default_chat_owner\",\"route_resolution\",\"parent_reply\"],\"operator_identity\":\"parent-owner\",\"responsibility_domain\":[\"conversation_ownership\",\"routing\",\"policy_handoff\",\"parent_response\"],\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"]},\"forge\":{\"id\":\"forge\",\"visibility_label\":\"Forge\",\"role\":\"implementation_worker\",\"purpose\":\"Performs bounded technical work that requires code modification or artifact production.\",\"invocation_intent\":[\"technical_work\",\"code_change\",\"artifact_build\"],\"operator_identity\":\"delegated-worker\",\"responsibility_domain\":[\"code_editing\",\"artifact_generation\",\"task_execution\"],\"environment_scope\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"]},\"probe\":{\"id\":\"probe\",\"visibility_label\":\"Probe\",\"role\":\"verification_worker\",\"purpose\":\"Runs smoke, probes, and narrow runtime verification tasks against existing behavior.\",\"invocation_intent\":[\"smoke_check\",\"runtime_probe\",\"post_change_verification\"],\"operator_identity\":\"verification-worker\",\"responsibility_domain\":[\"verification\",\"probe_execution\",\"health_confirmation\"],\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\"]},\"rector\":{\"id\":\"rector\",\"visibility_label\":\"Rector\",\"role\":\"change_governance_worker\",\"purpose\":\"Applies guarded remediation or cleanup work when explicitly authorized by policy or operator action.\",\"invocation_intent\":[\"guarded_cleanup\",\"narrow_remediation\",\"policy_constrained_change\"],\"operator_identity\":\"governed-change-worker\",\"responsibility_domain\":[\"governed_remediation\",\"cleanup\",\"riskier_write_paths\"],\"environment_scope\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"]},\"archivist\":{\"id\":\"archivist\",\"visibility_label\":\"Archivist\",\"role\":\"memory_audit_worker\",\"purpose\":\"Handles memory, retention framing, and durable evidence packaging for later interpretation.\",\"invocation_intent\":[\"memory_write\",\"audit_packaging\",\"history_summary\"],\"operator_identity\":\"memory-audit-worker\",\"responsibility_domain\":[\"memory\",\"history\",\"evidence_packaging\"],\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\"]},\"operator\":{\"id\":\"operator\",\"visibility_label\":\"Operator\",\"role\":\"ops_control_worker\",\"purpose\":\"Owns promotion, rollback, runtime trace, and governance-facing operator actions.\",\"invocation_intent\":[\"deployment_promotion\",\"rollback\",\"runtime_trace\",\"governance_action\"],\"operator_identity\":\"ops-worker\",\"responsibility_domain\":[\"ops\",\"promotion\",\"rollback\",\"runtime_debug\"],\"environment_scope\":[\"prod\",\"staging\",\"lab\"]},\"scout\":{\"id\":\"scout\",\"visibility_label\":\"Scout\",\"role\":\"research_worker\",\"purpose\":\"Performs bounded external or internal research when discovery is needed before action.\",\"invocation_intent\":[\"recon\",\"research\",\"preflight_discovery\"],\"operator_identity\":\"research-worker\",\"responsibility_domain\":[\"research\",\"discovery\",\"preflight_visibility\"],\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"]}},\"capabilities_by_id\":{\"code.read\":{\"id\":\"code.read\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Read source files, generated artifacts, and builder modules.\"},\"code.write\":{\"id\":\"code.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Modify source files or generated workflow artifacts.\"},\"shell.safe\":{\"id\":\"shell.safe\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Run bounded, non-destructive shell commands for inspection or validation.\"},\"shell.destructive\":{\"id\":\"shell.destructive\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Run commands that can mutate runtime state or remove data.\"},\"git.inspect\":{\"id\":\"git.inspect\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Inspect repository history, status, and diffs.\"},\"git.write\":{\"id\":\"git.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Create commits or otherwise mutate repository state.\"},\"deploy.promote\":{\"id\":\"deploy.promote\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"prod\",\"staging\"],\"description\":\"Promote, publish, or roll back live workflows.\"},\"db.read\":{\"id\":\"db.read\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\"],\"description\":\"Read application or workflow database state.\"},\"db.write\":{\"id\":\"db.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Mutate application or workflow database state.\"},\"memory.write\":{\"id\":\"memory.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\"],\"description\":\"Persist durable memory or history records.\"},\"web.research\":{\"id\":\"web.research\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Perform external or internal research for discovery and preflight work.\"},\"artifact.publish\":{\"id\":\"artifact.publish\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\"],\"description\":\"Publish or persist generated artifacts intended for wider system use.\"}},\"worker_capabilities\":{\"ghost_main\":[\"code.read\",\"shell.safe\",\"git.inspect\",\"db.read\"],\"forge\":[\"code.read\",\"code.write\",\"shell.safe\",\"git.inspect\",\"artifact.publish\"],\"probe\":[\"code.read\",\"shell.safe\",\"git.inspect\",\"db.read\",\"web.research\"],\"rector\":[\"code.read\",\"code.write\",\"shell.safe\",\"shell.destructive\",\"git.inspect\",\"git.write\",\"db.read\",\"db.write\"],\"archivist\":[\"code.read\",\"db.read\",\"memory.write\",\"artifact.publish\"],\"operator\":[\"code.read\",\"shell.safe\",\"shell.destructive\",\"git.inspect\",\"git.write\",\"deploy.promote\",\"db.read\",\"db.write\",\"artifact.publish\"],\"scout\":[\"code.read\",\"shell.safe\",\"git.inspect\",\"db.read\",\"web.research\"]},\"environments_by_id\":{\"prod\":{\"id\":\"prod\",\"label\":\"Production\",\"governance_posture\":\"highest\",\"restricted_capabilities\":[\"code.write\",\"shell.destructive\",\"git.write\",\"db.write\",\"memory.write\"],\"mutable\":true},\"staging\":{\"id\":\"staging\",\"label\":\"Staging\",\"governance_posture\":\"high\",\"restricted_capabilities\":[\"deploy.promote\"],\"mutable\":true},\"lab\":{\"id\":\"lab\",\"label\":\"Lab\",\"governance_posture\":\"moderate\",\"restricted_capabilities\":[],\"mutable\":true},\"sandbox\":{\"id\":\"sandbox\",\"label\":\"Sandbox\",\"governance_posture\":\"moderate\",\"restricted_capabilities\":[],\"mutable\":true},\"scratch\":{\"id\":\"scratch\",\"label\":\"Scratch\",\"governance_posture\":\"low\",\"restricted_capabilities\":[],\"mutable\":true}}};\nconst item = $input.first().json;\nconst normalized = $('Normalize Input').item.json;\nconst userMessage = $items('Save User Message', 0, 0)[0]?.json || {};\nconst compact = (value, limit = 600) => String(value || '').replace(/\\s+/g, ' ').trim().slice(0, limit);\nconst candidateWorkers = Object.values(__ghostWorkerRuntime.workers_by_id || {});\nconst selectedWorker = candidateWorkers.find((worker) => Array.isArray(worker.invocation_intent) && worker.invocation_intent.includes(item.task_class || ''))\n  || __ghostWorkerRuntime.workers_by_id.forge\n  || null;\nif (!selectedWorker) {\n  throw new Error('No delegated worker registry entry is available for technical work');\n}\nconst requestTitle = compact(item.task_summary || normalized.message || 'Ghost delegated worker task', 160) || 'Ghost delegated worker task';\nconst requestSummary = compact(normalized.message || item.task_summary || '');\nconst metadata = {\n  source: 'conversation_delegation',\n  entrypoint: normalized.entrypoint || 'direct_webhook',\n  parent_owner_agent_id: item.parent_owner_agent_id || null,\n  parent_owner_agent_key: item.parent_owner_agent_key || 'ghost-main',\n  parent_owner_label: item.parent_owner_label || 'Ghost',\n  parent_provider: item.parent_provider || '',\n  parent_model: item.parent_model || '',\n  delegated_provider: item.delegated_provider || '',\n  delegated_model: item.delegated_model || '',\n  parent_message_id: userMessage.id || null,\n  n8n_execution_id: item.n8n_execution_id || normalized.n8n_execution_id || null,\n};\nreturn [{ json: {\n  ...item,\n  delegated_worker_id: selectedWorker.id,\n  delegated_worker_label: selectedWorker.visibility_label || 'Forge',\n  delegated_worker_role: selectedWorker.role || 'implementation_worker',\n  delegated_worker_operator_identity: selectedWorker.operator_identity || 'delegated-worker',\n  parent_message_id: userMessage.id || '',\n  request_title: requestTitle,\n  request_summary: requestSummary,\n  worker_message_content: normalized.message || requestSummary || requestTitle,\n  worker_execution_prompt: item.prompt || normalized.message || requestSummary || requestTitle,\n  delegation_metadata_json: JSON.stringify(metadata),\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          800,
+          -208
+        ],
+        "id": "71c8b260-fda1-212a-9d94-a7318ce5503c",
+        "name": "Build Delegation Request"
+      },
+      {
+        "parameters": {
           "operation": "executeQuery",
-          "query": "SELECT public.ghost_finalize_delegation(\n  NULLIF($1, '')::uuid,\n  NULL,\n  'blocked',\n  $2,\n  NULL\n);",
+          "query": "SELECT\n  delegation_id::text,\n  orchestration_task_id::text,\n  worker_conversation_id::text,\n  worker_agent_id::text,\n  worker_agent_label,\n  worker_provider,\n  worker_model\nFROM public.ghost_create_conversation_delegation(\n  NULLIF($1, '')::uuid,\n  NULLIF($2, '')::uuid,\n  NULLIF($3, ''),\n  NULLIF($4, ''),\n  NULLIF($5, ''),\n  $6,\n  $7::jsonb\n);",
           "options": {
-            "queryReplacement": "={{ [$json.delegation_id || '', $json.unsupported_result_summary || 'Delegated worker execution is queued for later handling.'] }}"
+            "queryReplacement": "={{ [$json.conversation_id || '', $json.parent_message_id || '', $json.delegated_provider || 'codex_oauth_worker', $json.delegated_model || '', $json.request_title || '', $json.request_summary || '', $json.delegation_metadata_json || '{}'] }}"
           }
         },
         "type": "n8n-nodes-base.postgres",
         "typeVersion": 2.6,
         "position": [
-          2144,
-          64
+          1024,
+          -208
         ],
-        "id": "02249b14-bfb6-299d-c137-7367435e4c04",
-        "name": "Finalize Unsupported Delegation",
+        "id": "e7eed125-11d7-5d27-3d60-b43ded0907cf",
+        "name": "Create Conversation Delegation",
         "credentials": {
           "postgres": {
             "id": "r4pH8PimgUf2t9oM",
@@ -1543,16 +1480,40 @@
       },
       {
         "parameters": {
-          "jsCode": "const item = $('Build Delegation Context').item.json;\nconst workerLabel = item.worker_agent_label || item.delegated_provider || 'the delegated worker';\nconst reply = [\n  `${item.parent_owner_label || 'Ghost'} kept ownership of this conversation and opened delegated work for ${workerLabel}.`,\n  'The work is now visible on the Task Board, but only explicit Codex execution is wired in this phase.',\n].join('\\n\\n');\nreturn [{ json: {\n  conversation_id: item.conversation_id || '',\n  reply,\n  provider_used: item.parent_provider || '',\n  model_used: item.parent_model || '',\n  task_class: item.task_class || 'technical_work',\n  approval_required: false,\n  risk_level: item.risk_level || 'safe',\n  risk_reasons: item.risk_reasons || [],\n  task_summary: item.task_summary || '',\n  command_success: false,\n  command_exit_code: null,\n  stdout_summary: '',\n  stderr_summary: item.unsupported_result_summary || '',\n  artifact_path: '',\n  codex_command_status: 'queued_for_worker',\n  error_type: 'delegation_execution_not_available',\n  delegation_id: item.delegation_id || '',\n  orchestration_task_id: item.orchestration_task_id || '',\n  runtime_task_id: null,\n  worker_conversation_id: item.worker_conversation_id || '',\n  n8n_execution_id: item.n8n_execution_id || null,\n  response_mode: 'delegated_queued',\n  parent_owner_label: item.parent_owner_label || 'Ghost',\n} }];"
+          "jsCode": "const __ghostWorkerRuntime = {\"workers_by_id\":{\"ghost_main\":{\"id\":\"ghost_main\",\"visibility_label\":\"Ghost Main\",\"role\":\"primary_orchestrator\",\"purpose\":\"Owns the parent conversation, resolves route/policy decisions, and returns the canonical parent-facing reply.\",\"invocation_intent\":[\"default_chat_owner\",\"route_resolution\",\"parent_reply\"],\"operator_identity\":\"parent-owner\",\"responsibility_domain\":[\"conversation_ownership\",\"routing\",\"policy_handoff\",\"parent_response\"],\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"]},\"forge\":{\"id\":\"forge\",\"visibility_label\":\"Forge\",\"role\":\"implementation_worker\",\"purpose\":\"Performs bounded technical work that requires code modification or artifact production.\",\"invocation_intent\":[\"technical_work\",\"code_change\",\"artifact_build\"],\"operator_identity\":\"delegated-worker\",\"responsibility_domain\":[\"code_editing\",\"artifact_generation\",\"task_execution\"],\"environment_scope\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"]},\"probe\":{\"id\":\"probe\",\"visibility_label\":\"Probe\",\"role\":\"verification_worker\",\"purpose\":\"Runs smoke, probes, and narrow runtime verification tasks against existing behavior.\",\"invocation_intent\":[\"smoke_check\",\"runtime_probe\",\"post_change_verification\"],\"operator_identity\":\"verification-worker\",\"responsibility_domain\":[\"verification\",\"probe_execution\",\"health_confirmation\"],\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\"]},\"rector\":{\"id\":\"rector\",\"visibility_label\":\"Rector\",\"role\":\"change_governance_worker\",\"purpose\":\"Applies guarded remediation or cleanup work when explicitly authorized by policy or operator action.\",\"invocation_intent\":[\"guarded_cleanup\",\"narrow_remediation\",\"policy_constrained_change\"],\"operator_identity\":\"governed-change-worker\",\"responsibility_domain\":[\"governed_remediation\",\"cleanup\",\"riskier_write_paths\"],\"environment_scope\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"]},\"archivist\":{\"id\":\"archivist\",\"visibility_label\":\"Archivist\",\"role\":\"memory_audit_worker\",\"purpose\":\"Handles memory, retention framing, and durable evidence packaging for later interpretation.\",\"invocation_intent\":[\"memory_write\",\"audit_packaging\",\"history_summary\"],\"operator_identity\":\"memory-audit-worker\",\"responsibility_domain\":[\"memory\",\"history\",\"evidence_packaging\"],\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\"]},\"operator\":{\"id\":\"operator\",\"visibility_label\":\"Operator\",\"role\":\"ops_control_worker\",\"purpose\":\"Owns promotion, rollback, runtime trace, and governance-facing operator actions.\",\"invocation_intent\":[\"deployment_promotion\",\"rollback\",\"runtime_trace\",\"governance_action\"],\"operator_identity\":\"ops-worker\",\"responsibility_domain\":[\"ops\",\"promotion\",\"rollback\",\"runtime_debug\"],\"environment_scope\":[\"prod\",\"staging\",\"lab\"]},\"scout\":{\"id\":\"scout\",\"visibility_label\":\"Scout\",\"role\":\"research_worker\",\"purpose\":\"Performs bounded external or internal research when discovery is needed before action.\",\"invocation_intent\":[\"recon\",\"research\",\"preflight_discovery\"],\"operator_identity\":\"research-worker\",\"responsibility_domain\":[\"research\",\"discovery\",\"preflight_visibility\"],\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"]}},\"capabilities_by_id\":{\"code.read\":{\"id\":\"code.read\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Read source files, generated artifacts, and builder modules.\"},\"code.write\":{\"id\":\"code.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Modify source files or generated workflow artifacts.\"},\"shell.safe\":{\"id\":\"shell.safe\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Run bounded, non-destructive shell commands for inspection or validation.\"},\"shell.destructive\":{\"id\":\"shell.destructive\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Run commands that can mutate runtime state or remove data.\"},\"git.inspect\":{\"id\":\"git.inspect\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Inspect repository history, status, and diffs.\"},\"git.write\":{\"id\":\"git.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Create commits or otherwise mutate repository state.\"},\"deploy.promote\":{\"id\":\"deploy.promote\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"prod\",\"staging\"],\"description\":\"Promote, publish, or roll back live workflows.\"},\"db.read\":{\"id\":\"db.read\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\"],\"description\":\"Read application or workflow database state.\"},\"db.write\":{\"id\":\"db.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Mutate application or workflow database state.\"},\"memory.write\":{\"id\":\"memory.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\"],\"description\":\"Persist durable memory or history records.\"},\"web.research\":{\"id\":\"web.research\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Perform external or internal research for discovery and preflight work.\"},\"artifact.publish\":{\"id\":\"artifact.publish\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\"],\"description\":\"Publish or persist generated artifacts intended for wider system use.\"}},\"worker_capabilities\":{\"ghost_main\":[\"code.read\",\"shell.safe\",\"git.inspect\",\"db.read\"],\"forge\":[\"code.read\",\"code.write\",\"shell.safe\",\"git.inspect\",\"artifact.publish\"],\"probe\":[\"code.read\",\"shell.safe\",\"git.inspect\",\"db.read\",\"web.research\"],\"rector\":[\"code.read\",\"code.write\",\"shell.safe\",\"shell.destructive\",\"git.inspect\",\"git.write\",\"db.read\",\"db.write\"],\"archivist\":[\"code.read\",\"db.read\",\"memory.write\",\"artifact.publish\"],\"operator\":[\"code.read\",\"shell.safe\",\"shell.destructive\",\"git.inspect\",\"git.write\",\"deploy.promote\",\"db.read\",\"db.write\",\"artifact.publish\"],\"scout\":[\"code.read\",\"shell.safe\",\"git.inspect\",\"db.read\",\"web.research\"]},\"environments_by_id\":{\"prod\":{\"id\":\"prod\",\"label\":\"Production\",\"governance_posture\":\"highest\",\"restricted_capabilities\":[\"code.write\",\"shell.destructive\",\"git.write\",\"db.write\",\"memory.write\"],\"mutable\":true},\"staging\":{\"id\":\"staging\",\"label\":\"Staging\",\"governance_posture\":\"high\",\"restricted_capabilities\":[\"deploy.promote\"],\"mutable\":true},\"lab\":{\"id\":\"lab\",\"label\":\"Lab\",\"governance_posture\":\"moderate\",\"restricted_capabilities\":[],\"mutable\":true},\"sandbox\":{\"id\":\"sandbox\",\"label\":\"Sandbox\",\"governance_posture\":\"moderate\",\"restricted_capabilities\":[],\"mutable\":true},\"scratch\":{\"id\":\"scratch\",\"label\":\"Scratch\",\"governance_posture\":\"low\",\"restricted_capabilities\":[],\"mutable\":true}}};\nconst parent = $('Build Delegation Request').item.json;\nconst workerId = parent.delegated_worker_id || 'forge';\nconst workerRegistry = __ghostWorkerRuntime.workers_by_id[workerId];\nconst workerCapabilities = Array.isArray(__ghostWorkerRuntime.worker_capabilities[workerId])\n  ? __ghostWorkerRuntime.worker_capabilities[workerId]\n  : [];\nconst requiredCapabilities = ['code.write', 'artifact.publish'];\nconst runtimeEnvironment = (() => {\n  const explicit = typeof process !== 'undefined'\n    ? String(process.env.GHOST_RUNTIME_ENV || process.env.GHOST_ENV || process.env.NODE_ENV || '').trim()\n    : '';\n  if (explicit === 'production' && __ghostWorkerRuntime.environments_by_id.prod) return 'prod';\n  if (explicit && __ghostWorkerRuntime.environments_by_id[explicit]) return explicit;\n  return 'lab';\n})();\nconst environmentDoc = __ghostWorkerRuntime.environments_by_id[runtimeEnvironment] || __ghostWorkerRuntime.environments_by_id.lab || { governance_posture: 'moderate', restricted_capabilities: [] };\nconst capabilityRecords = requiredCapabilities\n  .map((capabilityId) => __ghostWorkerRuntime.capabilities_by_id[capabilityId] || null)\n  .filter(Boolean);\nconst approvalRequiredCapabilities = capabilityRecords\n  .filter((entry) => entry.approval_required)\n  .map((entry) => entry.id);\nconst restrictedCapabilities = capabilityRecords\n  .filter((entry) => (environmentDoc.restricted_capabilities || []).includes(entry.id))\n  .map((entry) => entry.id);\nconst outOfScopeCapabilities = capabilityRecords\n  .filter((entry) => !(entry.environment_restriction || []).includes(runtimeEnvironment))\n  .map((entry) => entry.id);\nconst workerGovernanceState = restrictedCapabilities.length > 0 || outOfScopeCapabilities.length > 0\n  ? 'environment_restricted'\n  : approvalRequiredCapabilities.length > 0\n    ? 'approval_required'\n    : 'allowed';\nconst workerGovernancePolicy = {\n  state: workerGovernanceState,\n  summary: [\n    approvalRequiredCapabilities.length ? `approval required for ${approvalRequiredCapabilities.join(', ')}` : '',\n    restrictedCapabilities.length ? `restricted in ${runtimeEnvironment}: ${restrictedCapabilities.join(', ')}` : '',\n    outOfScopeCapabilities.length ? `outside ${runtimeEnvironment} scope: ${outOfScopeCapabilities.join(', ')}` : '',\n    `environment posture ${environmentDoc.governance_posture || 'unknown'}`,\n  ].filter(Boolean).join('; '),\n  environment: runtimeEnvironment,\n  environment_posture: environmentDoc.governance_posture || null,\n  approval_required_capabilities: approvalRequiredCapabilities,\n  restricted_capabilities: restrictedCapabilities,\n  out_of_scope_capabilities: outOfScopeCapabilities,\n  blocking_capabilities: Array.from(new Set([...restrictedCapabilities, ...outOfScopeCapabilities])),\n};\nconst missingCapabilities = requiredCapabilities.filter((capabilityId) => !workerCapabilities.includes(capabilityId));\nif (!workerRegistry) {\n  throw new Error(`Missing delegated worker registry definition for ${workerId}`);\n}\nif (missingCapabilities.length > 0) {\n  throw new Error(`${workerRegistry.visibility_label || workerId} worker is missing required capabilities: ${missingCapabilities.join(', ')}`);\n}\nconst delegation = $input.first().json;\nconst normalized = $('Normalize Input').item.json;\nconst compact = (value, limit = 800) => String(value || '').replace(/\\s+/g, ' ').trim().slice(0, limit);\nconst workerRuntimeInput = {\n  request_summary: parent.request_summary || '',\n  delegated_from_conversation_id: parent.conversation_id || '',\n  delegated_from_message_id: parent.parent_message_id || '',\n  delegated_provider: delegation.worker_provider || parent.delegated_provider || '',\n  delegated_model: delegation.worker_model || parent.delegated_model || '',\n};\nconst workerRuntimeContext = {\n  delegation_id: delegation.delegation_id || '',\n  orchestration_task_id: delegation.orchestration_task_id || '',\n  parent_conversation_id: parent.conversation_id || '',\n  parent_owner_label: parent.parent_owner_label || 'Ghost',\n  worker_registry_id: workerRegistry.id,\n  worker_role: workerRegistry.role,\n  worker_operator_identity: workerRegistry.operator_identity,\n  delegated_provider: delegation.worker_provider || parent.delegated_provider || '',\n  delegated_model: delegation.worker_model || parent.delegated_model || '',\n  entrypoint: normalized.entrypoint || 'direct_webhook',\n  n8n_execution_id: parent.n8n_execution_id || normalized.n8n_execution_id || '',\n};\nreturn [{ json: {\n  ...parent,\n  delegation_id: delegation.delegation_id || '',\n  orchestration_task_id: delegation.orchestration_task_id || '',\n  worker_conversation_id: delegation.worker_conversation_id || '',\n  worker_agent_id: delegation.worker_agent_id || '',\n  approval_required: parent.approval_required === true || workerGovernancePolicy.state === 'environment_restricted',\n  governance_environment: runtimeEnvironment,\n  governance_policy: workerGovernancePolicy,\n  requested_capabilities: requiredCapabilities,\n  risk_reasons: Array.from(new Set([\n    ...(Array.isArray(parent.risk_reasons) ? parent.risk_reasons : []),\n    workerGovernancePolicy.state === 'environment_restricted' ? workerGovernancePolicy.summary : '',\n  ].filter(Boolean))),\n  worker_registry_id: workerRegistry.id,\n  worker_agent_label: workerRegistry.visibility_label,\n  worker_role: workerRegistry.role,\n  worker_operator_identity: workerRegistry.operator_identity,\n  worker_environment_scope: workerRegistry.environment_scope || [],\n  worker_allowed_capabilities: workerCapabilities,\n  delegated_provider: delegation.worker_provider || parent.delegated_provider || '',\n  delegated_model: delegation.worker_model || parent.delegated_model || '',\n  worker_runtime_input_json: JSON.stringify(workerRuntimeInput),\n  worker_runtime_context_json: JSON.stringify(workerRuntimeContext),\n  worker_user_metadata_json: JSON.stringify({\n    source: 'conversation_delegation',\n    delegation_id: delegation.delegation_id || null,\n    orchestration_task_id: delegation.orchestration_task_id || null,\n    parent_conversation_id: parent.conversation_id || null,\n    parent_message_id: parent.parent_message_id || null,\n    delegated_provider: delegation.worker_provider || parent.delegated_provider || null,\n    delegated_model: delegation.worker_model || parent.delegated_model || null,\n    parent_owner_label: parent.parent_owner_label || 'Ghost',\n    worker_registry_id: workerRegistry.id,\n    worker_role: workerRegistry.role,\n    worker_operator_identity: workerRegistry.operator_identity,\n    worker_allowed_capabilities: workerCapabilities,\n    governance_environment: runtimeEnvironment,\n    governance_policy: workerGovernancePolicy,\n    requested_capabilities: requiredCapabilities,\n    n8n_execution_id: parent.n8n_execution_id || normalized.n8n_execution_id || null,\n  }),\n  blocked_result_summary: compact(`Approval required before delegated worker execution. ${(parent.risk_reasons || []).join(' ')}`, 400),\n  unsupported_result_summary: compact(`Delegated execution is not available for ${workerRegistry.visibility_label || delegation.worker_provider || parent.delegated_provider || 'the selected worker'} in the current runtime. The task cannot start automatically in this phase.`, 400),\n} }];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
         "position": [
-          2368,
-          64
+          1248,
+          -208
         ],
-        "id": "f3fb2514-8c10-0c13-5769-2d7739c50040",
-        "name": "Build Parent Unsupported Delegation Response"
+        "id": "36fdb14c-6220-e1ed-09dc-13e288c05f9b",
+        "name": "Build Delegation Context"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO messages (\n  id,\n  conversation_id,\n  role,\n  content,\n  content_format,\n  model_name,\n  metadata,\n  created_at\n)\nVALUES (\n  gen_random_uuid(),\n  NULLIF($1, '')::uuid,\n  'user',\n  $2,\n  'text',\n  NULL,\n  $3::jsonb,\n  NOW()\n)\nRETURNING id::text, conversation_id::text, role, content, created_at;",
+          "options": {
+            "queryReplacement": "={{ [$json.worker_conversation_id || '', $json.worker_message_content || '', $json.worker_user_metadata_json || '{}'] }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1472,
+          -208
+        ],
+        "id": "e5b291e7-1c1b-986d-3834-89b055a6c876",
+        "name": "Save Delegated Worker Message",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        },
+        "continueOnFail": false
       },
       {
         "parameters": {
@@ -1620,7 +1581,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const result = $input.first().json;\nconst context = $('Build Delegated Codex Context').item.json;\nconst rawStdout = typeof result.stdout === 'string' ? result.stdout.trim() : '';\nconst nodeError = typeof result.error === 'string' ? result.error : (result.error?.message || '');\nlet payload = {};\nif (rawStdout) {\n  try {\n    payload = JSON.parse(rawStdout);\n  } catch (error) {\n    payload = {\n      reply: rawStdout,\n      success: true,\n      command_exit_code: 0,\n      stdout_summary: rawStdout.slice(0, 600),\n      stderr_summary: typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '',\n      artifact_path: '',\n    };\n  }\n}\nconst stderrSummary = payload.stderr_summary || (typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '') || nodeError.slice(0, 600);\nconst commandExitCode = payload.command_exit_code ?? (nodeError ? 127 : null);\nconst commandSuccess = Boolean(payload.success);\nconst failureSuffix = commandExitCode !== undefined && commandExitCode !== null ? ` (exit ${commandExitCode})` : '';\nconst failureReason = stderrSummary || 'No additional stderr was captured.';\nconst reply = (payload.reply || '').trim() || (commandSuccess ? '[no-codex-reply]' : `Codex execution failed${failureSuffix}. ${failureReason}`);\nreturn [{ json: {\n  ...context,\n  ...result,\n  codex_raw_result: payload,\n  reply,\n  command_success: commandSuccess,\n  command_exit_code: commandExitCode,\n  stdout_summary: payload.stdout_summary || '',\n  stderr_summary: stderrSummary,\n  artifact_path: payload.artifact_path || '',\n  codex_command_status: commandSuccess ? 'succeeded' : 'failed',\n  error_type: commandSuccess ? '' : 'codex_command_failed',\n  n8n_execution_id: context.n8n_execution_id || null,\n  runtime_status: commandSuccess ? 'succeeded' : 'failed',\n  result_summary: reply.replace(/\\s+/g, ' ').trim().slice(0, 600),\n} }];"
+          "jsCode": "const result = $input.first().json;\nconst context = $('Build Delegated Codex Context').item.json;\nconst rawStdout = typeof result.stdout === 'string' ? result.stdout.trim() : '';\nconst nodeError = typeof result.error === 'string' ? result.error : (result.error?.message || '');\nlet payload = {};\nlet payloadParseFailed = false;\nif (rawStdout) {\n  try {\n    payload = JSON.parse(rawStdout);\n  } catch (error) {\n    payloadParseFailed = true;\n    payload = {\n      reply: rawStdout,\n      success: false,\n      command_exit_code: typeof result.exitCode === 'number' ? result.exitCode : 0,\n      stdout_summary: rawStdout.slice(0, 600),\n      stderr_summary: typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '',\n      artifact_path: '',\n    };\n  }\n}\nconst commandExitCode = payload.command_exit_code ?? (typeof result.exitCode === 'number' ? result.exitCode : (nodeError ? 127 : null));\nconst stderrSummaryBase = payload.stderr_summary || (typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '') || nodeError.slice(0, 600);\nconst replyText = typeof payload.reply === 'string' ? payload.reply.trim() : '';\nconst invalidPayload = payloadParseFailed || !payload || typeof payload !== 'object' || Array.isArray(payload);\nconst timedOut = /timed?\\s*out|timeout/i.test((nodeError || '') + ' ' + (stderrSummaryBase || ''));\nconst commandSuccess = Boolean(payload.success) && !invalidPayload && replyText.length > 0;\nconst derivedErrorType = commandSuccess\n  ? ''\n  : (timedOut\n      ? 'delegated_worker_timeout'\n      : (invalidPayload || !replyText.length)\n          ? 'delegated_worker_invalid_result'\n          : 'codex_command_failed');\nconst stderrSummary = commandSuccess\n  ? stderrSummaryBase\n  : (stderrSummaryBase || (invalidPayload\n      ? 'Delegated worker returned an invalid result payload.'\n      : !replyText.length\n          ? 'Delegated worker returned no reply content.'\n          : 'Delegated worker execution failed.'));\nconst failureSuffix = commandExitCode !== undefined && commandExitCode !== null ? ` (exit ${commandExitCode})` : '';\nconst failureReason = stderrSummary || 'No additional stderr was captured.';\nconst reply = commandSuccess ? replyText : `Delegated worker failed${failureSuffix}. ${failureReason}`;\nreturn [{ json: {\n  ...context,\n  ...result,\n  codex_raw_result: payload,\n  reply,\n  command_success: commandSuccess,\n  command_exit_code: commandExitCode,\n  stdout_summary: payload.stdout_summary || '',\n  stderr_summary: stderrSummary,\n  artifact_path: payload.artifact_path || '',\n  codex_command_status: commandSuccess ? 'succeeded' : 'failed',\n  error_type: derivedErrorType,\n  n8n_execution_id: context.n8n_execution_id || null,\n  runtime_status: commandSuccess ? 'succeeded' : 'failed',\n  result_summary: reply.replace(/\\s+/g, ' ').trim().slice(0, 600),\n} }];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -1636,7 +1597,7 @@
           "operation": "executeQuery",
           "query": "INSERT INTO messages (\n  id,\n  conversation_id,\n  role,\n  content,\n  content_format,\n  model_name,\n  metadata,\n  created_at\n)\nVALUES (\n  gen_random_uuid(),\n  NULLIF($1, '')::uuid,\n  'assistant',\n  $2,\n  'text',\n  $3,\n  $4::jsonb,\n  NOW()\n)\nRETURNING id::text, conversation_id::text, role, content, created_at;",
           "options": {
-            "queryReplacement": "={{ [$json.worker_conversation_id || '', $json.reply || '', $json.model_used || null, { provider_used: $json.provider_used || null, task_class: 'delegated_worker_task', delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $json.task_id || null, command_success: $json.command_success === true, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null, n8n_execution_id: $json.n8n_execution_id || null, worker_execution: true }] }}"
+            "queryReplacement": "={{ [$json.worker_conversation_id || '', $json.reply || '', $json.model_used || null, { provider_used: $json.provider_used || null, task_class: 'delegated_worker_task', delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $json.task_id || null, runtime_task_run_id: $json.task_run_id || null, command_success: $json.command_success === true, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null, n8n_execution_id: $json.n8n_execution_id || null, worker_execution: true }] }}"
           }
         },
         "type": "n8n-nodes-base.postgres",
@@ -1657,10 +1618,23 @@
       },
       {
         "parameters": {
+          "jsCode": "const worker = $('Normalize Delegated Codex Reply').item.json;\nconst saved = $input.first().json;\nreturn [{ json: {\n  ...worker,\n  worker_assistant_message_id: saved.id || '',\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3376,
+          -208
+        ],
+        "id": "bd8a0069-880c-aa28-e95e-7e412c0b31a6",
+        "name": "Build Delegated Completion Context"
+      },
+      {
+        "parameters": {
           "operation": "executeQuery",
-          "query": "SELECT public.ghost_runtime_complete_task_ledger(\n  NULLIF($1, '')::uuid,\n  NULLIF($2, '')::uuid,\n  200,\n  $3::jsonb,\n  NULLIF($4, '')::uuid,\n  'delegated_worker_task',\n  NULLIF($5, ''),\n  NULLIF($6, ''),\n  FALSE,\n  $7,\n  NULLIF($8, ''),\n  NULLIF($9, ''),\n  NULLIF($10, ''),\n  'delegated_codex_session'\n);",
+          "query": "WITH runtime_ledger AS (\n  SELECT public.ghost_runtime_complete_task_ledger(\n    NULLIF($1, '')::uuid,\n    NULLIF($2, '')::uuid,\n    200,\n    $3::jsonb,\n    NULLIF($4, '')::uuid,\n    'delegated_worker_task',\n    NULLIF($5, ''),\n    NULLIF($6, ''),\n    FALSE,\n    $7,\n    NULLIF($8, ''),\n    NULLIF($9, ''),\n    NULLIF($10, ''),\n    'delegated_codex_session'\n  ) AS runtime_completed\n),\ndelegation_finalized AS (\n  SELECT public.ghost_finalize_delegation(\n    NULLIF($11, '')::uuid,\n    NULLIF($1, '')::uuid,\n    NULLIF($12, ''),\n    $13,\n    NULLIF($10, '')\n  ) AS delegation_completed\n)\nSELECT runtime_completed, delegation_completed\nFROM runtime_ledger, delegation_finalized;",
           "options": {
-            "queryReplacement": "={{ [$json.task_id || '', $json.task_run_id || '', JSON.stringify($json), $json.worker_conversation_id || '', $json.provider_used || '', $json.model_used || '', $json.command_success === true, $json.error_type || '', $json.task_summary || '', $json.artifact_path || ''] }}"
+            "queryReplacement": "={{ [$json.task_id || '', $json.task_run_id || '', JSON.stringify($json), $json.worker_conversation_id || '', $json.provider_used || '', $json.model_used || '', $json.command_success === true, $json.error_type || '', $json.task_summary || '', $json.artifact_path || '', $json.delegation_id || '', $json.runtime_status || 'failed', $json.result_summary || ''] }}"
           }
         },
         "type": "n8n-nodes-base.postgres",
@@ -1682,9 +1656,9 @@
       {
         "parameters": {
           "operation": "executeQuery",
-          "query": "SELECT public.ghost_finalize_delegation(\n  NULLIF($1, '')::uuid,\n  NULLIF($2, '')::uuid,\n  NULLIF($3, ''),\n  $4,\n  NULLIF($5, '')\n);",
+          "query": "WITH target_event AS (\n  SELECT id\n  FROM tool_events\n  WHERE task_id = NULLIF($1, '')::uuid\n    AND event_type = 'delegation_completed'\n  ORDER BY created_at DESC, id DESC\n  LIMIT 1\n)\nUPDATE tool_events AS te\nSET\n  task_run_id = COALESCE(te.task_run_id, NULLIF($2, '')::uuid),\n  payload = COALESCE(te.payload, '{}'::jsonb) || jsonb_build_object(\n    'task_run_id', NULLIF($2, ''),\n    'n8n_execution_id', NULLIF($3, ''),\n    'command_success', $4,\n    'command_exit_code', $5,\n    'error_type', NULLIF($6, ''),\n    'stdout_summary', NULLIF($7, ''),\n    'stderr_summary', NULLIF($8, ''),\n    'artifact_path', NULLIF($9, ''),\n    'codex_command_status', NULLIF($10, '')\n  )\nFROM target_event\nWHERE te.id = target_event.id\nRETURNING te.id::text AS tool_event_id;",
           "options": {
-            "queryReplacement": "={{ [$json.delegation_id || '', $json.task_id || '', $json.runtime_status || 'failed', $json.result_summary || '', $json.artifact_path || ''] }}"
+            "queryReplacement": "={{ [$json.task_id || '', $json.task_run_id || '', $json.n8n_execution_id || '', $json.command_success === true, $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, $json.error_type || '', $json.stdout_summary || '', $json.stderr_summary || '', $json.artifact_path || '', $json.codex_command_status || 'not_applicable'] }}"
           }
         },
         "type": "n8n-nodes-base.postgres",
@@ -1693,8 +1667,8 @@
           3712,
           -208
         ],
-        "id": "d854c802-2a64-41fe-a46b-7a938d0f6e6f",
-        "name": "Finalize Successful Delegation",
+        "id": "bb61e594-175e-05f5-69bf-b121528b734c",
+        "name": "Annotate Delegation Completion Event",
         "credentials": {
           "postgres": {
             "id": "r4pH8PimgUf2t9oM",
@@ -1705,7 +1679,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const item = $('Normalize Delegated Codex Reply').item.json;\nconst parent = $('Build Delegation Context').item.json;\nconst workerLabel = parent.worker_agent_label || 'Codex Worker';\nconst summary = item.command_success\n  ? `${parent.parent_owner_label || 'Ghost'} delegated this work to ${workerLabel} in a separate worker session and kept the parent conversation under Ghost ownership.`\n  : `${parent.parent_owner_label || 'Ghost'} delegated this work to ${workerLabel}, but the worker session reported a failure.`;\nconst workerBlock = item.reply ? `Worker result:\\n${item.reply}` : (item.stderr_summary || 'No additional worker output was captured.');\nreturn [{ json: {\n  conversation_id: parent.conversation_id || '',\n  reply: [summary, workerBlock].join('\\n\\n'),\n  provider_used: parent.parent_provider || '',\n  model_used: parent.parent_model || '',\n  task_class: parent.task_class || 'technical_work',\n  approval_required: false,\n  risk_level: parent.risk_level || 'safe',\n  risk_reasons: parent.risk_reasons || [],\n  task_summary: parent.task_summary || '',\n  command_success: item.command_success === true,\n  command_exit_code: item.command_exit_code !== undefined ? item.command_exit_code : null,\n  stdout_summary: item.stdout_summary || '',\n  stderr_summary: item.stderr_summary || '',\n  artifact_path: item.artifact_path || '',\n  codex_command_status: item.codex_command_status || 'not_applicable',\n  error_type: item.error_type || null,\n  delegation_id: parent.delegation_id || '',\n  orchestration_task_id: parent.orchestration_task_id || '',\n  runtime_task_id: item.task_id || '',\n  worker_conversation_id: parent.worker_conversation_id || '',\n  n8n_execution_id: parent.n8n_execution_id || item.n8n_execution_id || null,\n  response_mode: 'delegated_worker_result',\n  parent_owner_label: parent.parent_owner_label || 'Ghost',\n} }];"
+          "jsCode": "const item = $('Normalize Delegated Codex Reply').item.json;\nconst parent = $('Build Delegation Context').item.json;\nconst workerLabel = parent.worker_agent_label || 'Codex Worker';\nconst failureLabel = item.error_type === 'delegated_worker_timeout'\n  ? 'timed out'\n  : item.error_type === 'delegated_worker_invalid_result'\n    ? 'returned an invalid result'\n    : 'reported a failure';\nconst summary = item.command_success\n  ? `${parent.parent_owner_label || 'Ghost'} delegated this work to ${workerLabel} in a separate worker session and kept the parent conversation under Ghost ownership.`\n  : `${parent.parent_owner_label || 'Ghost'} delegated this work to ${workerLabel}, but the worker session ${failureLabel}.`;\nconst workerBlock = item.reply ? `Worker result:\\n${item.reply}` : (item.stderr_summary || 'No additional worker output was captured.');\nreturn [{ json: {\n  conversation_id: parent.conversation_id || '',\n  reply: [summary, workerBlock].join('\\n\\n'),\n  provider_used: parent.parent_provider || '',\n  model_used: parent.parent_model || '',\n  task_class: parent.task_class || 'technical_work',\n  approval_required: false,\n  risk_level: parent.risk_level || 'safe',\n  risk_reasons: parent.risk_reasons || [],\n  task_summary: parent.task_summary || '',\n  command_success: item.command_success === true,\n  command_exit_code: item.command_exit_code !== undefined ? item.command_exit_code : null,\n  stdout_summary: item.stdout_summary || '',\n  stderr_summary: item.stderr_summary || '',\n  artifact_path: item.artifact_path || '',\n  codex_command_status: item.codex_command_status || 'not_applicable',\n  error_type: item.error_type || null,\n  delegation_id: parent.delegation_id || '',\n  orchestration_task_id: parent.orchestration_task_id || '',\n  runtime_task_id: item.task_id || '',\n  runtime_task_run_id: item.task_run_id || '',\n  worker_conversation_id: parent.worker_conversation_id || '',\n  n8n_execution_id: parent.n8n_execution_id || item.n8n_execution_id || null,\n  response_mode: 'delegated_worker_result',\n  parent_owner_label: parent.parent_owner_label || 'Ghost',\n} }];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -1715,6 +1689,80 @@
         ],
         "id": "96ff4f88-c0d9-9004-8321-b22be8cca8c3",
         "name": "Build Parent Delegation Response"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT public.ghost_finalize_delegation(\n  NULLIF($1, '')::uuid,\n  NULL,\n  'blocked',\n  $2,\n  NULL\n);",
+          "options": {
+            "queryReplacement": "={{ [$json.delegation_id || '', $json.blocked_result_summary || 'Approval required before delegated worker execution.'] }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1920,
+          -352
+        ],
+        "id": "72ce655e-2ccc-f6b1-5653-1c80509ba7fa",
+        "name": "Finalize Blocked Delegation",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        },
+        "continueOnFail": false
+      },
+      {
+        "parameters": {
+          "jsCode": "const __ghostApprovalConfig = {\"approval_model\":{\"version\":\"phase7-approval-v1\",\"initial_state\":\"proposed\",\"categories\":[{\"id\":\"destructive_change\",\"description\":\"Any request that mutates code, runtime state, or durable records.\"},{\"id\":\"production_promotion\",\"description\":\"Live activation, rollback, or publish operations against a promoted environment.\"},{\"id\":\"database_mutation\",\"description\":\"Changes to application or workflow database state.\"},{\"id\":\"runtime_control\",\"description\":\"Actions that restart, stop, reconfigure, or otherwise alter runtime behavior.\"},{\"id\":\"memory_or_artifact_write\",\"description\":\"Durable writes to memory, evidence packages, or published artifacts.\"}],\"risk_levels\":[\"safe\",\"caution\",\"high\",\"critical\"],\"required_fields\":[\"approval_id\",\"state\",\"requested_at\",\"requested_by\",\"requester_worker_id\",\"environment\",\"category\",\"risk_level\",\"capabilities\",\"summary\",\"reason\"]},\"workers_by_id\":{\"ghost_main\":{\"id\":\"ghost_main\",\"visibility_label\":\"Ghost Main\",\"operator_identity\":\"parent-owner\",\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"]},\"forge\":{\"id\":\"forge\",\"visibility_label\":\"Forge\",\"operator_identity\":\"delegated-worker\",\"environment_scope\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"]},\"probe\":{\"id\":\"probe\",\"visibility_label\":\"Probe\",\"operator_identity\":\"verification-worker\",\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\"]},\"rector\":{\"id\":\"rector\",\"visibility_label\":\"Rector\",\"operator_identity\":\"governed-change-worker\",\"environment_scope\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"]},\"archivist\":{\"id\":\"archivist\",\"visibility_label\":\"Archivist\",\"operator_identity\":\"memory-audit-worker\",\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\"]},\"operator\":{\"id\":\"operator\",\"visibility_label\":\"Operator\",\"operator_identity\":\"ops-worker\",\"environment_scope\":[\"prod\",\"staging\",\"lab\"]},\"scout\":{\"id\":\"scout\",\"visibility_label\":\"Scout\",\"operator_identity\":\"research-worker\",\"environment_scope\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"]}},\"capabilities_by_id\":{\"code.read\":{\"id\":\"code.read\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Read source files, generated artifacts, and builder modules.\"},\"code.write\":{\"id\":\"code.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Modify source files or generated workflow artifacts.\"},\"shell.safe\":{\"id\":\"shell.safe\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Run bounded, non-destructive shell commands for inspection or validation.\"},\"shell.destructive\":{\"id\":\"shell.destructive\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Run commands that can mutate runtime state or remove data.\"},\"git.inspect\":{\"id\":\"git.inspect\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Inspect repository history, status, and diffs.\"},\"git.write\":{\"id\":\"git.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Create commits or otherwise mutate repository state.\"},\"deploy.promote\":{\"id\":\"deploy.promote\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"prod\",\"staging\"],\"description\":\"Promote, publish, or roll back live workflows.\"},\"db.read\":{\"id\":\"db.read\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\"],\"description\":\"Read application or workflow database state.\"},\"db.write\":{\"id\":\"db.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Mutate application or workflow database state.\"},\"memory.write\":{\"id\":\"memory.write\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\"],\"description\":\"Persist durable memory or history records.\"},\"web.research\":{\"id\":\"web.research\",\"class\":\"non_destructive\",\"approval_required\":false,\"environment_restriction\":[\"prod\",\"staging\",\"lab\",\"sandbox\",\"scratch\"],\"description\":\"Perform external or internal research for discovery and preflight work.\"},\"artifact.publish\":{\"id\":\"artifact.publish\",\"class\":\"destructive\",\"approval_required\":true,\"environment_restriction\":[\"staging\",\"lab\",\"sandbox\"],\"description\":\"Publish or persist generated artifacts intended for wider system use.\"}},\"worker_capabilities\":{\"ghost_main\":[\"code.read\",\"shell.safe\",\"git.inspect\",\"db.read\"],\"forge\":[\"code.read\",\"code.write\",\"shell.safe\",\"git.inspect\",\"artifact.publish\"],\"probe\":[\"code.read\",\"shell.safe\",\"git.inspect\",\"db.read\",\"web.research\"],\"rector\":[\"code.read\",\"code.write\",\"shell.safe\",\"shell.destructive\",\"git.inspect\",\"git.write\",\"db.read\",\"db.write\"],\"archivist\":[\"code.read\",\"db.read\",\"memory.write\",\"artifact.publish\"],\"operator\":[\"code.read\",\"shell.safe\",\"shell.destructive\",\"git.inspect\",\"git.write\",\"deploy.promote\",\"db.read\",\"db.write\",\"artifact.publish\"],\"scout\":[\"code.read\",\"shell.safe\",\"git.inspect\",\"db.read\",\"web.research\"]},\"environments_by_id\":{\"prod\":{\"id\":\"prod\",\"label\":\"Production\",\"governance_posture\":\"highest\",\"restricted_capabilities\":[\"code.write\",\"shell.destructive\",\"git.write\",\"db.write\",\"memory.write\"],\"mutable\":true},\"staging\":{\"id\":\"staging\",\"label\":\"Staging\",\"governance_posture\":\"high\",\"restricted_capabilities\":[\"deploy.promote\"],\"mutable\":true},\"lab\":{\"id\":\"lab\",\"label\":\"Lab\",\"governance_posture\":\"moderate\",\"restricted_capabilities\":[],\"mutable\":true},\"sandbox\":{\"id\":\"sandbox\",\"label\":\"Sandbox\",\"governance_posture\":\"moderate\",\"restricted_capabilities\":[],\"mutable\":true},\"scratch\":{\"id\":\"scratch\",\"label\":\"Scratch\",\"governance_posture\":\"low\",\"restricted_capabilities\":[],\"mutable\":true}}};\nconst __approvalText = (value) => value === undefined || value === null ? '' : String(value).trim();\nconst __approvalList = (value) => Array.isArray(value) ? value.map((entry) => __approvalText(entry)).filter(Boolean) : [];\nconst __approvalHash = (value) => {\n  let hash = 0;\n  const text = __approvalText(value);\n  for (let index = 0; index < text.length; index += 1) {\n    hash = ((hash << 5) - hash + text.charCodeAt(index)) | 0;\n  }\n  return `approval_${Math.abs(hash).toString(16).slice(0, 12)}`;\n};\nconst __approvalEnvironment = () => {\n  const explicit = typeof process !== 'undefined'\n    ? __approvalText(process.env.GHOST_RUNTIME_ENV || process.env.GHOST_ENV || process.env.NODE_ENV || '')\n    : '';\n  if (explicit === 'production' && __ghostApprovalConfig.environments_by_id.prod) return 'prod';\n  if (explicit && __ghostApprovalConfig.environments_by_id[explicit]) return explicit;\n  return 'lab';\n};\nconst __buildApprovalItem = ({ workerId, requestedBy, summary, reason, category, riskLevel, capabilities, requestedForWorkerId }) => {\n  const worker = __ghostApprovalConfig.workers_by_id[workerId] || null;\n  if (!worker) {\n    throw new Error(`Unknown approval worker: ${workerId}`);\n  }\n  const targetWorker = requestedForWorkerId ? (__ghostApprovalConfig.workers_by_id[requestedForWorkerId] || null) : null;\n  const environment = __approvalEnvironment();\n  const environmentDoc = __ghostApprovalConfig.environments_by_id[environment] || __ghostApprovalConfig.environments_by_id.lab;\n  const normalizedCapabilities = Array.from(new Set(__approvalList(capabilities))).filter((capabilityId) => __ghostApprovalConfig.capabilities_by_id[capabilityId]);\n  const capabilityRecords = normalizedCapabilities.map((capabilityId) => __ghostApprovalConfig.capabilities_by_id[capabilityId]);\n  const approvalRequiredCapabilities = capabilityRecords.filter((entry) => entry.approval_required).map((entry) => entry.id);\n  const destructiveCapabilities = capabilityRecords.filter((entry) => entry.class === 'destructive').map((entry) => entry.id);\n  const restrictedCapabilities = capabilityRecords.filter((entry) => (environmentDoc.restricted_capabilities || []).includes(entry.id)).map((entry) => entry.id);\n  const outOfScopeCapabilities = capabilityRecords.filter((entry) => !(entry.environment_restriction || []).includes(environment)).map((entry) => entry.id);\n  const approvalSource = [workerId, requestedBy, summary, environment, category, normalizedCapabilities.join(','), targetWorker?.id || ''].join('|');\n  return {\n    approval_id: __approvalHash(approvalSource),\n    state: __ghostApprovalConfig.approval_model.initial_state,\n    requested_at: new Date().toISOString(),\n    requested_by: __approvalText(requestedBy),\n    requester_worker_id: worker.id,\n    requester_label: worker.visibility_label,\n    environment,\n    category: __approvalText(category),\n    risk_level: __approvalText(riskLevel) || 'caution',\n    capabilities: normalizedCapabilities,\n    summary: __approvalText(summary),\n    reason: __approvalText(reason),\n    target_worker_id: targetWorker?.id || null,\n    target_worker_label: targetWorker?.visibility_label || null,\n    governance: {\n      environment_posture: environmentDoc.governance_posture || 'moderate',\n      restricted_capabilities: restrictedCapabilities,\n      out_of_scope_capabilities: outOfScopeCapabilities,\n      approval_required_capabilities: approvalRequiredCapabilities,\n      destructive_capabilities: destructiveCapabilities,\n      operator_identity: worker.operator_identity,\n      worker_environment_scope: Array.isArray(worker.environment_scope) ? worker.environment_scope : [],\n    },\n  };\n};\nconst __buildApprovalPolicy = (approvalItem) => {\n  const governance = approvalItem && approvalItem.governance && typeof approvalItem.governance === 'object'\n    ? approvalItem.governance\n    : {};\n  const restricted = Array.isArray(governance.restricted_capabilities) ? governance.restricted_capabilities : [];\n  const outOfScope = Array.isArray(governance.out_of_scope_capabilities) ? governance.out_of_scope_capabilities : [];\n  const approvalRequired = Array.isArray(governance.approval_required_capabilities) ? governance.approval_required_capabilities : [];\n  const blockingCapabilities = Array.from(new Set([...restricted, ...outOfScope]));\n  const state = blockingCapabilities.length > 0\n    ? 'environment_restricted'\n    : approvalRequired.length > 0\n      ? 'approval_required'\n      : 'allowed';\n  const summaryParts = [];\n  if (approvalRequired.length > 0) summaryParts.push(`approval required for ${approvalRequired.join(', ')}`);\n  if (restricted.length > 0) summaryParts.push(`restricted in ${approvalItem.environment}: ${restricted.join(', ')}`);\n  if (outOfScope.length > 0) summaryParts.push(`outside ${approvalItem.environment} scope: ${outOfScope.join(', ')}`);\n  summaryParts.push(`environment posture ${governance.environment_posture || 'unknown'}`);\n  return {\n    state,\n    summary: summaryParts.join('; '),\n    blocking_capabilities: blockingCapabilities,\n    environment: approvalItem.environment || null,\n    environment_posture: governance.environment_posture || null,\n    approval_required_capabilities: approvalRequired,\n    restricted_capabilities: restricted,\n    out_of_scope_capabilities: outOfScope,\n    destructive_capabilities: Array.isArray(governance.destructive_capabilities) ? governance.destructive_capabilities : [],\n    operator_identity: governance.operator_identity || null,\n    worker_environment_scope: Array.isArray(governance.worker_environment_scope) ? governance.worker_environment_scope : [],\n  };\n};\nconst item = $('Build Delegation Context').item.json;\nconst reasons = Array.isArray(item.risk_reasons) && item.risk_reasons.length\n  ? item.risk_reasons.join(' ')\n  : 'Risk policy requires review before Ghost can start the delegated worker session.';\nconst approvalItem = __buildApprovalItem({\n  workerId: 'ghost_main',\n  requestedBy: 'ghost-main-runtime',\n  summary: 'Delegated worker execution requires approval before the worker session can start.',\n  reason: reasons,\n  category: 'destructive_change',\n  riskLevel: item.risk_level || 'caution',\n  capabilities: ['code.write', 'artifact.publish'],\n  requestedForWorkerId: 'forge',\n});\nconst governancePolicy = __buildApprovalPolicy(approvalItem);\nconst blockedByEnvironment = governancePolicy.state === 'environment_restricted';\nconst reply = [\n  `${item.parent_owner_label || 'Ghost'} kept this conversation under its current owner and opened a delegated worker task instead of silently switching models.`,\n  blockedByEnvironment\n    ? `Execution is blocked by ${approvalItem.environment} environment policy. The delegated task is visible for governed review, but it cannot start in this environment.`\n    : `Execution is blocked pending approval. The delegated task is now visible on the Task Board for review.`,\n  reasons,\n].join('\\n\\n');\nreturn [{ json: {\n  conversation_id: item.conversation_id || '',\n  reply,\n  provider_used: item.parent_provider || '',\n  model_used: item.parent_model || '',\n  task_class: item.task_class || 'technical_work',\n  approval_required: true,\n  risk_level: item.risk_level || 'caution',\n  risk_reasons: item.risk_reasons || [],\n  task_summary: item.task_summary || '',\n  command_success: false,\n  command_exit_code: null,\n  stdout_summary: '',\n  stderr_summary: [reasons, governancePolicy.summary].filter(Boolean).join(' '),\n  artifact_path: '',\n  codex_command_status: blockedByEnvironment ? 'blocked_environment_policy' : 'blocked_pending_approval',\n  error_type: blockedByEnvironment ? 'delegation_environment_restricted' : 'delegation_blocked_pending_approval',\n  delegation_id: item.delegation_id || '',\n  orchestration_task_id: item.orchestration_task_id || '',\n  runtime_task_id: null,\n  worker_conversation_id: item.worker_conversation_id || '',\n  n8n_execution_id: item.n8n_execution_id || null,\n  approval_item: approvalItem,\n  governance_policy: governancePolicy,\n  governance_environment: approvalItem.environment,\n  requested_capabilities: approvalItem.capabilities,\n  response_mode: 'delegated_blocked',\n  parent_owner_label: item.parent_owner_label || 'Ghost',\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2144,
+          -352
+        ],
+        "id": "15bb4536-847b-ef38-ed45-b3158018740b",
+        "name": "Build Parent Blocked Delegation Response"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT public.ghost_finalize_delegation(\n  NULLIF($1, '')::uuid,\n  NULL,\n  'blocked',\n  $2,\n  NULL\n);",
+          "options": {
+            "queryReplacement": "={{ [$json.delegation_id || '', $json.unsupported_result_summary || 'Delegated execution is not available in the current runtime.'] }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          2144,
+          64
+        ],
+        "id": "02249b14-bfb6-299d-c137-7367435e4c04",
+        "name": "Finalize Unsupported Delegation",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        },
+        "continueOnFail": false
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $('Build Delegation Context').item.json;\nconst workerLabel = item.worker_agent_label || item.delegated_provider || 'the delegated worker';\nconst reply = [\n  `${item.parent_owner_label || 'Ghost'} kept ownership of this conversation and opened delegated work for ${workerLabel}.`,\n  'Delegated execution is not available in the current runtime, so the worker task could not be started automatically in this phase.',\n  item.unsupported_result_summary || '',\n].join('\\n\\n');\nreturn [{ json: {\n  conversation_id: item.conversation_id || '',\n  reply,\n  provider_used: item.parent_provider || '',\n  model_used: item.parent_model || '',\n  task_class: item.task_class || 'technical_work',\n  approval_required: false,\n  risk_level: item.risk_level || 'safe',\n  risk_reasons: item.risk_reasons || [],\n  task_summary: item.task_summary || '',\n  command_success: false,\n  command_exit_code: null,\n  stdout_summary: '',\n  stderr_summary: item.unsupported_result_summary || '',\n  artifact_path: '',\n  codex_command_status: 'blocked_execution_unavailable',\n  error_type: 'delegation_execution_not_available',\n  delegation_id: item.delegation_id || '',\n  orchestration_task_id: item.orchestration_task_id || '',\n  runtime_task_id: null,\n  worker_conversation_id: item.worker_conversation_id || '',\n  n8n_execution_id: item.n8n_execution_id || null,\n  response_mode: 'delegated_execution_unavailable',\n  parent_owner_label: item.parent_owner_label || 'Ghost',\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2368,
+          64
+        ],
+        "id": "f3fb2514-8c10-0c13-5769-2d7739c50040",
+        "name": "Build Parent Unsupported Delegation Response"
       }
     ],
     "connections": {
@@ -2095,7 +2143,7 @@
         "main": [
           [
             {
-              "node": "Build API Response",
+              "node": "Persist Approval Queue Item",
               "type": "main",
               "index": 0
             }
@@ -2253,33 +2301,6 @@
           ]
         ]
       },
-      "Ensure Conversation Owner": {
-        "main": [
-          [
-            {
-              "node": "Conversation Context With Owner",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Conversation Context With Owner": {
-        "main": [
-          [
-            {
-              "node": "Save User Message",
-              "type": "main",
-              "index": 0
-            },
-            {
-              "node": "Build Runtime Ledger Start Payload",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
       "Resolve Parent Conversation Strategy": {
         "main": [
           [
@@ -2303,50 +2324,6 @@
           [
             {
               "node": "Expose Route Metadata",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Build Delegation Request": {
-        "main": [
-          [
-            {
-              "node": "Create Conversation Delegation",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Create Conversation Delegation": {
-        "main": [
-          [
-            {
-              "node": "Build Delegation Context",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Build Delegation Context": {
-        "main": [
-          [
-            {
-              "node": "Save Delegated Worker Message",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Save Delegated Worker Message": {
-        "main": [
-          [
-            {
-              "node": "Build Delegation Execution Context",
               "type": "main",
               "index": 0
             }
@@ -2382,28 +2359,6 @@
           ]
         ]
       },
-      "Finalize Blocked Delegation": {
-        "main": [
-          [
-            {
-              "node": "Build Parent Blocked Delegation Response",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Build Parent Blocked Delegation Response": {
-        "main": [
-          [
-            {
-              "node": "Build API Response",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
       "Delegated Worker Is Codex?": {
         "main": [
           [
@@ -2416,28 +2371,6 @@
           [
             {
               "node": "Finalize Unsupported Delegation",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Finalize Unsupported Delegation": {
-        "main": [
-          [
-            {
-              "node": "Build Parent Unsupported Delegation Response",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Build Parent Unsupported Delegation Response": {
-        "main": [
-          [
-            {
-              "node": "Build API Response",
               "type": "main",
               "index": 0
             }
@@ -2499,6 +2432,143 @@
           ]
         ]
       },
+      "Ensure Conversation Owner": {
+        "main": [
+          [
+            {
+              "node": "Conversation Context With Owner",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Conversation Context With Owner": {
+        "main": [
+          [
+            {
+              "node": "Save User Message",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Build Runtime Ledger Start Payload",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Delegation Request": {
+        "main": [
+          [
+            {
+              "node": "Create Conversation Delegation",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create Conversation Delegation": {
+        "main": [
+          [
+            {
+              "node": "Build Delegation Context",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Delegation Context": {
+        "main": [
+          [
+            {
+              "node": "Save Delegated Worker Message",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Save Delegated Worker Message": {
+        "main": [
+          [
+            {
+              "node": "Build Delegation Execution Context",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Finalize Blocked Delegation": {
+        "main": [
+          [
+            {
+              "node": "Build Parent Blocked Delegation Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Parent Blocked Delegation Response": {
+        "main": [
+          [
+            {
+              "node": "Persist Approval Queue Item",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Finalize Unsupported Delegation": {
+        "main": [
+          [
+            {
+              "node": "Build Parent Unsupported Delegation Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Parent Unsupported Delegation Response": {
+        "main": [
+          [
+            {
+              "node": "Build API Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Persist Approval Queue Item": {
+        "main": [
+          [
+            {
+              "node": "Attach Persisted Approval Queue Metadata",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Attach Persisted Approval Queue Metadata": {
+        "main": [
+          [
+            {
+              "node": "Build API Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
       "Save Delegated Worker Reply": {
         "main": [
           [
@@ -2525,25 +2595,14 @@
         "main": [
           [
             {
-              "node": "Build Finalize Delegation Context",
+              "node": "Annotate Delegation Completion Event",
               "type": "main",
               "index": 0
             }
           ]
         ]
       },
-      "Build Finalize Delegation Context": {
-        "main": [
-          [
-            {
-              "node": "Finalize Successful Delegation",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Finalize Successful Delegation": {
+      "Annotate Delegation Completion Event": {
         "main": [
           [
             {
@@ -2559,6 +2618,17 @@
           [
             {
               "node": "Build API Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Complete Runtime Ledger": {
+        "main": [
+          [
+            {
+              "node": "Annotate Direct Runtime Event",
               "type": "main",
               "index": 0
             }
