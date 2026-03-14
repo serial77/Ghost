@@ -164,7 +164,7 @@
           "operation": "executeQuery",
           "query": "INSERT INTO conversations (\n  id,\n  owner_user_id,\n  title,\n  source,\n  status,\n  metadata,\n  created_at,\n  updated_at,\n  last_message_at\n)\nVALUES (\n  COALESCE(NULLIF($1, '00000000-0000-0000-0000-000000000000')::uuid, gen_random_uuid()),\n  NULLIF($2, 'NULL')::uuid,\n  $3,\n  $4,\n  $5,\n  $6::jsonb,\n  NOW(),\n  NOW(),\n  NOW()\n)\nRETURNING id AS conversation_id, owner_user_id, created_at, updated_at, last_message_at;",
           "options": {
-            "queryReplacement": "={{ [\n  $('Normalize Input').item.json.conversation_id || '00000000-0000-0000-0000-000000000000',\n  (($('Normalize Input').item.json.user_id || '').match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/) ? $('Normalize Input').item.json.user_id : 'NULL'),\n  'Ghost Chat',\n  'ghost-chat-v3',\n  'active',\n  {}\n] }}"
+            "queryReplacement": "={{ [\n  $('Normalize Input').item.json.conversation_id || '00000000-0000-0000-0000-000000000000',\n  (($('Normalize Input').item.json.user_id || '').match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/) ? $('Normalize Input').item.json.user_id : 'NULL'),\n  'Ghost Chat',\n  'ghost-runtime',\n  'active',\n  {}\n] }}"
           }
         },
         "type": "n8n-nodes-base.postgres",
@@ -233,7 +233,7 @@
           "operation": "executeQuery",
           "query": "INSERT INTO messages (\n  id,\n  conversation_id,\n  role,\n  content,\n  content_format,\n  model_name,\n  metadata,\n  created_at\n)\nVALUES (\n  gen_random_uuid(),\n  $1,\n  'user',\n  $2,\n  'text',\n  NULL,\n  $3::jsonb,\n  NOW()\n)\nRETURNING id, conversation_id, role, content, created_at;",
           "options": {
-            "queryReplacement": "={{ [$json.conversation_id, $('Normalize Input').item.json.message, JSON.stringify({ source: 'ghost-chat-v3', type: 'user_message', entrypoint: $('Normalize Input').item.json.entrypoint || 'direct_webhook', n8n_execution_id: $('Normalize Input').item.json.n8n_execution_id || null })] }}"
+            "queryReplacement": "={{ [$json.conversation_id, $('Normalize Input').item.json.message, JSON.stringify({ source: 'ghost-runtime', type: 'user_message', entrypoint: $('Normalize Input').item.json.entrypoint || 'direct_webhook', n8n_execution_id: $('Normalize Input').item.json.n8n_execution_id || null })] }}"
           }
         },
         "type": "n8n-nodes-base.postgres",
@@ -1146,7 +1146,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const context = $input.first().json;\nconst normalized = $('Normalize Input').item.json;\nconst executionId = normalized.n8n_execution_id || '';\nreturn [{ json: {\n  conversation_id: context.conversation_id || '',\n  message: normalized.message || '',\n  entrypoint: normalized.entrypoint || 'direct_webhook',\n  input_payload_json: JSON.stringify({\n    message: normalized.message || '',\n    conversation_id: context.conversation_id || '',\n    user_id: normalized.user_id || '',\n    force_provider: normalized.force_provider || '',\n    force_model: normalized.force_model || '',\n    force_task_class: normalized.force_task_class || '',\n    entrypoint: normalized.entrypoint || 'direct_webhook',\n    n8n_execution_id: executionId || null,\n  }),\n  context_json: JSON.stringify({\n    entrypoint: normalized.entrypoint || 'direct_webhook',\n    execution_target: 'webhook/ghost-chat-v3',\n    workflow_name: 'Ghost Runtime',\n    n8n_execution_id: executionId || null,\n  }),\n} }];"
+          "jsCode": "const context = $input.first().json;\nconst normalized = $('Normalize Input').item.json;\nconst executionId = normalized.n8n_execution_id || '';\nreturn [{ json: {\n  conversation_id: context.conversation_id || '',\n  message: normalized.message || '',\n  entrypoint: normalized.entrypoint || 'direct_webhook',\n  input_payload_json: JSON.stringify({\n    message: normalized.message || '',\n    conversation_id: context.conversation_id || '',\n    user_id: normalized.user_id || '',\n    force_provider: normalized.force_provider || '',\n    force_model: normalized.force_model || '',\n    force_task_class: normalized.force_task_class || '',\n    entrypoint: normalized.entrypoint || 'direct_webhook',\n    n8n_execution_id: executionId || null,\n  }),\n  context_json: JSON.stringify({\n    entrypoint: normalized.entrypoint || 'direct_webhook',\n    execution_target: 'webhook/ghost-runtime',\n    workflow_name: 'Ghost Runtime',\n    n8n_execution_id: executionId || null,\n  }),\n} }];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -1160,7 +1160,7 @@
       {
         "parameters": {
           "operation": "executeQuery",
-          "query": "SELECT\n  task_id::text,\n  task_run_id::text\nFROM public.ghost_runtime_start_task_ledger(\n  NULLIF($1, '')::uuid,\n  $2,\n  $3,\n  'webhook/ghost-chat-v3',\n  'Ghost Runtime',\n  $4::jsonb,\n  $5::jsonb\n);",
+          "query": "SELECT\n  task_id::text,\n  task_run_id::text\nFROM public.ghost_runtime_start_task_ledger(\n  NULLIF($1, '')::uuid,\n  $2,\n  $3,\n  'webhook/ghost-runtime',\n  'Ghost Runtime',\n  $4::jsonb,\n  $5::jsonb\n);",
           "options": {
             "queryReplacement": "={{ [$json.conversation_id || '', $json.message || '', $json.entrypoint || 'direct_webhook', $json.input_payload_json || '{}', $json.context_json || '{}'] }}"
           }
@@ -1217,6 +1217,23 @@
           }
         },
         "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "ghost-runtime",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          -3792,
+          160
+        ],
+        "id": "c276e89c-74c2-54d7-87fd-6639dfb88446",
+        "name": "Incoming chat (runtime)",
+        "webhookId": "dbcd598e-c080-d503-8b31-dc92fe214388"
       },
       {
         "parameters": {
@@ -2295,6 +2312,17 @@
           [
             {
               "node": "Complete Runtime Ledger",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Incoming chat (runtime)": {
+        "main": [
+          [
+            {
+              "node": "Normalize Input",
               "type": "main",
               "index": 0
             }

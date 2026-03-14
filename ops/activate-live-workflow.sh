@@ -98,8 +98,8 @@ require_cmds bash curl docker jq node
 mkdir -p "$OUTPUT_DIR"
 
 STAMP="$(timestamp_utc)"
-PRE_EXPORT="$OUTPUT_DIR/ghost-chat-v3-live-backup-$STAMP.json"
-POST_EXPORT="$OUTPUT_DIR/ghost-chat-v3-live-post-activate-$STAMP.json"
+PRE_EXPORT="$OUTPUT_DIR/ghost-runtime-live-backup-$STAMP.json"
+POST_EXPORT="$OUTPUT_DIR/ghost-runtime-live-post-activate-$STAMP.json"
 
 if [[ -n "$ROLLBACK_FROM" ]]; then
   [[ -f "$ROLLBACK_FROM" ]] || fail "rollback export not found: $ROLLBACK_FROM"
@@ -123,14 +123,14 @@ log "validating target workflow JSON -> $WORKFLOW_JSON"
 validate_workflow_json "$WORKFLOW_JSON"
 
 log "capturing live pre-activation export -> $PRE_EXPORT"
-export_live_workflow "$PRE_EXPORT" "/tmp/ghost-chat-v3-pre-activate.json"
+export_live_workflow "$PRE_EXPORT" "/tmp/ghost-runtime-pre-activate.json"
 
 log "importing and publishing target workflow -> $(basename "$WORKFLOW_JSON")"
 import_publish_workflow "$WORKFLOW_JSON"
 restart_and_verify_live_workflow
 
 log "capturing live post-activation export -> $POST_EXPORT"
-export_live_workflow "$POST_EXPORT" "/tmp/ghost-chat-v3-post-activate.json"
+export_live_workflow "$POST_EXPORT" "/tmp/ghost-runtime-post-activate.json"
 
 if [[ "$RUN_SMOKE" == "true" ]]; then
   log "running runtime smoke validation"

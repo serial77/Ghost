@@ -51,7 +51,8 @@ const postgresCredential = {
   name: "Postgres account",
 };
 const workflowName = "Ghost Runtime";
-const parentExecutionTarget = "webhook/ghost-chat-v3";
+const parentExecutionTarget = "webhook/ghost-runtime";
+const legacyWebhookPath = "ghost-chat-v3";
 const delegatedExecutionTarget = "delegated_codex_session";
 const phase7Foundations = loadPhase7Foundations(projectRoot);
 const approvalRuntimeConfigLiteral = JSON.stringify(makeApprovalRuntimeConfig(phase7Foundations));
@@ -298,6 +299,23 @@ function makeIfNode(name, leftValue, operation, position, rightValue = undefined
 
 const [workflow] = loadWorkflow(sourcePath);
 workflow.name = workflowName;
+
+// Dual-path webhook: add ghost-runtime as canonical trigger; "Incoming chat" (ghost-chat-v3) stays as legacy
+addNode(workflow, {
+  parameters: {
+    httpMethod: "POST",
+    path: "ghost-runtime",
+    responseMode: "responseNode",
+    options: {},
+  },
+  type: "n8n-nodes-base.webhook",
+  typeVersion: 2.1,
+  position: [-3792, 160],
+  id: makeId("node:Incoming chat (runtime)"),
+  name: "Incoming chat (runtime)",
+  webhookId: makeId("webhookId:ghost-runtime"),
+});
+setMainConnections(workflow.connections, "Incoming chat (runtime)", [[{ node: "Normalize Input" }]]);
 
 applyIngressConversationTailModule({
   workflow,

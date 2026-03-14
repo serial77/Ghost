@@ -33,7 +33,7 @@ function applyIngressConversationTailModule({ workflow, findNode, ensureAssignme
 
   const saveUserMessage = findNode(workflow, "Save User Message");
   saveUserMessage.parameters.options.queryReplacement =
-    "={{ [$json.conversation_id, $('Normalize Input').item.json.message, JSON.stringify({ source: 'ghost-chat-v3', type: 'user_message', entrypoint: $('Normalize Input').item.json.entrypoint || 'direct_webhook', n8n_execution_id: $('Normalize Input').item.json.n8n_execution_id || null })] }}";
+    "={{ [$json.conversation_id, $('Normalize Input').item.json.message, JSON.stringify({ source: 'ghost-runtime', type: 'user_message', entrypoint: $('Normalize Input').item.json.entrypoint || 'direct_webhook', n8n_execution_id: $('Normalize Input').item.json.n8n_execution_id || null })] }}";
 }
 
 function assertIngressConversationTailContract({ workflow, findNode, assertIncludes }) {
@@ -78,13 +78,14 @@ function assertIngressConversationTailContract({ workflow, findNode, assertInclu
   }
   for (const field of [
     "'Ghost Chat'",
-    "'ghost-chat-v3'",
+    "'ghost-runtime'",
     "'active'",
   ]) {
     assertIncludes(createConversationReplacement, field, "Create New Conversation queryReplacement");
   }
 
   for (const field of [
+    "source: 'ghost-runtime'",
     "entrypoint: $('Normalize Input').item.json.entrypoint || 'direct_webhook'",
     "n8n_execution_id: $('Normalize Input').item.json.n8n_execution_id || null",
   ]) {
@@ -109,6 +110,7 @@ function assertIngressConversationTailContract({ workflow, findNode, assertInclu
   }
 
   assertHasConnection(workflow, "Incoming chat", "Normalize Input");
+  assertHasConnection(workflow, "Incoming chat (runtime)", "Normalize Input");
   assertHasConnection(workflow, "Normalize Input", "Find Conversation By ID");
   assertHasConnection(workflow, "Find Conversation By ID", "Conversation Exists?");
   assertHasConnection(workflow, "Conversation Exists?", "Create New Conversation", 1);
