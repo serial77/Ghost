@@ -2340,6 +2340,61 @@
           ]
         ]
       },
+      "Start Delegated Runtime": {
+        "main": [
+          [
+            {
+              "node": "Build Delegated Codex Context",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Delegated Codex Context": {
+        "main": [
+          [
+            {
+              "node": "Build Delegated Codex Command",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Delegated Codex Command": {
+        "main": [
+          [
+            {
+              "node": "Execute Delegated Codex Command",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Execute Delegated Codex Command": {
+        "main": [
+          [
+            {
+              "node": "Normalize Delegated Codex Reply",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Normalize Delegated Codex Reply": {
+        "main": [
+          [
+            {
+              "node": "Save Delegated Worker Reply",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
       "Ensure Conversation Owner": {
         "main": [
           [
@@ -2449,61 +2504,6 @@
           [
             {
               "node": "Build API Response",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Start Delegated Runtime": {
-        "main": [
-          [
-            {
-              "node": "Build Delegated Codex Context",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Build Delegated Codex Context": {
-        "main": [
-          [
-            {
-              "node": "Build Delegated Codex Command",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Build Delegated Codex Command": {
-        "main": [
-          [
-            {
-              "node": "Execute Delegated Codex Command",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Execute Delegated Codex Command": {
-        "main": [
-          [
-            {
-              "node": "Normalize Delegated Codex Reply",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Normalize Delegated Codex Reply": {
-        "main": [
-          [
-            {
-              "node": "Save Delegated Worker Reply",
               "type": "main",
               "index": 0
             }
