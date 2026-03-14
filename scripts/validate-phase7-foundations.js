@@ -99,13 +99,52 @@ function validateWorkers(workersDoc) {
   }
 }
 
+function validateCapabilities(capabilitiesDoc, workersDoc) {
+  requireString(capabilitiesDoc.version, "capabilities.version");
+  requireArray(capabilitiesDoc.capabilities, "capabilities.capabilities");
+  if (!capabilitiesDoc.worker_capabilities || typeof capabilitiesDoc.worker_capabilities !== "object") {
+    fail("capabilities.worker_capabilities must be an object");
+  }
+
+  const capabilityIds = new Set();
+  for (const capability of capabilitiesDoc.capabilities) {
+    requireString(capability.id, "capability.id");
+    requireString(capability.class, `capability.${capability.id}.class`);
+    requireString(capability.description, `capability.${capability.id}.description`);
+    if (typeof capability.approval_required !== "boolean") {
+      fail(`capability.${capability.id}.approval_required must be boolean`);
+    }
+    requireArray(capability.environment_restriction, `capability.${capability.id}.environment_restriction`);
+    if (capabilityIds.has(capability.id)) {
+      fail(`duplicate capability id: ${capability.id}`);
+    }
+    capabilityIds.add(capability.id);
+  }
+
+  const workerIds = new Set(workersDoc.workers.map((worker) => worker.id));
+  for (const [workerId, grantedCapabilities] of Object.entries(capabilitiesDoc.worker_capabilities)) {
+    if (!workerIds.has(workerId)) {
+      fail(`worker_capabilities references unknown worker: ${workerId}`);
+    }
+    requireArray(grantedCapabilities, `worker_capabilities.${workerId}`);
+    for (const capabilityId of grantedCapabilities) {
+      if (!capabilityIds.has(capabilityId)) {
+        fail(`worker ${workerId} references unknown capability: ${capabilityId}`);
+      }
+    }
+  }
+}
+
 function main() {
   const baselinePath = path.join("ops", "foundation", "baseline.json");
   const baseline = loadJson(baselinePath);
   const workersPath = path.join("ops", "foundation", "workers.json");
   const workers = loadJson(workersPath);
+  const capabilitiesPath = path.join("ops", "foundation", "capabilities.json");
+  const capabilities = loadJson(capabilitiesPath);
   validateBaseline(baseline);
   validateWorkers(workers);
+  validateCapabilities(capabilities, workers);
 
   const summary = {
     version: baseline.version,
@@ -115,6 +154,7 @@ function main() {
     builder_module_count: baseline.builder_modules.length,
     do_not_touch_count: baseline.do_not_touch_casually.length,
     worker_count: workers.workers.length,
+    capability_count: capabilities.capabilities.length,
     foundation_dir: foundationDir,
   };
 
