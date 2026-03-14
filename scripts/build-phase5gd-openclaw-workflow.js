@@ -13,6 +13,10 @@ const {
   applyDelegatedCompletionTailModule,
   assertDelegatedCompletionTailContract,
 } = require("./workflow-modules/delegated-completion-tail");
+const {
+  applyDelegatedControlTailModule,
+  assertDelegatedControlTailContract,
+} = require("./workflow-modules/delegated-control-tail");
 
 const projectRoot = path.join(__dirname, "..");
 const sourcePath = path.join(projectRoot, "workflows", "ghost-chat-v3-phase5d-runtime-ledger.json");
@@ -630,127 +634,11 @@ addNode(
 
 addNode(
   workflow,
-  makePostgresNode(
-    "Finalize Blocked Delegation",
-    `SELECT public.ghost_finalize_delegation(
-  NULLIF($1, '')::uuid,
-  NULL,
-  'blocked',
-  $2,
-  NULL
-);`,
-    "={{ [$json.delegation_id || '', $json.blocked_result_summary || 'Approval required before delegated worker execution.'] }}",
-    [1920, -352],
-    false,
-  ),
-);
-
-addNode(
-  workflow,
-  makeCodeNode(
-    "Build Parent Blocked Delegation Response",
-    `const item = $('Build Delegation Context').item.json;
-const reasons = Array.isArray(item.risk_reasons) && item.risk_reasons.length
-  ? item.risk_reasons.join(' ')
-  : 'Risk policy requires review before Ghost can start the delegated worker session.';
-const reply = [
-  \`\${item.parent_owner_label || 'Ghost'} kept this conversation under its current owner and opened a delegated worker task instead of silently switching models.\`,
-  \`Execution is blocked pending approval. The delegated task is now visible on the Task Board for review.\`,
-  reasons,
-].join('\\n\\n');
-return [{ json: {
-  conversation_id: item.conversation_id || '',
-  reply,
-  provider_used: item.parent_provider || '',
-  model_used: item.parent_model || '',
-  task_class: item.task_class || 'technical_work',
-  approval_required: true,
-  risk_level: item.risk_level || 'caution',
-  risk_reasons: item.risk_reasons || [],
-  task_summary: item.task_summary || '',
-  command_success: false,
-  command_exit_code: null,
-  stdout_summary: '',
-  stderr_summary: reasons,
-  artifact_path: '',
-  codex_command_status: 'blocked_pending_approval',
-  error_type: 'delegation_blocked_pending_approval',
-  delegation_id: item.delegation_id || '',
-  orchestration_task_id: item.orchestration_task_id || '',
-  runtime_task_id: null,
-  worker_conversation_id: item.worker_conversation_id || '',
-  n8n_execution_id: item.n8n_execution_id || null,
-  response_mode: 'delegated_blocked',
-  parent_owner_label: item.parent_owner_label || 'Ghost',
-} }];`,
-    [2144, -352],
-  ),
-);
-
-addNode(
-  workflow,
   makeIfNode(
     "Delegated Worker Is Codex?",
     "={{ ($json.delegated_provider || '') === 'codex_oauth_worker' }}",
     "true",
     [1920, -64],
-  ),
-);
-
-addNode(
-  workflow,
-  makePostgresNode(
-    "Finalize Unsupported Delegation",
-    `SELECT public.ghost_finalize_delegation(
-  NULLIF($1, '')::uuid,
-  NULL,
-  'blocked',
-  $2,
-  NULL
-);`,
-    "={{ [$json.delegation_id || '', $json.unsupported_result_summary || 'Delegated execution is not available in the current runtime.'] }}",
-    [2144, 64],
-    false,
-  ),
-);
-
-addNode(
-  workflow,
-  makeCodeNode(
-    "Build Parent Unsupported Delegation Response",
-    `const item = $('Build Delegation Context').item.json;
-const workerLabel = item.worker_agent_label || item.delegated_provider || 'the delegated worker';
-const reply = [
-  \`\${item.parent_owner_label || 'Ghost'} kept ownership of this conversation and opened delegated work for \${workerLabel}.\`,
-  'Delegated execution is not available in the current runtime, so the worker task could not be started automatically in this phase.',
-  item.unsupported_result_summary || '',
-].join('\\n\\n');
-return [{ json: {
-  conversation_id: item.conversation_id || '',
-  reply,
-  provider_used: item.parent_provider || '',
-  model_used: item.parent_model || '',
-  task_class: item.task_class || 'technical_work',
-  approval_required: false,
-  risk_level: item.risk_level || 'safe',
-  risk_reasons: item.risk_reasons || [],
-  task_summary: item.task_summary || '',
-  command_success: false,
-  command_exit_code: null,
-  stdout_summary: '',
-  stderr_summary: item.unsupported_result_summary || '',
-  artifact_path: '',
-  codex_command_status: 'blocked_execution_unavailable',
-  error_type: 'delegation_execution_not_available',
-  delegation_id: item.delegation_id || '',
-  orchestration_task_id: item.orchestration_task_id || '',
-  runtime_task_id: null,
-  worker_conversation_id: item.worker_conversation_id || '',
-  n8n_execution_id: item.n8n_execution_id || null,
-  response_mode: 'delegated_execution_unavailable',
-  parent_owner_label: item.parent_owner_label || 'Ghost',
-} }];`,
-    [2368, 64],
   ),
 );
 
@@ -896,6 +784,7 @@ return [{ json: {
 );
 
 applyDelegatedCompletionTailModule({ workflow, addNode, makeCodeNode, makePostgresNode, delegatedExecutionTarget });
+applyDelegatedControlTailModule({ workflow, addNode, makeCodeNode, makePostgresNode });
 
 setMainConnections(workflow.connections, "Conversation Context", [[{ node: "Ensure Conversation Owner" }]]);
 setMainConnections(workflow.connections, "Ensure Conversation Owner", [[{ node: "Conversation Context With Owner" }]]);
@@ -945,5 +834,6 @@ setMainConnections(workflow.connections, "Complete Runtime Ledger", [[{ node: "A
 assertDirectRuntimeTailContract({ workflow, findNode, assertIncludes });
 assertMemoryExtractionTailContract({ workflow, findNode, assertIncludes });
 assertDelegatedCompletionTailContract({ workflow, findNode, assertIncludes });
+assertDelegatedControlTailContract({ workflow, findNode, assertIncludes });
 fs.writeFileSync(targetPath, JSON.stringify([workflow], null, 2) + "\n");
 console.log(targetPath);
