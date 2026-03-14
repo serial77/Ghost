@@ -232,6 +232,38 @@ function validateDiagnostics(diagDoc) {
   }
 }
 
+function validateEnvironments(envDoc, capabilitiesDoc) {
+  requireString(envDoc.version, "environments.version");
+  requireArray(envDoc.environments, "environments.environments");
+  const capabilityIds = new Set(capabilitiesDoc.capabilities.map((entry) => entry.id));
+  const envIds = new Set();
+  for (const env of envDoc.environments) {
+    requireString(env.id, "environment.id");
+    requireString(env.label, `environment.${env.id}.label`);
+    if (typeof env.mutable !== "boolean") {
+      fail(`environment.${env.id}.mutable must be boolean`);
+    }
+    requireArray(env.promotion_sources.length === 0 ? ["__empty__"] : env.promotion_sources, `environment.${env.id}.promotion_sources`);
+    requireArray(env.restricted_capabilities.length === 0 ? ["__empty__"] : env.restricted_capabilities, `environment.${env.id}.restricted_capabilities`);
+    requireString(env.governance_posture, `environment.${env.id}.governance_posture`);
+    requireString(env.notes, `environment.${env.id}.notes`);
+    if (envIds.has(env.id)) {
+      fail(`duplicate environment id: ${env.id}`);
+    }
+    envIds.add(env.id);
+    for (const source of env.promotion_sources) {
+      if (source !== "__empty__" && !["prod", "staging", "lab", "sandbox", "scratch"].includes(source)) {
+        fail(`environment.${env.id}.promotion_source is not in the known Phase 7 environment taxonomy: ${source}`);
+      }
+    }
+    for (const capabilityId of env.restricted_capabilities) {
+      if (capabilityId !== "__empty__" && !capabilityIds.has(capabilityId)) {
+        fail(`environment.${env.id}.restricted_capabilities references unknown capability: ${capabilityId}`);
+      }
+    }
+  }
+}
+
 function main() {
   const baselinePath = path.join("ops", "foundation", "baseline.json");
   const baseline = loadJson(baselinePath);
@@ -245,12 +277,15 @@ function main() {
   const actionModel = loadJson(actionModelPath);
   const diagnosticsPath = path.join("ops", "foundation", "diagnostics.json");
   const diagnostics = loadJson(diagnosticsPath);
+  const environmentsPath = path.join("ops", "foundation", "environments.json");
+  const environments = loadJson(environmentsPath);
   validateBaseline(baseline);
   validateWorkers(workers);
   validateCapabilities(capabilities, workers);
   validateApprovalModel(approvalModel, capabilities);
   validateActionModel(actionModel);
   validateDiagnostics(diagnostics);
+  validateEnvironments(environments, capabilities);
 
   const summary = {
     version: baseline.version,
@@ -264,6 +299,7 @@ function main() {
     approval_state_count: approvalModel.states.length,
     action_event_count: actionModel.event_types.length,
     diagnostic_category_count: diagnostics.categories.length,
+    environment_count: environments.environments.length,
     foundation_dir: foundationDir,
   };
 
