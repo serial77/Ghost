@@ -281,19 +281,24 @@ const commandExitCode = payload.command_exit_code ?? (typeof result.exitCode ===
 const stderrSummaryBase = payload.stderr_summary || (typeof result.stderr === 'string' ? result.stderr.trim().slice(0, 600) : '') || nodeError.slice(0, 600);
 const replyText = typeof payload.reply === 'string' ? payload.reply.trim() : '';
 const invalidPayload = payloadParseFailed || !payload || typeof payload !== 'object' || Array.isArray(payload);
+const timedOut = /timed?\\s*out|timeout/i.test((nodeError || '') + ' ' + (stderrSummaryBase || ''));
 const commandSuccess = Boolean(payload.success) && !invalidPayload && replyText.length > 0;
 const derivedErrorType = commandSuccess
   ? ''
-  : (invalidPayload || !replyText.length)
-      ? 'codex_invalid_result'
-      : 'codex_command_failed';
+  : timedOut
+      ? 'codex_command_timeout'
+      : invalidPayload || !replyText.length
+          ? 'codex_invalid_result'
+          : 'codex_command_failed';
 const stderrSummary = commandSuccess
   ? stderrSummaryBase
-  : (stderrSummaryBase || (invalidPayload
-      ? 'Codex returned an invalid result payload.'
-      : !replyText.length
-          ? 'Codex returned no reply content.'
-          : 'Codex execution failed.'));
+  : stderrSummaryBase || (timedOut
+      ? 'Codex execution timed out.'
+      : invalidPayload
+          ? 'Codex returned an invalid result payload.'
+          : !replyText.length
+              ? 'Codex returned no reply content.'
+              : 'Codex execution failed.');
 const failureSuffix = commandExitCode !== undefined && commandExitCode !== null ? \` (exit \${commandExitCode})\` : '';
 const failureReason = stderrSummary || 'No additional stderr was captured.';
 const reply = commandSuccess
