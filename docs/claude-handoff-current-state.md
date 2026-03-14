@@ -1,11 +1,16 @@
 # Claude Handoff: Current Ghost State
 
-## 1. Current branch / status
+## 1. Current branch / status (updated 2026-03-14)
 
-- Branch: `codex-direct-truth-reconcile`
-- Remote state: pushed to `origin`
-- Merge state: not merged to main; Copilot's `chore/normalize-canonical-artifact-names` also pending (see Section 9)
-- Working tree at handoff creation: clean before this docs-only file; only this handoff doc was added in this step
+- `main` is up to date with:
+  - MVP governed loop (Phase 7)
+  - naming tranche 1 (Ghost Runtime display name, builder/artifact rename)
+  - System Health live data page
+  - dual-path webhook migration (`ghost-runtime` canonical, `ghost-chat-v3` legacy)
+  - repo consolidation (self-contained docker-compose, worktree structure documented)
+- Active working worktree: `~/dev/ghost-stack-codex` on `claude-repo-consolidation` (pending merge)
+- UI worktree: `~/dev/ghost-stack-claude` on `claude-mission-control-polish` — clean, up to date with latest mirrored changes
+- Review/operator worktree: `~/dev/ghost-stack` on `chore/normalize-canonical-artifact-names` (stale, but holds live `.env` and `db/`)
 
 ## 2. What is complete
 
@@ -75,17 +80,20 @@
   - action history surface is durable and inspectable via shell helpers but has no dedicated UI panel
 - Remaining broader authority gap
   - capability/environment and worker authority are real in bounded slices, not yet system-wide
-- Two-repo operational debt
-  - live UI runs from `ghost-stack-claude`; canonical work is in `ghost-stack-codex`; new UI files must be manually mirrored until repos converge
+- Worktree state
+  - Three git worktrees: `ghost-stack` (main), `ghost-stack-codex` (dev/canonical), `ghost-stack-claude` (UI/running)
+  - `ghost-stack-claude` is on `claude-mission-control-polish` — has Mission Control UI polish not yet merged to main
+  - No more manual file mirroring — use `git merge main` inside the UI worktree to sync changes
+  - `ghost-stack` is stale on an old branch but must not be deleted — holds live `.env` and DB artifacts
 
-## 5. Best next supervised step
+## 5. Best next supervised step (updated 2026-03-14)
 
-The governed loop is live and operator-accessible. The next well-scoped supervised step is merge consolidation:
+Main is green with the full stack. Remaining next steps:
 
-- assess whether `codex-direct-truth-reconcile` is safe to merge to main
-- assess Copilot's `chore/normalize-canonical-artifact-names` branch conflict surface (renames builder + workflow files; does not change webhook/runtime contract names)
-- recommended merge sequence: Copilot's naming branch first (naming only, low risk), then this branch (adds governance, approval API, approval UI)
-- resolve two-repo operational debt by consolidating `ghost-stack-claude` and `ghost-stack-codex` after merge
+- **Merge `claude-repo-consolidation`** to main (docker-compose self-contained, docs updated)
+- **Merge `claude-mission-control-polish`** to main when ready — Mission Control UI polish (7 visual commits); needs rebase/merge onto current main first
+- **Legacy webhook retirement** — `ghost-chat-v3` trigger removal after a migration window (see `docs/naming-migration-checklist.md`)
+- **Automated follow-through** — current posture is manual operator-invoked; automating resolve→execute→retry is the next governance UX step
 
 ## 6. Validation contract
 
