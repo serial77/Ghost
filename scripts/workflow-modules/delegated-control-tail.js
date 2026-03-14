@@ -46,9 +46,12 @@ const approvalItem = __buildApprovalItem({
   requestedForWorkerId: 'forge',
 });
 const governancePolicy = __buildApprovalPolicy(approvalItem);
+const blockedByEnvironment = governancePolicy.state === 'environment_restricted';
 const reply = [
   \`\${item.parent_owner_label || 'Ghost'} kept this conversation under its current owner and opened a delegated worker task instead of silently switching models.\`,
-  \`Execution is blocked pending approval. The delegated task is now visible on the Task Board for review.\`,
+  blockedByEnvironment
+    ? \`Execution is blocked by \${approvalItem.environment} environment policy. The delegated task is visible for governed review, but it cannot start in this environment.\`
+    : \`Execution is blocked pending approval. The delegated task is now visible on the Task Board for review.\`,
   reasons,
 ].join('\\n\\n');
 return [{ json: {
@@ -66,8 +69,8 @@ return [{ json: {
   stdout_summary: '',
   stderr_summary: [reasons, governancePolicy.summary].filter(Boolean).join(' '),
   artifact_path: '',
-  codex_command_status: 'blocked_pending_approval',
-  error_type: 'delegation_blocked_pending_approval',
+  codex_command_status: blockedByEnvironment ? 'blocked_environment_policy' : 'blocked_pending_approval',
+  error_type: blockedByEnvironment ? 'delegation_environment_restricted' : 'delegation_blocked_pending_approval',
   delegation_id: item.delegation_id || '',
   orchestration_task_id: item.orchestration_task_id || '',
   runtime_task_id: null,
@@ -153,8 +156,10 @@ function assertDelegatedControlTailContract({ workflow, findNode, assertIncludes
 
   for (const field of [
     "approval_required: true",
-    "codex_command_status: 'blocked_pending_approval'",
-    "error_type: 'delegation_blocked_pending_approval'",
+    "blockedByEnvironment",
+    "blocked_environment_policy",
+    "delegation_environment_restricted",
+    "delegation_blocked_pending_approval",
     "approval_item: approvalItem",
     "governance_policy: governancePolicy",
     "requested_capabilities: approvalItem.capabilities",

@@ -332,7 +332,10 @@ const approvalItem = __buildApprovalItem({
   requestedForWorkerId: 'ghost_main',
 });
 const governancePolicy = __buildApprovalPolicy(approvalItem);
-const reply = \`Approval required before Codex execution. Risk level: \${context.risk_level || 'unknown'}. \${reasons}\`;
+const blockedByEnvironment = governancePolicy.state === 'environment_restricted';
+const reply = blockedByEnvironment
+  ? \`Codex execution is blocked by \${approvalItem.environment} environment policy. Risk level: \${context.risk_level || 'unknown'}. \${governancePolicy.summary} \${reasons}\`
+  : \`Approval required before Codex execution. Risk level: \${context.risk_level || 'unknown'}. \${reasons}\`;
 return [{ json: {
   ...context,
   reply,
@@ -341,8 +344,8 @@ return [{ json: {
   task_class: context.task_class || '',
   approval_required: true,
   command_success: false,
-  error_type: 'approval_required',
-  codex_command_status: 'blocked_pending_approval',
+  error_type: blockedByEnvironment ? 'environment_capability_blocked' : 'approval_required',
+  codex_command_status: blockedByEnvironment ? 'blocked_environment_policy' : 'blocked_pending_approval',
   artifact_path: '',
   stdout_summary: '',
   stderr_summary: [reasons, governancePolicy.summary].filter(Boolean).join(' '),
@@ -409,7 +412,7 @@ SELECT
 FROM payload
 LEFT JOIN inserted ON TRUE
 LEFT JOIN existing ON TRUE;`,
-    "={{ [$('Start Runtime Ledger').item.json.task_id || '', $json.approval_item?.approval_id || '', $json.response_mode === 'delegated_blocked' ? 'delegated_blocked' : 'direct_approval_required', $json.reply || 'Approval required before execution can continue.', { approval_contract_id: $json.approval_item?.approval_id || null, approval_item: $json.approval_item || null, governance_policy: $json.governance_policy || null, governance_environment: $json.governance_environment || null, requested_capabilities: $json.requested_capabilities || [], conversation_id: $json.conversation_id || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $('Start Runtime Ledger').item.json.task_id || null, runtime_task_run_id: $('Start Runtime Ledger').item.json.task_run_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || null, parent_owner_label: $json.parent_owner_label || null, source_path: $json.response_mode === 'delegated_blocked' ? 'delegated_blocked' : 'direct_approval_required' }, 'ghost-main', $json] }}",
+    "={{ [$('Start Runtime Ledger').item.json.task_id || '', $json.approval_item?.approval_id || '', ($json.governance_policy?.state === 'environment_restricted' ? ($json.response_mode === 'delegated_blocked' ? 'delegated_environment_restricted' : 'direct_environment_restricted') : ($json.response_mode === 'delegated_blocked' ? 'delegated_blocked' : 'direct_approval_required')), $json.reply || 'Approval required before execution can continue.', { approval_contract_id: $json.approval_item?.approval_id || null, approval_item: $json.approval_item || null, governance_policy: $json.governance_policy || null, governance_environment: $json.governance_environment || null, requested_capabilities: $json.requested_capabilities || [], conversation_id: $json.conversation_id || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $('Start Runtime Ledger').item.json.task_id || null, runtime_task_run_id: $('Start Runtime Ledger').item.json.task_run_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || null, parent_owner_label: $json.parent_owner_label || null, source_path: ($json.governance_policy?.state === 'environment_restricted' ? ($json.response_mode === 'delegated_blocked' ? 'delegated_environment_restricted' : 'direct_environment_restricted') : ($json.response_mode === 'delegated_blocked' ? 'delegated_blocked' : 'direct_approval_required')) }, 'ghost-main', $json] }}",
     [2144, -544],
     false,
   ),
