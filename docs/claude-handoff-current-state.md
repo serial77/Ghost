@@ -58,7 +58,7 @@
   - do not widen changes into UI or historical DB cleanup
 - Phase 6 builder modularization baseline
   - builder modules under [`scripts/workflow-modules`](/home/deicide/dev/ghost-stack-codex/scripts/workflow-modules)
-  - generated workflow must remain reproducible from [`scripts/build-phase5gd-openclaw-workflow.js`](/home/deicide/dev/ghost-stack-codex/scripts/build-phase5gd-openclaw-workflow.js) (Copilot's naming branch may rename this post-merge — do not rename on this branch)
+  - generated workflow must remain reproducible from [`scripts/build-ghost-runtime-workflow.js`](/home/deicide/dev/ghost-stack-codex/scripts/build-ghost-runtime-workflow.js) (Copilot's naming branch may rename this post-merge — do not rename on this branch)
   - `$items('Start Runtime Ledger', 0, 0)[0]?.json` is the correct accessor for sink nodes — do not revert to `$('Start Runtime Ledger').item.json`
 - Governance contract surfaces that should not be casually rewritten
   - [`ops/foundation/approval-model.json`](/home/deicide/dev/ghost-stack-codex/ops/foundation/approval-model.json)
@@ -91,9 +91,9 @@ The governed loop is live and operator-accessible. The next well-scoped supervis
 
 Run before and after runtime-affecting changes:
 
-- `node --check /home/deicide/dev/ghost-stack-codex/scripts/build-phase5gd-openclaw-workflow.js`
+- `node --check /home/deicide/dev/ghost-stack-codex/scripts/build-ghost-runtime-workflow.js`
 - `for f in /home/deicide/dev/ghost-stack-codex/scripts/workflow-modules/*.js; do node --check "$f"; done`
-- `node /home/deicide/dev/ghost-stack-codex/scripts/build-phase5gd-openclaw-workflow.js`
+- `node /home/deicide/dev/ghost-stack-codex/scripts/build-ghost-runtime-workflow.js`
 - `bash -n /home/deicide/dev/ghost-stack-codex/ops/reconcile-runtime.sh`
 - `/home/deicide/dev/ghost-stack-codex/ops/reconcile-runtime.sh --recent-hours 12 --limit 25`
 - `node /home/deicide/dev/ghost-stack-codex/scripts/validate-phase7-foundations.js`
@@ -132,7 +132,7 @@ Expected parity result after runtime-affecting changes:
 
 High-risk files/areas:
 
-- [`scripts/build-phase5gd-openclaw-workflow.js`](/home/deicide/dev/ghost-stack-codex/scripts/build-phase5gd-openclaw-workflow.js)
+- [`scripts/build-ghost-runtime-workflow.js`](/home/deicide/dev/ghost-stack-codex/scripts/build-ghost-runtime-workflow.js)
 - [`scripts/workflow-modules/delegated-setup-tail.js`](/home/deicide/dev/ghost-stack-codex/scripts/workflow-modules/delegated-setup-tail.js)
 - [`scripts/workflow-modules/owner-policy-tail.js`](/home/deicide/dev/ghost-stack-codex/scripts/workflow-modules/owner-policy-tail.js)
 - [`scripts/workflow-modules/delegation-router-tail.js`](/home/deicide/dev/ghost-stack-codex/scripts/workflow-modules/delegation-router-tail.js)

@@ -251,7 +251,7 @@ Intended semantics:
 
 Regression guard:
 
-- `scripts/build-phase5gd-openclaw-workflow.js` now asserts that the generated workflow still preserves the required direct-path contract fields in:
+- `scripts/build-ghost-runtime-workflow.js` now asserts that the generated workflow still preserves the required direct-path contract fields in:
   - `Normalize Codex Reply`
   - `Build API Response`
   - `Save Assistant Reply`

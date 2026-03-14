@@ -44,13 +44,13 @@ const {
 } = require("./foundation-runtime");
 
 const projectRoot = path.join(__dirname, "..");
-const sourcePath = path.join(projectRoot, "workflows", "ghost-chat-v3-phase5d-runtime-ledger.json");
-const targetPath = path.join(projectRoot, "workflows", "ghost-chat-v3-phase5gd-openclaw.json");
+const sourcePath = path.join(projectRoot, "workflows", "ghost-runtime-workflow-base.json");
+const targetPath = path.join(projectRoot, "workflows", "ghost-runtime-workflow.json");
 const postgresCredential = {
   id: "r4pH8PimgUf2t9oM",
   name: "Postgres account",
 };
-const workflowName = "Ghost Chat Runtime";
+const workflowName = "Ghost Runtime";
 const parentExecutionTarget = "webhook/ghost-chat-v3";
 const delegatedExecutionTarget = "delegated_codex_session";
 const phase7Foundations = loadPhase7Foundations(projectRoot);
