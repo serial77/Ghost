@@ -22,7 +22,7 @@
   --danger: #ff7a9f;
   --shadow: 0 20px 70px rgba(0, 0, 0, 0.55);
   --inner-shine: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  --blur: 26px;
+  --blur: 28px;
   --radius-lg: 12px;
   --radius-md: 10px;
   --radius-sm: 6px;
@@ -38,12 +38,8 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background:
-    radial-gradient(ellipse at 50% -6%, rgba(82, 74, 210, 0.26), transparent 52%),
-    radial-gradient(ellipse at 14% 44%, rgba(88, 52, 210, 0.10), transparent 40%),
-    radial-gradient(ellipse at 86% 56%, rgba(52, 44, 180, 0.08), transparent 36%),
-    radial-gradient(ellipse at 50% 110%, rgba(58, 38, 140, 0.14), transparent 44%),
-    linear-gradient(180deg, #07070d 0%, #08080f 48%, #08080e 100%);
+  /* Base dark — WebGL ghost-bg provides the atmospheric overlay */
+  background: #07070d;
   color: var(--text);
   font-family: var(--font-sans);
 }
@@ -76,22 +72,21 @@ textarea {
   padding: 28px 28px calc(var(--dock-height) + 40px);
 }
 
-.app-atmosphere,
+/* Ghost Background — global WebGL atmospheric layer, mounted in layout.tsx */
+.ghost-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
 .app-grid,
 .app-noise {
   position: fixed;
   inset: 0;
   pointer-events: none;
-}
-
-.app-atmosphere {
-  background:
-    radial-gradient(ellipse at 50% 10%, rgba(88, 80, 220, 0.22), transparent 42%),
-    radial-gradient(ellipse at 22% 38%, rgba(90, 55, 210, 0.08), transparent 34%),
-    radial-gradient(ellipse at 78% 42%, rgba(55, 45, 190, 0.07), transparent 30%),
-    radial-gradient(ellipse at 50% 88%, rgba(108, 46, 130, 0.09), transparent 32%);
-  filter: blur(56px);
-  opacity: 0.88;
+  z-index: 1;
 }
 
 .app-grid {
@@ -118,8 +113,8 @@ textarea {
 .shell-page {
   padding-top: 8px;
   background:
-    radial-gradient(ellipse at 50% -8%, rgba(72, 64, 195, 0.13), transparent 52%),
-    radial-gradient(ellipse at 50% 110%, rgba(50, 36, 120, 0.09), transparent 44%);
+    radial-gradient(ellipse at 50% -8%, rgba(40, 56, 155, 0.09), transparent 52%),
+    radial-gradient(ellipse at 50% 110%, rgba(26, 40, 110, 0.06), transparent 44%);
 }
 
 /* ── Landing presence surface ────────────────────────────────────── */
@@ -142,15 +137,15 @@ textarea {
   z-index: 1;
 }
 
-/* Landing orb — medium focal size */
+/* Landing orb — intentionally restrained; scene, not hero graphic */
 .landing-presence .ghost-core {
-  width: min(36vw, 260px);
+  width: min(30vw, 210px);
 }
 
 .landing-greeting {
-  margin: 32px 0 24px;
-  font-size: clamp(1.3rem, 2.2vw, 1.65rem);
-  font-weight: 400;
+  margin: 28px 0 48px;
+  font-size: clamp(1.6rem, 2.8vw, 2.0rem);
+  font-weight: 300;
   letter-spacing: -0.02em;
   color: var(--text-soft);
   text-align: center;
@@ -166,19 +161,22 @@ textarea {
   display: flex;
   align-items: center;
   gap: 0;
-  background: rgba(14, 14, 22, 0.76);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.042);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-top-color: rgba(255, 255, 255, 0.13);
   border-radius: 12px;
-  backdrop-filter: blur(24px);
-  box-shadow: 0 4px 28px rgba(0, 0, 0, 0.44), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(36px);
+  -webkit-backdrop-filter: blur(36px);
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transition: border-color 200ms ease, box-shadow 200ms ease;
   padding: 0 8px 0 18px;
   overflow: hidden;
 }
 
 .landing-prompt-bar:focus-within {
-  border-color: rgba(90, 110, 230, 0.36);
-  box-shadow: 0 4px 28px rgba(0, 0, 0, 0.44), 0 0 0 3px rgba(80, 100, 220, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+  border-top-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 .landing-prompt-field {
@@ -203,24 +201,24 @@ textarea {
   height: 34px;
   flex-shrink: 0;
   border-radius: 8px;
-  border: none;
-  background: linear-gradient(180deg, rgba(88, 100, 220, 0.28), rgba(60, 74, 178, 0.22));
-  color: var(--text-soft);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-dim);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
 }
 
 .landing-prompt-submit:hover:not(:disabled) {
-  background: linear-gradient(180deg, rgba(100, 114, 236, 0.40), rgba(72, 88, 200, 0.34));
-  color: var(--text);
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--text-soft);
 }
 
 .landing-prompt-submit:disabled {
-  opacity: 0.40;
+  opacity: 0.32;
   cursor: default;
 }
 
@@ -262,7 +260,7 @@ textarea {
   aspect-ratio: 1;
   top: 2%;
   left: 18%;
-  background: radial-gradient(circle, rgba(86, 78, 218, 0.54), transparent 64%);
+  background: radial-gradient(circle, rgba(42, 68, 148, 0.38), transparent 64%);
   animation: ethereal-float-1 22s ease-in-out infinite alternate;
 }
 
@@ -272,7 +270,7 @@ textarea {
   aspect-ratio: 1;
   top: 20%;
   left: -12%;
-  background: radial-gradient(circle, rgba(108, 42, 208, 0.34), transparent 60%);
+  background: radial-gradient(circle, rgba(28, 50, 118, 0.24), transparent 60%);
   animation: ethereal-float-2 28s ease-in-out infinite alternate;
 }
 
@@ -282,7 +280,7 @@ textarea {
   aspect-ratio: 1;
   top: 24%;
   right: -10%;
-  background: radial-gradient(circle, rgba(48, 40, 188, 0.26), transparent 58%);
+  background: radial-gradient(circle, rgba(32, 58, 124, 0.19), transparent 58%);
   animation: ethereal-float-3 32s ease-in-out infinite alternate;
 }
 
@@ -292,7 +290,7 @@ textarea {
   aspect-ratio: 1;
   bottom: -20%;
   left: 20%;
-  background: radial-gradient(circle, rgba(60, 38, 152, 0.22), transparent 56%);
+  background: radial-gradient(circle, rgba(20, 38, 108, 0.15), transparent 56%);
   animation: ethereal-float-4 26s ease-in-out infinite alternate;
 }
 
@@ -339,23 +337,40 @@ textarea {
 }
 
 .hero-stage.operational {
-  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 840px);
   justify-items: stretch;
   align-items: start;
-  gap: 32px;
+  gap: 0;
+  width: 100%;
+  /* Fade-in entry from below — starts hidden, resolves to visible */
+  transition: opacity 900ms ease, transform 900ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Before ready (idle or transitioning): invisible entry position */
+.hero-stage.operational:not(.ready) {
+  opacity: 0;
+  transform: translateY(22px) scale(0.985);
+  pointer-events: none;
+}
+
+.hero-stage.operational.ready {
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }
 
 .glass-panel {
   position: relative;
   background: linear-gradient(
     158deg,
-    rgba(28, 26, 50, 0.72) 0%,
-    rgba(17, 16, 30, 0.68) 48%,
-    rgba(11, 11, 20, 0.64) 100%
+    rgba(16, 14, 32, 0.46) 0%,
+    rgba(10, 9, 22, 0.42) 48%,
+    rgba(6, 6, 15, 0.38) 100%
   );
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-top-color: rgba(255, 255, 255, 0.19);
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.13);
   backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
   border-radius: var(--radius-lg);
 }
 
@@ -380,7 +395,7 @@ textarea {
   top: 0;
   width: 96px;
   height: 55%;
-  background: radial-gradient(ellipse at left center, rgba(90, 108, 230, 0.10), transparent 72%);
+  background: radial-gradient(ellipse at left center, rgba(46, 68, 175, 0.06), transparent 72%);
   filter: blur(18px);
   pointer-events: none;
   z-index: 0;
@@ -391,6 +406,49 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+
+/* ── Chat header — orb docked with identity + controls ── */
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+/* Compact orb docked in header — much smaller than sidebar compact */
+.chat-header .ghost-core.compact {
+  width: 42px;
+  flex-shrink: 0;
+}
+
+.chat-identity {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.chat-title {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-soft);
+  letter-spacing: 0.05em;
+}
+
+.chat-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .eyebrow {
@@ -430,9 +488,9 @@ textarea {
   isolation: isolate;
   transition: width 700ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
   box-shadow:
-    0 0 60px  rgba(88, 78, 230, 0.30),
-    0 0 130px rgba(90, 58, 220, 0.14),
-    0 0 260px rgba(70, 40, 200, 0.07);
+    0 0 60px  rgba(55, 72, 195, 0.20),
+    0 0 130px rgba(44, 62, 172, 0.09),
+    0 0 260px rgba(32, 50, 152, 0.04);
 }
 
 .ghost-core.compact {
@@ -531,9 +589,9 @@ textarea {
   margin-top: 0;
   text-align: left;
   padding: 20px 22px;
-  /* Ambient sidebar tier — recedes behind the workspace */
-  background: linear-gradient(180deg, rgba(14, 14, 22, 0.42), rgba(9, 9, 16, 0.34));
-  border-color: rgba(255, 255, 255, 0.05);
+  /* Ambient sidebar tier — recedes well behind the workspace */
+  background: linear-gradient(180deg, rgba(10, 10, 17, 0.28), rgba(7, 7, 13, 0.20));
+  border-color: rgba(255, 255, 255, 0.04);
   box-shadow: none;
   backdrop-filter: blur(16px);
 }
@@ -603,10 +661,10 @@ textarea {
   transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
 }
 
-/* Primary action — matches textarea height, prominent indigo fill */
+/* Primary action — glass ghost; presence over chrome */
 .action-button {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: linear-gradient(180deg, rgba(90, 100, 220, 0.22), rgba(62, 76, 180, 0.18));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 18px;
   padding: 0 22px;
   height: 58px;
@@ -627,9 +685,8 @@ textarea {
 }
 
 .action-button:hover {
-  transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.20);
-  background: linear-gradient(180deg, rgba(100, 112, 235, 0.26), rgba(72, 88, 200, 0.22));
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.09);
 }
 
 .ghost-chip:hover {
@@ -651,12 +708,12 @@ textarea {
 }
 
 .signal-pill {
-  padding: 8px 12px;
+  padding: 5px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text-soft);
-  font-size: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-dim);
+  font-size: 0.80rem;
 }
 
 .chat-shell {
@@ -665,8 +722,8 @@ textarea {
   gap: 20px;
   grid-template-rows: auto minmax(0, 1fr) auto;
   padding: 24px 24px 20px;
-  width: min(960px, 100%);
-  transition: transform 680ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 680ms ease, min-height 680ms ease;
+  width: 100%;
+  transition: transform 900ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 900ms ease, min-height 900ms ease;
 }
 
 .chat-shell.landing {
@@ -687,12 +744,12 @@ textarea {
 .chat-shell:not(.landing) {
   background: linear-gradient(
     158deg,
-    rgba(30, 28, 52, 0.82) 0%,
-    rgba(18, 17, 34, 0.78) 48%,
-    rgba(12, 12, 22, 0.74) 100%
+    rgba(13, 12, 24, 0.60) 0%,
+    rgba(9, 9, 18, 0.54) 48%,
+    rgba(7, 7, 14, 0.48) 100%
   );
-  border-color: rgba(255, 255, 255, 0.10);
-  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.62), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.50), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .message-list {
@@ -721,9 +778,9 @@ textarea {
 
 .message.user {
   align-self: flex-end;
-  background: linear-gradient(180deg, rgba(52, 26, 84, 0.56), rgba(24, 12, 42, 0.72));
-  border: 1px solid rgba(150, 70, 220, 0.10);
-  box-shadow: 0 3px 16px rgba(0, 0, 0, 0.26);
+  background: linear-gradient(180deg, rgba(18, 17, 34, 0.52), rgba(11, 11, 22, 0.68));
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 3px 16px rgba(0, 0, 0, 0.24);
 }
 
 .message-meta {
@@ -1347,6 +1404,14 @@ textarea {
     width: 144px;
   }
 
+  .ghost-orb {
+    width: min(80vw, 403px);  /* 336 × 1.2 */
+  }
+
+  .ghost-orb.compact {
+    width: 50px;
+  }
+
   .headline {
     font-size: clamp(2.5rem, 14vw, 4.1rem);
   }
@@ -1469,12 +1534,12 @@ textarea {
   filter: blur(38px);
 }
 
-/* Landing orb — wider bloom for the larger presence size */
+/* Landing orb — restrained bloom, supports not overwhelms */
 .landing-presence .ghost-core {
   box-shadow:
-    0 0 90px  rgba(88, 78, 230, 0.38),
-    0 0 180px rgba(90, 58, 220, 0.18),
-    0 0 320px rgba(70, 40, 200, 0.09);
+    0 0 70px  rgba(54, 72, 190, 0.24),
+    0 0 150px rgba(42, 60, 168, 0.11),
+    0 0 300px rgba(30, 48, 148, 0.05);
 }
 
 /* --- Chat shell: landing = no glass container, just floating input --- */
@@ -1491,10 +1556,10 @@ textarea {
 /* More cinematic transition: stronger drop + blur defocus */
 .chat-shell {
   transition:
-    transform 680ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    opacity 680ms ease,
-    filter 680ms ease,
-    min-height 680ms ease;
+    transform 900ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 900ms ease,
+    filter 900ms ease,
+    min-height 900ms ease;
 }
 
 .chat-shell.transitioning {
@@ -1567,10 +1632,10 @@ textarea {
   pointer-events: none;
   z-index: 0;
   background:
-    radial-gradient(circle at 50% 43%, rgba(72, 84, 210, 0.24), transparent 36%),
-    radial-gradient(circle at 44% 36%, rgba(112, 48, 205, 0.12), transparent 40%),
-    radial-gradient(circle at 56% 52%, rgba(190, 70, 140, 0.06), transparent 30%),
-    radial-gradient(circle at 50% 72%, rgba(58, 42, 160, 0.07), transparent 28%);
+    radial-gradient(circle at 50% 43%, rgba(36, 66, 138, 0.20), transparent 36%),
+    radial-gradient(circle at 44% 36%, rgba(26, 52, 120, 0.10), transparent 40%),
+    radial-gradient(circle at 56% 52%, rgba(26, 50, 116, 0.05), transparent 30%),
+    radial-gradient(circle at 50% 72%, rgba(20, 44, 112, 0.06), transparent 28%);
   filter: blur(54px);
   animation: fog-breathe 16s ease-in-out infinite;
   transition: opacity 800ms ease;
@@ -1597,12 +1662,55 @@ textarea {
   inset: -72px -28px -8px;
   background: radial-gradient(
     ellipse at 50% 100%,
-    rgba(70, 82, 210, 0.13),
+    rgba(42, 58, 162, 0.08),
     transparent 62%
   );
   filter: blur(32px);
   pointer-events: none;
   z-index: -1;
+}
+
+/* ── Ghost Orb — WebGL 3D sphere container ─────────────────────────────────── */
+/* Replaces CSS ghost-core on the chat surface. OGL sphere fills the container */
+/* at any size — same CSS sizing as ghost-core was, same context points.       */
+
+/* Ghost Orb container — no overflow:hidden or border-radius:          */
+/* The ReactBits Orb shader renders its own circular shape + alpha.    */
+/* Clipping with border-radius creates a white gap at the canvas edge. */
+.ghost-orb {
+  position: relative;
+  aspect-ratio: 1;
+  width: min(55vw, 518px);   /* 432 × 1.2 = 518 */
+  transition: width 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.ghost-orb.compact {
+  width: 50px;
+  flex-shrink: 0;
+}
+
+.ghost-orb.transitioning {
+  filter: brightness(1.32) saturate(1.18);
+}
+
+/* Landing orb — 20% larger than the previous restrained size */
+.landing-presence .ghost-orb {
+  width: min(36vw, 252px);   /* 210 × 1.2 = 252 */
+}
+
+/* Chat header compact orb */
+.chat-header .ghost-orb.compact {
+  width: 50px;
+  flex-shrink: 0;
+}
+
+/* Ghost Aurora — legacy, kept for any non-chat-surface usage */
+.ghost-aurora {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
 }
 
 /* Compact Ghost orbit: reverse direction + faster = ambient monitoring feel */
