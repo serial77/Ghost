@@ -1353,19 +1353,6 @@
       },
       {
         "parameters": {
-          "jsCode": "const worker = $('Normalize Delegated Codex Reply').item.json;\nconst saved = $input.first().json;\nreturn [{ json: {\n  ...worker,\n  worker_assistant_message_id: saved.id || '',\n} }];"
-        },
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          3376,
-          -208
-        ],
-        "id": "bd8a0069-880c-aa28-e95e-7e412c0b31a6",
-        "name": "Build Delegated Completion Context"
-      },
-      {
-        "parameters": {
           "operation": "executeQuery",
           "query": "SELECT\n  delegation_id::text,\n  orchestration_task_id::text,\n  worker_conversation_id::text,\n  worker_agent_id::text,\n  worker_agent_label,\n  worker_provider,\n  worker_model\nFROM public.ghost_create_conversation_delegation(\n  NULLIF($1, '')::uuid,\n  NULLIF($2, '')::uuid,\n  NULLIF($3, ''),\n  NULLIF($4, ''),\n  NULLIF($5, ''),\n  $6,\n  $7::jsonb\n);",
           "options": {
@@ -1665,6 +1652,19 @@
           }
         },
         "continueOnFail": false
+      },
+      {
+        "parameters": {
+          "jsCode": "const worker = $('Normalize Delegated Codex Reply').item.json;\nconst saved = $input.first().json;\nreturn [{ json: {\n  ...worker,\n  worker_assistant_message_id: saved.id || '',\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3376,
+          -208
+        ],
+        "id": "bd8a0069-880c-aa28-e95e-7e412c0b31a6",
+        "name": "Build Delegated Completion Context"
       },
       {
         "parameters": {
