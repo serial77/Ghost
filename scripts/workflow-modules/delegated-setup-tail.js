@@ -104,6 +104,47 @@ const workerCapabilities = Array.isArray(__ghostWorkerRuntime.worker_capabilitie
   ? __ghostWorkerRuntime.worker_capabilities.forge
   : [];
 const requiredCapabilities = ['code.write', 'artifact.publish'];
+const runtimeEnvironment = (() => {
+  const explicit = typeof process !== 'undefined'
+    ? String(process.env.GHOST_RUNTIME_ENV || process.env.GHOST_ENV || process.env.NODE_ENV || '').trim()
+    : '';
+  if (explicit === 'production' && __ghostWorkerRuntime.environments_by_id.prod) return 'prod';
+  if (explicit && __ghostWorkerRuntime.environments_by_id[explicit]) return explicit;
+  return 'lab';
+})();
+const environmentDoc = __ghostWorkerRuntime.environments_by_id[runtimeEnvironment] || __ghostWorkerRuntime.environments_by_id.lab || { governance_posture: 'moderate', restricted_capabilities: [] };
+const capabilityRecords = requiredCapabilities
+  .map((capabilityId) => __ghostWorkerRuntime.capabilities_by_id[capabilityId] || null)
+  .filter(Boolean);
+const approvalRequiredCapabilities = capabilityRecords
+  .filter((entry) => entry.approval_required)
+  .map((entry) => entry.id);
+const restrictedCapabilities = capabilityRecords
+  .filter((entry) => (environmentDoc.restricted_capabilities || []).includes(entry.id))
+  .map((entry) => entry.id);
+const outOfScopeCapabilities = capabilityRecords
+  .filter((entry) => !(entry.environment_restriction || []).includes(runtimeEnvironment))
+  .map((entry) => entry.id);
+const workerGovernanceState = restrictedCapabilities.length > 0 || outOfScopeCapabilities.length > 0
+  ? 'environment_restricted'
+  : approvalRequiredCapabilities.length > 0
+    ? 'approval_required'
+    : 'allowed';
+const workerGovernancePolicy = {
+  state: workerGovernanceState,
+  summary: [
+    approvalRequiredCapabilities.length ? \`approval required for \${approvalRequiredCapabilities.join(', ')}\` : '',
+    restrictedCapabilities.length ? \`restricted in \${runtimeEnvironment}: \${restrictedCapabilities.join(', ')}\` : '',
+    outOfScopeCapabilities.length ? \`outside \${runtimeEnvironment} scope: \${outOfScopeCapabilities.join(', ')}\` : '',
+    \`environment posture \${environmentDoc.governance_posture || 'unknown'}\`,
+  ].filter(Boolean).join('; '),
+  environment: runtimeEnvironment,
+  environment_posture: environmentDoc.governance_posture || null,
+  approval_required_capabilities: approvalRequiredCapabilities,
+  restricted_capabilities: restrictedCapabilities,
+  out_of_scope_capabilities: outOfScopeCapabilities,
+  blocking_capabilities: Array.from(new Set([...restrictedCapabilities, ...outOfScopeCapabilities])),
+};
 const missingCapabilities = requiredCapabilities.filter((capabilityId) => !workerCapabilities.includes(capabilityId));
 if (!workerRegistry) {
   throw new Error('Missing forge worker registry definition');
@@ -141,6 +182,14 @@ return [{ json: {
   orchestration_task_id: delegation.orchestration_task_id || '',
   worker_conversation_id: delegation.worker_conversation_id || '',
   worker_agent_id: delegation.worker_agent_id || '',
+  approval_required: parent.approval_required === true || workerGovernancePolicy.state === 'environment_restricted',
+  governance_environment: runtimeEnvironment,
+  governance_policy: workerGovernancePolicy,
+  requested_capabilities: requiredCapabilities,
+  risk_reasons: Array.from(new Set([
+    ...(Array.isArray(parent.risk_reasons) ? parent.risk_reasons : []),
+    workerGovernancePolicy.state === 'environment_restricted' ? workerGovernancePolicy.summary : '',
+  ].filter(Boolean))),
   worker_registry_id: workerRegistry.id,
   worker_agent_label: workerRegistry.visibility_label,
   worker_role: workerRegistry.role,
@@ -164,6 +213,9 @@ return [{ json: {
     worker_role: workerRegistry.role,
     worker_operator_identity: workerRegistry.operator_identity,
     worker_allowed_capabilities: workerCapabilities,
+    governance_environment: runtimeEnvironment,
+    governance_policy: workerGovernancePolicy,
+    requested_capabilities: requiredCapabilities,
     n8n_execution_id: parent.n8n_execution_id || normalized.n8n_execution_id || null,
   }),
   blocked_result_summary: compact(\`Approval required before delegated worker execution. \${(parent.risk_reasons || []).join(' ')}\`, 400),
@@ -269,6 +321,12 @@ function assertDelegatedSetupTailContract({ workflow, findNode, assertIncludes }
   }
 
   for (const field of [
+    "runtimeEnvironment",
+    "workerGovernancePolicy",
+    "approval_required: parent.approval_required === true || workerGovernancePolicy.state === 'environment_restricted'",
+    "governance_environment",
+    "governance_policy",
+    "requested_capabilities",
     "orchestration_task_id",
     "worker_conversation_id",
     "worker_registry_id",

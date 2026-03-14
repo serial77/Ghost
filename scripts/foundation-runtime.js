@@ -100,9 +100,33 @@ function makeWorkerRuntimeConfig(foundations) {
     };
   }
 
+  const capabilitiesById = {};
+  for (const capability of foundations.capabilities.capabilities) {
+    capabilitiesById[capability.id] = {
+      id: capability.id,
+      class: capability.class,
+      approval_required: capability.approval_required,
+      environment_restriction: capability.environment_restriction,
+      description: capability.description,
+    };
+  }
+
+  const environmentsById = {};
+  for (const environment of foundations.environments.environments) {
+    environmentsById[environment.id] = {
+      id: environment.id,
+      label: environment.label,
+      governance_posture: environment.governance_posture,
+      restricted_capabilities: environment.restricted_capabilities,
+      mutable: environment.mutable,
+    };
+  }
+
   return {
     workers_by_id: workersById,
+    capabilities_by_id: capabilitiesById,
     worker_capabilities: foundations.capabilities.worker_capabilities,
+    environments_by_id: environmentsById,
   };
 }
 
