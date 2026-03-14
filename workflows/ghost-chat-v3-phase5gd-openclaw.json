@@ -429,7 +429,7 @@
           "operation": "executeQuery",
           "query": "INSERT INTO messages (\n  id,\n  conversation_id,\n  role,\n  content,\n  content_format,\n  model_name,\n  metadata,\n  created_at\n)\nVALUES (\n  gen_random_uuid(),\n  $1,\n  'assistant',\n  $2,\n  'text',\n  $3,\n  $4::jsonb,\n  NOW()\n)\nRETURNING id, conversation_id, role, content, created_at;",
           "options": {
-            "queryReplacement": "={{ [$json.conversation_id, $json.reply, $json.model_used || null, { provider_used: $json.provider_used || null, task_class: $json.task_class || null, approval_required: $json.approval_required || false, risk_level: $json.risk_level || 'safe', risk_reasons: $json.risk_reasons || [], approval_item: $json.approval_item || null, governance_policy: $json.governance_policy || null, governance_environment: $json.governance_environment || null, requested_capabilities: $json.requested_capabilities || [], task_summary: $json.task_summary || '', command_success: $json.command_success === true, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $json.runtime_task_id || null, runtime_task_run_id: $json.runtime_task_run_id || null, worker_conversation_id: $json.worker_conversation_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || 'direct_owner_reply', parent_owner_label: $json.parent_owner_label || null }] }}"
+            "queryReplacement": "={{ [$json.conversation_id, $json.reply, $json.model_used || null, { provider_used: $json.provider_used || null, task_class: $json.task_class || null, approval_required: $json.approval_required || false, risk_level: $json.risk_level || 'safe', risk_reasons: $json.risk_reasons || [], approval_item: $json.approval_item || null, governance_policy: $json.governance_policy || null, governance_environment: $json.governance_environment || null, requested_capabilities: $json.requested_capabilities || [], approval_queue_id: $json.approval_queue_id || null, approval_queue_status: $json.approval_queue_status || null, task_summary: $json.task_summary || '', command_success: $json.command_success === true, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $json.runtime_task_id || null, runtime_task_run_id: $json.runtime_task_run_id || null, worker_conversation_id: $json.worker_conversation_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || 'direct_owner_reply', parent_owner_label: $json.parent_owner_label || null }] }}"
           }
         },
         "type": "n8n-nodes-base.postgres",
@@ -449,7 +449,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const item = $input.first().json;\nconst asText = (value) => value === undefined || value === null ? '' : String(value).trim();\nconst summarize = (value) => asText(value).replace(/\\s+/g, ' ').trim().slice(0, 600);\nconst normalizeExitCode = (value) => {\n  if (value === undefined || value === null || value === '') return null;\n  const numeric = Number(value);\n  return Number.isFinite(numeric) ? numeric : asText(value);\n};\nconst normalizeNullableBoolean = (value) => (\n  value === undefined || value === null || value === '' ? null : Boolean(value)\n);\nconst normalizeArray = (value) => Array.isArray(value) ? value : [];\nconst normalizeObject = (value) => (\n  value && typeof value === 'object' && !Array.isArray(value) ? value : null\n);\nreturn [{ json: {\n  conversation_id: asText(item.conversation_id),\n  reply: asText(item.reply),\n  provider_used: asText(item.provider_used),\n  model_used: asText(item.model_used),\n  task_class: asText(item.task_class),\n  approval_required: Boolean(item.approval_required),\n  risk_level: asText(item.risk_level) || 'safe',\n  risk_reasons: normalizeArray(item.risk_reasons),\n  approval_item: normalizeObject(item.approval_item),\n  governance_policy: normalizeObject(item.governance_policy),\n  governance_environment: asText(item.governance_environment) || null,\n  requested_capabilities: normalizeArray(item.requested_capabilities),\n  task_summary: summarize(item.task_summary),\n  command_success: normalizeNullableBoolean(item.command_success),\n  command_exit_code: normalizeExitCode(item.command_exit_code),\n  stdout_summary: summarize(item.stdout_summary),\n  stderr_summary: summarize(item.stderr_summary),\n  artifact_path: asText(item.artifact_path) || null,\n  codex_command_status: asText(item.codex_command_status) || 'not_applicable',\n  error_type: asText(item.error_type) || null,\n  delegation_id: asText(item.delegation_id) || null,\n  orchestration_task_id: asText(item.orchestration_task_id) || null,\n  runtime_task_id: asText(item.runtime_task_id) || null,\n  runtime_task_run_id: asText(item.runtime_task_run_id) || null,\n  worker_conversation_id: asText(item.worker_conversation_id) || null,\n  n8n_execution_id: asText(item.n8n_execution_id) || null,\n  response_mode: asText(item.response_mode) || 'direct_owner_reply',\n  parent_owner_label: asText(item.parent_owner_label) || null,\n} }];"
+          "jsCode": "const item = $input.first().json;\nconst asText = (value) => value === undefined || value === null ? '' : String(value).trim();\nconst summarize = (value) => asText(value).replace(/\\s+/g, ' ').trim().slice(0, 600);\nconst normalizeExitCode = (value) => {\n  if (value === undefined || value === null || value === '') return null;\n  const numeric = Number(value);\n  return Number.isFinite(numeric) ? numeric : asText(value);\n};\nconst normalizeNullableBoolean = (value) => (\n  value === undefined || value === null || value === '' ? null : Boolean(value)\n);\nconst normalizeArray = (value) => Array.isArray(value) ? value : [];\nconst normalizeObject = (value) => (\n  value && typeof value === 'object' && !Array.isArray(value) ? value : null\n);\nreturn [{ json: {\n  conversation_id: asText(item.conversation_id),\n  reply: asText(item.reply),\n  provider_used: asText(item.provider_used),\n  model_used: asText(item.model_used),\n  task_class: asText(item.task_class),\n  approval_required: Boolean(item.approval_required),\n  risk_level: asText(item.risk_level) || 'safe',\n  risk_reasons: normalizeArray(item.risk_reasons),\n  approval_item: normalizeObject(item.approval_item),\n  governance_policy: normalizeObject(item.governance_policy),\n  governance_environment: asText(item.governance_environment) || null,\n  requested_capabilities: normalizeArray(item.requested_capabilities),\n  approval_queue_id: asText(item.approval_queue_id) || null,\n  approval_queue_status: asText(item.approval_queue_status) || null,\n  task_summary: summarize(item.task_summary),\n  command_success: normalizeNullableBoolean(item.command_success),\n  command_exit_code: normalizeExitCode(item.command_exit_code),\n  stdout_summary: summarize(item.stdout_summary),\n  stderr_summary: summarize(item.stderr_summary),\n  artifact_path: asText(item.artifact_path) || null,\n  codex_command_status: asText(item.codex_command_status) || 'not_applicable',\n  error_type: asText(item.error_type) || null,\n  delegation_id: asText(item.delegation_id) || null,\n  orchestration_task_id: asText(item.orchestration_task_id) || null,\n  runtime_task_id: asText(item.runtime_task_id) || null,\n  runtime_task_run_id: asText(item.runtime_task_run_id) || null,\n  worker_conversation_id: asText(item.worker_conversation_id) || null,\n  n8n_execution_id: asText(item.n8n_execution_id) || null,\n  response_mode: asText(item.response_mode) || 'direct_owner_reply',\n  parent_owner_label: asText(item.parent_owner_label) || null,\n} }];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -1217,6 +1217,43 @@
           }
         },
         "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "WITH payload AS (\n  SELECT\n    NULLIF($1, '')::uuid AS task_id,\n    NULLIF($2, '') AS approval_contract_id,\n    NULLIF($3, '') AS approval_type,\n    NULLIF($4, '') AS prompt_text,\n    COALESCE($5::jsonb, '{}'::jsonb) AS approval_metadata,\n    NULLIF($6, '') AS requester_agent_key,\n    COALESCE($7::jsonb, '{}'::jsonb) AS payload_json\n), existing AS (\n  SELECT\n    a.id::text AS approval_queue_id,\n    a.status AS approval_queue_status,\n    a.requested_at\n  FROM approvals a\n  JOIN payload p ON TRUE\n  WHERE a.task_id = p.task_id\n    AND COALESCE(a.metadata ->> 'approval_contract_id', '') = COALESCE(p.approval_contract_id, '')\n  ORDER BY a.requested_at DESC, a.id DESC\n  LIMIT 1\n), inserted AS (\n  INSERT INTO approvals (\n    task_id,\n    requested_by_agent_id,\n    approval_type,\n    status,\n    prompt_text,\n    metadata\n  )\n  SELECT\n    p.task_id,\n    (SELECT id FROM agents WHERE agent_key = p.requester_agent_key LIMIT 1),\n    COALESCE(p.approval_type, 'governed_approval'),\n    'pending',\n    COALESCE(p.prompt_text, 'Approval required before execution can continue.'),\n    p.approval_metadata\n  FROM payload p\n  WHERE p.task_id IS NOT NULL\n    AND NOT EXISTS (SELECT 1 FROM existing)\n  RETURNING id::text AS approval_queue_id, status AS approval_queue_status, requested_at\n)\nSELECT\n  COALESCE(inserted.approval_queue_id, existing.approval_queue_id, '') AS approval_queue_id,\n  COALESCE(inserted.approval_queue_status, existing.approval_queue_status, '') AS approval_queue_status,\n  COALESCE(inserted.requested_at, existing.requested_at)::text AS approval_requested_at,\n  payload.payload_json::text AS approval_payload_json\nFROM payload\nLEFT JOIN inserted ON TRUE\nLEFT JOIN existing ON TRUE;",
+          "options": {
+            "queryReplacement": "={{ [$('Start Runtime Ledger').item.json.task_id || '', $json.approval_item?.approval_id || '', $json.response_mode === 'delegated_blocked' ? 'delegated_blocked' : 'direct_approval_required', $json.reply || 'Approval required before execution can continue.', { approval_contract_id: $json.approval_item?.approval_id || null, approval_item: $json.approval_item || null, governance_policy: $json.governance_policy || null, governance_environment: $json.governance_environment || null, requested_capabilities: $json.requested_capabilities || [], conversation_id: $json.conversation_id || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $('Start Runtime Ledger').item.json.task_id || null, runtime_task_run_id: $('Start Runtime Ledger').item.json.task_run_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || null, parent_owner_label: $json.parent_owner_label || null, source_path: $json.response_mode === 'delegated_blocked' ? 'delegated_blocked' : 'direct_approval_required' }, 'ghost-main', $json] }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          2144,
+          -544
+        ],
+        "id": "302f0519-682d-c365-bee5-b569000bcc30",
+        "name": "Persist Approval Queue Item",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        },
+        "continueOnFail": false
+      },
+      {
+        "parameters": {
+          "jsCode": "const row = $input.first().json || {};\nlet payload = {};\ntry {\n  payload = row.approval_payload_json ? JSON.parse(row.approval_payload_json) : {};\n} catch (error) {\n  payload = {};\n}\nconst approvalItem = payload.approval_item && typeof payload.approval_item === 'object' && !Array.isArray(payload.approval_item)\n  ? {\n      ...payload.approval_item,\n      queue_id: row.approval_queue_id || null,\n      queue_status: row.approval_queue_status || 'pending',\n      queue_requested_at: row.approval_requested_at || null,\n    }\n  : payload.approval_item || null;\nreturn [{ json: {\n  ...payload,\n  approval_item: approvalItem,\n  approval_queue_id: row.approval_queue_id || null,\n  approval_queue_status: row.approval_queue_status || null,\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2368,
+          -544
+        ],
+        "id": "aad99149-2582-61f7-5784-1b4f21ac7804",
+        "name": "Attach Persisted Approval Queue Metadata"
       },
       {
         "parameters": {
@@ -2106,7 +2143,7 @@
         "main": [
           [
             {
-              "node": "Build API Response",
+              "node": "Persist Approval Queue Item",
               "type": "main",
               "index": 0
             }
@@ -2481,7 +2518,7 @@
         "main": [
           [
             {
-              "node": "Build API Response",
+              "node": "Persist Approval Queue Item",
               "type": "main",
               "index": 0
             }
@@ -2500,6 +2537,28 @@
         ]
       },
       "Build Parent Unsupported Delegation Response": {
+        "main": [
+          [
+            {
+              "node": "Build API Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Persist Approval Queue Item": {
+        "main": [
+          [
+            {
+              "node": "Attach Persisted Approval Queue Metadata",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Attach Persisted Approval Queue Metadata": {
         "main": [
           [
             {

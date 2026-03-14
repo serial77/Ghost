@@ -356,6 +356,94 @@ return [{ json: {
   parent_owner_label: context.parent_owner_label || 'Ghost',
 } }];`;
 
+addNode(
+  workflow,
+  makePostgresNode(
+    "Persist Approval Queue Item",
+    `WITH payload AS (
+  SELECT
+    NULLIF($1, '')::uuid AS task_id,
+    NULLIF($2, '') AS approval_contract_id,
+    NULLIF($3, '') AS approval_type,
+    NULLIF($4, '') AS prompt_text,
+    COALESCE($5::jsonb, '{}'::jsonb) AS approval_metadata,
+    NULLIF($6, '') AS requester_agent_key,
+    COALESCE($7::jsonb, '{}'::jsonb) AS payload_json
+), existing AS (
+  SELECT
+    a.id::text AS approval_queue_id,
+    a.status AS approval_queue_status,
+    a.requested_at
+  FROM approvals a
+  JOIN payload p ON TRUE
+  WHERE a.task_id = p.task_id
+    AND COALESCE(a.metadata ->> 'approval_contract_id', '') = COALESCE(p.approval_contract_id, '')
+  ORDER BY a.requested_at DESC, a.id DESC
+  LIMIT 1
+), inserted AS (
+  INSERT INTO approvals (
+    task_id,
+    requested_by_agent_id,
+    approval_type,
+    status,
+    prompt_text,
+    metadata
+  )
+  SELECT
+    p.task_id,
+    (SELECT id FROM agents WHERE agent_key = p.requester_agent_key LIMIT 1),
+    COALESCE(p.approval_type, 'governed_approval'),
+    'pending',
+    COALESCE(p.prompt_text, 'Approval required before execution can continue.'),
+    p.approval_metadata
+  FROM payload p
+  WHERE p.task_id IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM existing)
+  RETURNING id::text AS approval_queue_id, status AS approval_queue_status, requested_at
+)
+SELECT
+  COALESCE(inserted.approval_queue_id, existing.approval_queue_id, '') AS approval_queue_id,
+  COALESCE(inserted.approval_queue_status, existing.approval_queue_status, '') AS approval_queue_status,
+  COALESCE(inserted.requested_at, existing.requested_at)::text AS approval_requested_at,
+  payload.payload_json::text AS approval_payload_json
+FROM payload
+LEFT JOIN inserted ON TRUE
+LEFT JOIN existing ON TRUE;`,
+    "={{ [$('Start Runtime Ledger').item.json.task_id || '', $json.approval_item?.approval_id || '', $json.response_mode === 'delegated_blocked' ? 'delegated_blocked' : 'direct_approval_required', $json.reply || 'Approval required before execution can continue.', { approval_contract_id: $json.approval_item?.approval_id || null, approval_item: $json.approval_item || null, governance_policy: $json.governance_policy || null, governance_environment: $json.governance_environment || null, requested_capabilities: $json.requested_capabilities || [], conversation_id: $json.conversation_id || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $('Start Runtime Ledger').item.json.task_id || null, runtime_task_run_id: $('Start Runtime Ledger').item.json.task_run_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || null, parent_owner_label: $json.parent_owner_label || null, source_path: $json.response_mode === 'delegated_blocked' ? 'delegated_blocked' : 'direct_approval_required' }, 'ghost-main', $json] }}",
+    [2144, -544],
+    false,
+  ),
+);
+
+addNode(
+  workflow,
+  makeCodeNode(
+    "Attach Persisted Approval Queue Metadata",
+    `const row = $input.first().json || {};
+let payload = {};
+try {
+  payload = row.approval_payload_json ? JSON.parse(row.approval_payload_json) : {};
+} catch (error) {
+  payload = {};
+}
+const approvalItem = payload.approval_item && typeof payload.approval_item === 'object' && !Array.isArray(payload.approval_item)
+  ? {
+      ...payload.approval_item,
+      queue_id: row.approval_queue_id || null,
+      queue_status: row.approval_queue_status || 'pending',
+      queue_requested_at: row.approval_requested_at || null,
+    }
+  : payload.approval_item || null;
+return [{ json: {
+  ...payload,
+  approval_item: approvalItem,
+  approval_queue_id: row.approval_queue_id || null,
+  approval_queue_status: row.approval_queue_status || null,
+} }];`,
+    [2368, -544],
+  ),
+);
+
 const normalizeCodexReply = findNode(workflow, "Normalize Codex Reply");
 normalizeCodexReply.parameters.jsCode = `const result = $input.first().json;
 const context = $('Expose Route Metadata').item.json;
@@ -548,15 +636,38 @@ setMainConnections(workflow.connections, "Create Conversation Delegation", [[{ n
 setMainConnections(workflow.connections, "Build Delegation Context", [[{ node: "Save Delegated Worker Message" }]]);
 setMainConnections(workflow.connections, "Save Delegated Worker Message", [[{ node: "Build Delegation Execution Context" }]]);
 setMainConnections(workflow.connections, "Finalize Blocked Delegation", [[{ node: "Build Parent Blocked Delegation Response" }]]);
-setMainConnections(workflow.connections, "Build Parent Blocked Delegation Response", [[{ node: "Build API Response" }]]);
+setMainConnections(workflow.connections, "Build Parent Blocked Delegation Response", [[{ node: "Persist Approval Queue Item" }]]);
 setMainConnections(workflow.connections, "Finalize Unsupported Delegation", [[{ node: "Build Parent Unsupported Delegation Response" }]]);
 setMainConnections(workflow.connections, "Build Parent Unsupported Delegation Response", [[{ node: "Build API Response" }]]);
+setMainConnections(workflow.connections, "Build Approval Required Response", [[{ node: "Persist Approval Queue Item" }]]);
+setMainConnections(workflow.connections, "Persist Approval Queue Item", [[{ node: "Attach Persisted Approval Queue Metadata" }]]);
+setMainConnections(workflow.connections, "Attach Persisted Approval Queue Metadata", [[{ node: "Build API Response" }]]);
 setMainConnections(workflow.connections, "Save Delegated Worker Reply", [[{ node: "Build Delegated Completion Context" }]]);
 setMainConnections(workflow.connections, "Build Delegated Completion Context", [[{ node: "Complete Delegated Runtime" }]]);
 setMainConnections(workflow.connections, "Complete Delegated Runtime", [[{ node: "Annotate Delegation Completion Event" }]]);
 setMainConnections(workflow.connections, "Annotate Delegation Completion Event", [[{ node: "Build Parent Delegation Response" }]]);
 setMainConnections(workflow.connections, "Build Parent Delegation Response", [[{ node: "Build API Response" }]]);
 setMainConnections(workflow.connections, "Complete Runtime Ledger", [[{ node: "Annotate Direct Runtime Event" }]]);
+
+const persistApprovalQueueItem = findNode(workflow, "Persist Approval Queue Item");
+const attachPersistedApprovalQueueMetadata = findNode(workflow, "Attach Persisted Approval Queue Metadata");
+for (const field of [
+  "INSERT INTO approvals",
+  "approval_contract_id",
+  "requested_by_agent_id",
+  "approval_queue_id",
+  "approval_payload_json",
+]) {
+  assertIncludes(persistApprovalQueueItem.parameters.query, field, "Persist Approval Queue Item query");
+}
+for (const field of [
+  "approval_queue_id",
+  "approval_queue_status",
+  "approval_item",
+  "queue_requested_at",
+]) {
+  assertIncludes(attachPersistedApprovalQueueMetadata.parameters.jsCode, field, "Attach Persisted Approval Queue Metadata");
+}
 
 assertDirectRuntimeTailContract({ workflow, findNode, assertIncludes });
 assertMemoryExtractionTailContract({ workflow, findNode, assertIncludes });

@@ -179,7 +179,7 @@ function assertDelegatedControlTailContract({ workflow, findNode, assertIncludes
 
   assertHasSingleMainConnection(workflow, "Delegation Approval Required?", "Finalize Blocked Delegation");
   assertHasSingleMainConnection(workflow, "Finalize Blocked Delegation", "Build Parent Blocked Delegation Response");
-  assertHasSingleMainConnection(workflow, "Build Parent Blocked Delegation Response", "Build API Response");
+  assertHasSingleMainConnection(workflow, "Build Parent Blocked Delegation Response", "Persist Approval Queue Item");
 
   const delegatedWorkerOutputs = workflow.connections["Delegated Worker Is Codex?"]?.main || [];
   const secondOutput = Array.isArray(delegatedWorkerOutputs[1]) ? delegatedWorkerOutputs[1] : [];

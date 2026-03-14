@@ -34,6 +34,8 @@ return [{ json: {
   governance_policy: normalizeObject(item.governance_policy),
   governance_environment: asText(item.governance_environment) || null,
   requested_capabilities: normalizeArray(item.requested_capabilities),
+  approval_queue_id: asText(item.approval_queue_id) || null,
+  approval_queue_status: asText(item.approval_queue_status) || null,
   task_summary: summarize(item.task_summary),
   command_success: normalizeNullableBoolean(item.command_success),
   command_exit_code: normalizeExitCode(item.command_exit_code),
@@ -56,7 +58,7 @@ return [{ json: {
   // The parent assistant message remains the persisted operator/debug surface for the
   // direct path. The extracted tail must preserve the full direct contract here.
   saveAssistantReply.parameters.options.queryReplacement =
-    "={{ [$json.conversation_id, $json.reply, $json.model_used || null, { provider_used: $json.provider_used || null, task_class: $json.task_class || null, approval_required: $json.approval_required || false, risk_level: $json.risk_level || 'safe', risk_reasons: $json.risk_reasons || [], approval_item: $json.approval_item || null, governance_policy: $json.governance_policy || null, governance_environment: $json.governance_environment || null, requested_capabilities: $json.requested_capabilities || [], task_summary: $json.task_summary || '', command_success: $json.command_success === true, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $json.runtime_task_id || null, runtime_task_run_id: $json.runtime_task_run_id || null, worker_conversation_id: $json.worker_conversation_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || 'direct_owner_reply', parent_owner_label: $json.parent_owner_label || null }] }}";
+    "={{ [$json.conversation_id, $json.reply, $json.model_used || null, { provider_used: $json.provider_used || null, task_class: $json.task_class || null, approval_required: $json.approval_required || false, risk_level: $json.risk_level || 'safe', risk_reasons: $json.risk_reasons || [], approval_item: $json.approval_item || null, governance_policy: $json.governance_policy || null, governance_environment: $json.governance_environment || null, requested_capabilities: $json.requested_capabilities || [], approval_queue_id: $json.approval_queue_id || null, approval_queue_status: $json.approval_queue_status || null, task_summary: $json.task_summary || '', command_success: $json.command_success === true, command_exit_code: $json.command_exit_code !== undefined && $json.command_exit_code !== null ? $json.command_exit_code : null, stdout_summary: $json.stdout_summary || '', stderr_summary: $json.stderr_summary || '', artifact_path: $json.artifact_path || null, codex_command_status: $json.codex_command_status || 'not_applicable', error_type: $json.error_type || null, delegation_id: $json.delegation_id || null, orchestration_task_id: $json.orchestration_task_id || null, runtime_task_id: $json.runtime_task_id || null, runtime_task_run_id: $json.runtime_task_run_id || null, worker_conversation_id: $json.worker_conversation_id || null, n8n_execution_id: $json.n8n_execution_id || null, response_mode: $json.response_mode || 'direct_owner_reply', parent_owner_label: $json.parent_owner_label || null }] }}";
 
   const buildRuntimeLedgerCompletionPayload = findNode(workflow, "Build Runtime Ledger Completion Payload");
   // task_runs.output_payload and the direct completion tool_event must keep sharing
@@ -150,6 +152,8 @@ function assertDirectRuntimeTailContract({ workflow, findNode, assertIncludes })
     "governance_policy",
     "governance_environment",
     "requested_capabilities",
+    "approval_queue_id",
+    "approval_queue_status",
     "provider_used",
     "model_used",
     "task_class",
