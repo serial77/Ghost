@@ -943,6 +943,99 @@ textarea {
   padding: 10px 2px 4px;
 }
 
+/* Task workspace: header above tabs */
+.task-workspace-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* Task queue group labels */
+.task-queue-group-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  padding: 0 2px 8px;
+  font-weight: 500;
+}
+
+/* Context cards within workspace tabs */
+.task-ctx-card {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.018);
+  margin-bottom: 8px;
+}
+.task-ctx-card:last-child {
+  margin-bottom: 0;
+}
+
+/* Section label within a tab */
+.task-ctx-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+/* Alert banners (stale/reconciled) */
+.task-alert-banner {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.83rem;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+.task-alert-warning {
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  color: rgba(251, 191, 36, 0.85);
+}
+.task-alert-danger {
+  background: rgba(248, 113, 113, 0.07);
+  border: 1px solid rgba(248, 113, 113, 0.18);
+  color: rgba(248, 113, 113, 0.85);
+}
+
+/* Reconcile form fields */
+.task-reconcile-identity,
+.task-reconcile-note {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 0.83rem;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+.task-reconcile-note {
+  resize: vertical;
+  min-height: 64px;
+}
+.task-reconcile-identity:focus,
+.task-reconcile-note:focus {
+  outline: none;
+  border-color: rgba(126, 170, 255, 0.35);
+}
+.task-reconcile-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
 .status-cluster {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
