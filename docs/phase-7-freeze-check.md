@@ -1,6 +1,6 @@
 # Phase 7 Freeze Check
 
-This is the broad revalidation snapshot after the first real Phase 7 consumption work.
+This is the broad revalidation snapshot after the first real durable-governance Phase 7 implementation pass.
 
 ## Revalidation run
 
@@ -16,7 +16,10 @@ node scripts/validate-phase7-foundations.js
 ops/report-phase7-foundations.sh
 ops/render-approval-item.sh --worker ghost_main --requested-by ghost-main-runtime --summary "Direct Codex execution requires approval" --reason "Risk policy requires review." --environment prod --category destructive_change --risk-level high --capability code.write --capability artifact.publish
 ops/render-action-record.sh --event-type delegation.created --conversation-id conv-1 --request-id req-1 --delegation-id del-1 --summary "Delegated technical work created"
+ops/report-approval-queue.sh --recent-hours 72 --limit 10
 ops/materialize-action-records.sh --recent-hours 24 --limit 20
+ops/sync-action-history.sh --recent-hours 24 --limit 20
+ops/report-action-history.sh --recent-hours 24 --limit 10
 ops/diagnose-runtime-foundations.sh --recent-hours 24 --stale-minutes 30
 ops/render-environment-policy.sh --environment prod
 ```
@@ -28,20 +31,26 @@ ops/render-environment-policy.sh --environment prod
 - Recent delegated parity still reports `OK no findings`.
 - Approval-needed direct and delegated blocked replies now emit a real `approval_item`.
 - Approval-needed live paths now emit a real `governance_policy` derived from capability and environment foundations.
+- Blocked approval paths now distinguish approval-required vs environment-restricted semantics from the live environment/capability registries.
+- Approval-needed direct and delegated blocked flows now write durable records into `approvals`.
+- Queue metadata now survives back into the API response and assistant metadata surfaces as:
+  - `approval_queue_id`
+  - `approval_queue_status`
 - The shared API/assistant persistence contract now preserves:
   - `approval_item`
   - `governance_policy`
   - `governance_environment`
   - `requested_capabilities`
-- Action records can now be materialized from live Ghost truth surfaces.
-- Diagnostic output now consumes that materialized action surface and worker fragility rollups.
+- Action records can now be materialized from live Ghost truth surfaces and stored durably in `ghost_action_history`.
+- Diagnostic output now consumes the durable action-history surface, durable approval queue pressure, and worker fragility rollups.
+- Delegated setup now consumes the worker registry in a real live path and stamps authoritative worker metadata for Forge.
 
 ## Still scaffolded rather than fully governed
 
-- approval items are not yet written to a first-class approval queue or DB table
-- action records are synthesized on demand, not durably stored
-- capability/environment policy shapes approval semantics, but does not yet gate routing or worker execution
-- worker roles exist as a source of truth, but are not yet authoritative in live worker-selection logic
+- approval items are durably queued, but there is no terminal approval-resolution write path yet
+- action records are durably stored, but broader operator-facing retrieval/workflow consumption is still thin
+- capability/environment policy gates blocked approval semantics, but does not yet control a broader owner/routing admission point
+- worker roles are authoritative in delegated setup metadata, but not yet in multi-worker routing/selection decisions
 
 ## Current residual risks
 
@@ -55,22 +64,24 @@ The recent parity checks remain clean, so those look like residue rather than a 
 
 ## Recommended next supervised Phase 7 step
 
-Choose one durable governed surface and make it first-class:
+Choose one terminal governance path and make it real:
 
-1. persist approval items into an operator-readable approval queue/table
-2. persist/export materialized action records as a durable audit surface
-3. enforce one narrow capability/environment rule inside owner/policy logic
+1. add approval queue terminal-state writes plus action-history emission
+2. enforce one broader capability/environment admission rule inside owner/policy logic
+3. widen durable action-history coverage to deployment/promotion and owner-decision milestones
 
 ## Stop-here judgment
 
-Phase 7 is no longer only scaffolding.
+Phase 7 is materially closer to MVP durability.
 
 It now has:
 
 - structured foundations
+- durable approval queue persistence
 - live approval/governance consumption
-- live capability/environment policy shaping
-- live action-record materialization
-- diagnostic integration on top of those surfaces
+- live capability/environment policy gating on blocked paths
+- durable action-history storage
+- worker-registry-backed delegated setup metadata
+- diagnostic integration on top of durable governed surfaces
 
-That is a reasonable stopping point before the next supervised governance/persistence step.
+That is a reasonable stopping point before the next supervised approval-resolution / operator-governance step.
