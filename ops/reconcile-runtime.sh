@@ -18,6 +18,7 @@ What it checks:
   - running task/task_run rows that look stuck or contradictory
   - recent rows missing execution/correlation metadata that current flows normally provide
   - recent delegation/runtime state disagreement across delegation, task, task_run, and assistant metadata
+  - recent delegated-path mismatch checks across delegations, runtime tasks/runs, worker replies, parent replies, and tool_events
   - recent direct-path mismatch checks across tasks, task_runs, assistant metadata, and tool_events
 EOF
 }
@@ -450,6 +451,252 @@ run_check \
    FROM findings
    WHERE issue_code IS NOT NULL
    ORDER BY updated_at DESC NULLS LAST, delegation_id DESC
+   LIMIT $ROW_LIMIT;"
+
+run_check \
+  "Recent Delegated Path Surface Parity" \
+  "WITH recent_delegated_tasks AS (
+     SELECT id, title, status, created_at
+     FROM tasks
+     WHERE created_at >= NOW() - INTERVAL '$RECENT_INTERVAL'
+       AND source = 'ghost_worker_runtime'
+   ),
+   latest_run AS (
+     SELECT DISTINCT ON (tr.task_id)
+       tr.task_id,
+       tr.id AS task_run_id,
+       tr.status,
+       tr.n8n_execution_id,
+       tr.output_payload
+     FROM task_runs tr
+     JOIN recent_delegated_tasks rdt ON rdt.id = tr.task_id
+     ORDER BY tr.task_id, tr.started_at DESC NULLS LAST, tr.id DESC
+   ),
+   linked_delegation AS (
+     SELECT
+       d.id AS delegation_id,
+       d.status AS delegation_status,
+       d.orchestration_task_id,
+       d.runtime_task_id,
+       d.metadata,
+       d.updated_at,
+       d.completed_at
+     FROM conversation_delegations d
+     JOIN recent_delegated_tasks rdt ON rdt.id = d.runtime_task_id
+   ),
+   latest_worker_reply AS (
+     SELECT DISTINCT ON (m.metadata ->> 'runtime_task_id')
+       m.metadata ->> 'runtime_task_id' AS message_runtime_task_id,
+       m.id AS message_id,
+       m.metadata,
+       m.created_at
+     FROM messages m
+     WHERE m.role = 'assistant'
+       AND COALESCE(m.metadata ->> 'worker_execution', '') = 'true'
+       AND COALESCE(m.metadata ->> 'runtime_task_id', '') <> ''
+     ORDER BY m.metadata ->> 'runtime_task_id', m.created_at DESC, m.id DESC
+   ),
+   latest_parent_reply AS (
+     SELECT DISTINCT ON (m.metadata ->> 'delegation_id')
+       m.metadata ->> 'delegation_id' AS delegation_id,
+       m.id AS message_id,
+       m.metadata,
+       m.created_at
+     FROM messages m
+     WHERE m.role = 'assistant'
+       AND COALESCE(m.metadata ->> 'delegation_id', '') <> ''
+       AND COALESCE(m.metadata ->> 'worker_execution', '') <> 'true'
+       AND COALESCE(m.metadata ->> 'response_mode', '') LIKE 'delegated_%'
+     ORDER BY m.metadata ->> 'delegation_id', m.created_at DESC, m.id DESC
+   ),
+   latest_completion_event AS (
+     SELECT DISTINCT ON (te.task_id)
+       te.task_id,
+       te.id AS tool_event_id,
+       te.task_run_id,
+       te.payload,
+       te.created_at
+     FROM tool_events te
+     JOIN recent_delegated_tasks rdt ON rdt.id = te.task_id
+     WHERE te.event_type = 'delegation_completed'
+     ORDER BY te.task_id, te.created_at DESC, te.id DESC
+   )
+   SELECT COUNT(*)
+   FROM (
+     SELECT rdt.id
+     FROM recent_delegated_tasks rdt
+     LEFT JOIN latest_run lr ON lr.task_id = rdt.id
+     LEFT JOIN linked_delegation ld ON ld.runtime_task_id = rdt.id
+     LEFT JOIN latest_worker_reply lwr ON lwr.message_runtime_task_id = rdt.id::text
+     LEFT JOIN latest_parent_reply lpr ON lpr.delegation_id = ld.delegation_id::text
+     LEFT JOIN latest_completion_event lce ON lce.task_id = rdt.id
+     WHERE ld.delegation_id IS NULL
+        OR ld.orchestration_task_id IS NULL
+        OR (ld.delegation_status = 'running' AND lr.status IN ('succeeded', 'failed'))
+        OR (ld.delegation_status = 'succeeded' AND lr.status IS DISTINCT FROM 'succeeded')
+        OR (ld.delegation_status = 'failed' AND lr.status IS DISTINCT FROM 'failed')
+        OR (lwr.message_id IS NOT NULL AND COALESCE(lwr.metadata ->> 'runtime_task_id', '') = '')
+        OR (lwr.message_id IS NOT NULL AND lwr.metadata ->> 'runtime_task_id' IS DISTINCT FROM rdt.id::text)
+        OR (lwr.message_id IS NOT NULL AND COALESCE(lwr.metadata ->> 'runtime_task_run_id', '') = '')
+        OR (lwr.message_id IS NOT NULL AND lr.task_run_id IS NOT NULL AND lwr.metadata ->> 'runtime_task_run_id' IS DISTINCT FROM lr.task_run_id::text)
+        OR (lwr.message_id IS NOT NULL AND lr.n8n_execution_id IS NOT NULL AND COALESCE(lwr.metadata ->> 'n8n_execution_id', '') = '')
+        OR (lwr.message_id IS NOT NULL AND lr.n8n_execution_id IS NOT NULL AND lwr.metadata ->> 'n8n_execution_id' IS DISTINCT FROM lr.n8n_execution_id)
+        OR (lr.status IN ('succeeded', 'failed') AND lwr.message_id IS NULL)
+        OR (lr.status IN ('succeeded', 'failed') AND lpr.message_id IS NULL)
+        OR (lpr.message_id IS NOT NULL AND COALESCE(lpr.metadata ->> 'runtime_task_id', '') = '')
+        OR (lpr.message_id IS NOT NULL AND lpr.metadata ->> 'runtime_task_id' IS DISTINCT FROM rdt.id::text)
+        OR (lpr.message_id IS NOT NULL AND COALESCE(lpr.metadata ->> 'runtime_task_run_id', '') = '')
+        OR (lpr.message_id IS NOT NULL AND lr.task_run_id IS NOT NULL AND lpr.metadata ->> 'runtime_task_run_id' IS DISTINCT FROM lr.task_run_id::text)
+        OR (lpr.message_id IS NOT NULL AND lr.n8n_execution_id IS NOT NULL AND COALESCE(lpr.metadata ->> 'n8n_execution_id', '') = '')
+        OR (lpr.message_id IS NOT NULL AND lr.n8n_execution_id IS NOT NULL AND lpr.metadata ->> 'n8n_execution_id' IS DISTINCT FROM lr.n8n_execution_id)
+        OR lce.tool_event_id IS NULL
+        OR (lr.task_run_id IS NOT NULL AND lce.task_run_id IS DISTINCT FROM lr.task_run_id)
+        OR (lr.n8n_execution_id IS NOT NULL AND COALESCE(lce.payload ->> 'n8n_execution_id', '') = '')
+        OR ((lr.output_payload ->> 'command_success') IS DISTINCT FROM COALESCE(lwr.metadata ->> 'command_success', ''))
+        OR ((lr.output_payload ->> 'command_success') IS DISTINCT FROM COALESCE(lpr.metadata ->> 'command_success', ''))
+        OR ((lr.output_payload ->> 'command_success') IS DISTINCT FROM COALESCE(lce.payload ->> 'command_success', ''))
+        OR (COALESCE(NULLIF(lr.output_payload ->> 'error_type', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lwr.metadata ->> 'error_type', ''), '<none>'))
+        OR (COALESCE(NULLIF(lr.output_payload ->> 'error_type', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lpr.metadata ->> 'error_type', ''), '<none>'))
+        OR (COALESCE(NULLIF(lr.output_payload ->> 'error_type', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lce.payload ->> 'error_type', ''), '<none>'))
+        OR (COALESCE(NULLIF(lr.output_payload ->> 'codex_command_status', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lwr.metadata ->> 'codex_command_status', ''), '<none>'))
+        OR (COALESCE(NULLIF(lr.output_payload ->> 'codex_command_status', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lpr.metadata ->> 'codex_command_status', ''), '<none>'))
+        OR (COALESCE(NULLIF(lr.output_payload ->> 'codex_command_status', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lce.payload ->> 'codex_command_status', ''), '<none>'))
+   ) findings;" \
+  "WITH recent_delegated_tasks AS (
+     SELECT id, title, status, created_at
+     FROM tasks
+     WHERE created_at >= NOW() - INTERVAL '$RECENT_INTERVAL'
+       AND source = 'ghost_worker_runtime'
+   ),
+   latest_run AS (
+     SELECT DISTINCT ON (tr.task_id)
+       tr.task_id,
+       tr.id AS task_run_id,
+       tr.status AS latest_run_status,
+       tr.n8n_execution_id,
+       tr.output_payload
+     FROM task_runs tr
+     JOIN recent_delegated_tasks rdt ON rdt.id = tr.task_id
+     ORDER BY tr.task_id, tr.started_at DESC NULLS LAST, tr.id DESC
+   ),
+   linked_delegation AS (
+     SELECT
+       d.id AS delegation_id,
+       d.status AS delegation_status,
+       d.orchestration_task_id,
+       d.runtime_task_id,
+       d.metadata,
+       d.updated_at,
+       d.completed_at
+     FROM conversation_delegations d
+     JOIN recent_delegated_tasks rdt ON rdt.id = d.runtime_task_id
+   ),
+   latest_worker_reply AS (
+     SELECT DISTINCT ON (m.metadata ->> 'runtime_task_id')
+       m.metadata ->> 'runtime_task_id' AS message_runtime_task_id,
+       m.id AS message_id,
+       m.metadata,
+       m.created_at
+     FROM messages m
+     WHERE m.role = 'assistant'
+       AND COALESCE(m.metadata ->> 'worker_execution', '') = 'true'
+       AND COALESCE(m.metadata ->> 'runtime_task_id', '') <> ''
+     ORDER BY m.metadata ->> 'runtime_task_id', m.created_at DESC, m.id DESC
+   ),
+   latest_parent_reply AS (
+     SELECT DISTINCT ON (m.metadata ->> 'delegation_id')
+       m.metadata ->> 'delegation_id' AS delegation_id,
+       m.id AS message_id,
+       m.metadata,
+       m.created_at
+     FROM messages m
+     WHERE m.role = 'assistant'
+       AND COALESCE(m.metadata ->> 'delegation_id', '') <> ''
+       AND COALESCE(m.metadata ->> 'worker_execution', '') <> 'true'
+       AND COALESCE(m.metadata ->> 'response_mode', '') LIKE 'delegated_%'
+     ORDER BY m.metadata ->> 'delegation_id', m.created_at DESC, m.id DESC
+   ),
+   latest_completion_event AS (
+     SELECT DISTINCT ON (te.task_id)
+       te.task_id,
+       te.id AS tool_event_id,
+       te.task_run_id,
+       te.payload,
+       te.created_at
+     FROM tool_events te
+     JOIN recent_delegated_tasks rdt ON rdt.id = te.task_id
+     WHERE te.event_type = 'delegation_completed'
+     ORDER BY te.task_id, te.created_at DESC, te.id DESC
+   ),
+   findings AS (
+     SELECT
+       CASE
+         WHEN ld.delegation_id IS NULL THEN 'delegated_runtime_missing_linked_delegation'
+         WHEN ld.orchestration_task_id IS NULL THEN 'delegation_missing_orchestration_task_id'
+         WHEN ld.delegation_status = 'running' AND lr.latest_run_status IN ('succeeded', 'failed') THEN 'delegation_status_lagging_terminal_runtime'
+         WHEN ld.delegation_status = 'succeeded' AND lr.latest_run_status IS DISTINCT FROM 'succeeded' THEN 'delegation_succeeded_but_runtime_not_succeeded'
+         WHEN ld.delegation_status = 'failed' AND lr.latest_run_status IS DISTINCT FROM 'failed' THEN 'delegation_failed_but_runtime_not_failed'
+         WHEN lr.latest_run_status IN ('succeeded', 'failed') AND lwr.message_id IS NULL THEN 'worker_reply_missing_for_terminal_runtime'
+         WHEN lwr.message_id IS NOT NULL AND COALESCE(lwr.metadata ->> 'runtime_task_id', '') = '' THEN 'worker_reply_missing_runtime_task_id'
+         WHEN lwr.message_id IS NOT NULL AND lwr.metadata ->> 'runtime_task_id' IS DISTINCT FROM rdt.id::text THEN 'worker_reply_runtime_task_mismatch'
+         WHEN lwr.message_id IS NOT NULL AND COALESCE(lwr.metadata ->> 'runtime_task_run_id', '') = '' THEN 'worker_reply_missing_runtime_task_run_id'
+         WHEN lwr.message_id IS NOT NULL AND lr.task_run_id IS NOT NULL AND lwr.metadata ->> 'runtime_task_run_id' IS DISTINCT FROM lr.task_run_id::text THEN 'worker_reply_runtime_task_run_mismatch'
+         WHEN lwr.message_id IS NOT NULL AND lr.n8n_execution_id IS NOT NULL AND COALESCE(lwr.metadata ->> 'n8n_execution_id', '') = '' THEN 'worker_reply_missing_execution_id'
+         WHEN lwr.message_id IS NOT NULL AND lr.n8n_execution_id IS NOT NULL AND lwr.metadata ->> 'n8n_execution_id' IS DISTINCT FROM lr.n8n_execution_id THEN 'worker_reply_execution_id_mismatch'
+         WHEN lr.latest_run_status IN ('succeeded', 'failed') AND lpr.message_id IS NULL THEN 'parent_reply_missing_for_terminal_runtime'
+         WHEN lpr.message_id IS NOT NULL AND COALESCE(lpr.metadata ->> 'runtime_task_id', '') = '' THEN 'parent_reply_missing_runtime_task_id'
+         WHEN lpr.message_id IS NOT NULL AND lpr.metadata ->> 'runtime_task_id' IS DISTINCT FROM rdt.id::text THEN 'parent_reply_runtime_task_mismatch'
+         WHEN lpr.message_id IS NOT NULL AND COALESCE(lpr.metadata ->> 'runtime_task_run_id', '') = '' THEN 'parent_reply_missing_runtime_task_run_id'
+         WHEN lpr.message_id IS NOT NULL AND lr.task_run_id IS NOT NULL AND lpr.metadata ->> 'runtime_task_run_id' IS DISTINCT FROM lr.task_run_id::text THEN 'parent_reply_runtime_task_run_mismatch'
+         WHEN lpr.message_id IS NOT NULL AND lr.n8n_execution_id IS NOT NULL AND COALESCE(lpr.metadata ->> 'n8n_execution_id', '') = '' THEN 'parent_reply_missing_execution_id'
+         WHEN lpr.message_id IS NOT NULL AND lr.n8n_execution_id IS NOT NULL AND lpr.metadata ->> 'n8n_execution_id' IS DISTINCT FROM lr.n8n_execution_id THEN 'parent_reply_execution_id_mismatch'
+         WHEN lce.tool_event_id IS NULL THEN 'delegation_completion_event_missing'
+         WHEN lr.task_run_id IS NOT NULL AND lce.task_run_id IS DISTINCT FROM lr.task_run_id THEN 'delegation_completion_event_task_run_mismatch'
+         WHEN lr.n8n_execution_id IS NOT NULL AND COALESCE(lce.payload ->> 'n8n_execution_id', '') = '' THEN 'delegation_completion_event_missing_execution_id'
+         WHEN COALESCE(lce.payload ->> 'command_success', '') = '' THEN 'delegation_completion_event_missing_command_success'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'error_type', ''), '') <> '' AND COALESCE(lce.payload ->> 'error_type', '') = '' THEN 'delegation_completion_event_missing_error_type'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'codex_command_status', ''), '') <> '' AND COALESCE(lce.payload ->> 'codex_command_status', '') = '' THEN 'delegation_completion_event_missing_codex_command_status'
+         WHEN (lr.output_payload ->> 'command_success') IS DISTINCT FROM COALESCE(lwr.metadata ->> 'command_success', '') THEN 'worker_reply_command_success_mismatch'
+         WHEN (lr.output_payload ->> 'command_success') IS DISTINCT FROM COALESCE(lpr.metadata ->> 'command_success', '') THEN 'parent_reply_command_success_mismatch'
+         WHEN (lr.output_payload ->> 'command_success') IS DISTINCT FROM COALESCE(lce.payload ->> 'command_success', '') THEN 'delegation_completion_event_command_success_mismatch'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'error_type', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lwr.metadata ->> 'error_type', ''), '<none>') THEN 'worker_reply_error_type_mismatch'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'error_type', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lpr.metadata ->> 'error_type', ''), '<none>') THEN 'parent_reply_error_type_mismatch'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'error_type', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lce.payload ->> 'error_type', ''), '<none>') THEN 'delegation_completion_event_error_type_mismatch'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'codex_command_status', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lwr.metadata ->> 'codex_command_status', ''), '<none>') THEN 'worker_reply_codex_command_status_mismatch'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'codex_command_status', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lpr.metadata ->> 'codex_command_status', ''), '<none>') THEN 'parent_reply_codex_command_status_mismatch'
+         WHEN COALESCE(NULLIF(lr.output_payload ->> 'codex_command_status', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lce.payload ->> 'codex_command_status', ''), '<none>') THEN 'delegation_completion_event_codex_command_status_mismatch'
+         WHEN lwr.message_id IS NOT NULL AND lpr.message_id IS NOT NULL AND COALESCE(NULLIF(lwr.metadata ->> 'error_type', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lpr.metadata ->> 'error_type', ''), '<none>') THEN 'worker_parent_error_type_mismatch'
+         WHEN lwr.message_id IS NOT NULL AND lpr.message_id IS NOT NULL AND COALESCE(NULLIF(lwr.metadata ->> 'codex_command_status', ''), '<none>') IS DISTINCT FROM COALESCE(NULLIF(lpr.metadata ->> 'codex_command_status', ''), '<none>') THEN 'worker_parent_codex_command_status_mismatch'
+       END AS issue_code,
+       ld.delegation_id,
+       rdt.id AS runtime_task_id,
+       lr.task_run_id,
+       ld.delegation_status,
+       rdt.status AS runtime_task_status,
+       lr.latest_run_status,
+       lwr.message_id AS worker_message_id,
+       lpr.message_id AS parent_message_id,
+       lce.tool_event_id,
+       rdt.created_at,
+       LEFT(COALESCE(rdt.title, ''), 120) AS title,
+       jsonb_build_object(
+         'orchestration_task_id', ld.orchestration_task_id,
+         'run_execution_id', lr.n8n_execution_id,
+         'worker_runtime_task_run_id', lwr.metadata ->> 'runtime_task_run_id',
+         'parent_runtime_task_run_id', lpr.metadata ->> 'runtime_task_run_id',
+         'event_execution_id', lce.payload ->> 'n8n_execution_id'
+       ) AS context_json
+     FROM recent_delegated_tasks rdt
+     LEFT JOIN latest_run lr ON lr.task_id = rdt.id
+     LEFT JOIN linked_delegation ld ON ld.runtime_task_id = rdt.id
+     LEFT JOIN latest_worker_reply lwr ON lwr.message_runtime_task_id = rdt.id::text
+     LEFT JOIN latest_parent_reply lpr ON lpr.delegation_id = ld.delegation_id::text
+     LEFT JOIN latest_completion_event lce ON lce.task_id = rdt.id
+   )
+   SELECT *
+   FROM findings
+   WHERE issue_code IS NOT NULL
+   ORDER BY created_at DESC, issue_code
    LIMIT $ROW_LIMIT;"
 
 run_check \
