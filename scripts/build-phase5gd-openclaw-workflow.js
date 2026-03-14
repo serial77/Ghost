@@ -416,12 +416,58 @@ return [{ json: {
   model_used: item.model_used || '',
   approval_required: item.approval_required === true,
   command_success: item.command_success === undefined ? null : item.command_success,
+  command_exit_code: item.command_exit_code === undefined ? null : item.command_exit_code,
   error_type: item.error_type || '',
   task_summary: item.task_summary || '',
   artifact_path: item.artifact_path || '',
+  stdout_summary: item.stdout_summary || '',
+  stderr_summary: item.stderr_summary || '',
+  codex_command_status: item.codex_command_status || 'not_applicable',
   n8n_execution_id: item.n8n_execution_id || normalized.n8n_execution_id || '',
   entrypoint: normalized.entrypoint || 'direct_webhook',
+  response_mode: item.response_mode || 'direct_owner_reply',
+  parent_owner_label: item.parent_owner_label || 'Ghost',
 } }];`;
+
+addNode(
+  workflow,
+  makePostgresNode(
+    "Annotate Direct Runtime Event",
+    `WITH target_event AS (
+  SELECT id
+  FROM tool_events
+  WHERE task_id = NULLIF($1, '')::uuid
+  ORDER BY created_at DESC, id DESC
+  LIMIT 1
+)
+UPDATE tool_events AS te
+SET
+  task_run_id = COALESCE(te.task_run_id, NULLIF($2, '')::uuid),
+  payload = COALESCE(te.payload, '{}'::jsonb) || jsonb_build_object(
+    'n8n_execution_id', NULLIF($3, ''),
+    'entrypoint', NULLIF($4, ''),
+    'response_mode', NULLIF($5, ''),
+    'parent_owner_label', NULLIF($6, ''),
+    'provider_used', NULLIF($7, ''),
+    'model_used', NULLIF($8, ''),
+    'task_class', NULLIF($9, ''),
+    'command_success', $10,
+    'command_exit_code', $11,
+    'error_type', NULLIF($12, ''),
+    'stdout_summary', NULLIF($13, ''),
+    'stderr_summary', NULLIF($14, ''),
+    'artifact_path', NULLIF($15, ''),
+    'codex_command_status', NULLIF($16, ''),
+    'direct_execution', TRUE
+  )
+FROM target_event
+WHERE te.id = target_event.id
+RETURNING te.id::text AS tool_event_id;`,
+    "={{ [$json.task_id || '', $json.task_run_id || '', $json.n8n_execution_id || '', $json.entrypoint || 'direct_webhook', $json.response_mode || 'direct_owner_reply', $json.parent_owner_label || 'Ghost', $json.provider_used || '', $json.model_used || '', $json.task_class || '', $json.command_success, $json.command_exit_code !== undefined ? $json.command_exit_code : null, $json.error_type || '', $json.stdout_summary || '', $json.stderr_summary || '', $json.artifact_path || '', $json.codex_command_status || 'not_applicable'] }}",
+    [2032, 96],
+    false,
+  ),
+);
 
 const buildMemoryExtractionInput = findNode(workflow, "Build Memory Extraction Input");
 buildMemoryExtractionInput.parameters.jsCode = `const savedMessage = $input.first().json;
@@ -1233,6 +1279,7 @@ setMainConnections(workflow.connections, "Build Delegated Completion Context", [
 setMainConnections(workflow.connections, "Complete Delegated Runtime", [[{ node: "Annotate Delegation Completion Event" }]]);
 setMainConnections(workflow.connections, "Annotate Delegation Completion Event", [[{ node: "Build Parent Delegation Response" }]]);
 setMainConnections(workflow.connections, "Build Parent Delegation Response", [[{ node: "Build API Response" }]]);
+setMainConnections(workflow.connections, "Complete Runtime Ledger", [[{ node: "Annotate Direct Runtime Event" }]]);
 
 fs.writeFileSync(targetPath, JSON.stringify([workflow], null, 2) + "\n");
 console.log(targetPath);

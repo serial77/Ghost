@@ -1183,7 +1183,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const item = $input.first().json;\nconst startRows = $items('Start Runtime Ledger', 0, 0);\nconst started = startRows[0]?.json || {};\nconst normalized = $('Normalize Input').item.json;\nreturn [{ json: {\n  task_id: started.task_id || '',\n  task_run_id: started.task_run_id || '',\n  output_payload_json: JSON.stringify(item),\n  conversation_id: item.conversation_id || '',\n  task_class: item.task_class || '',\n  provider_used: item.provider_used || '',\n  model_used: item.model_used || '',\n  approval_required: item.approval_required === true,\n  command_success: item.command_success === undefined ? null : item.command_success,\n  error_type: item.error_type || '',\n  task_summary: item.task_summary || '',\n  artifact_path: item.artifact_path || '',\n  n8n_execution_id: item.n8n_execution_id || normalized.n8n_execution_id || '',\n  entrypoint: normalized.entrypoint || 'direct_webhook',\n} }];"
+          "jsCode": "const item = $input.first().json;\nconst startRows = $items('Start Runtime Ledger', 0, 0);\nconst started = startRows[0]?.json || {};\nconst normalized = $('Normalize Input').item.json;\nreturn [{ json: {\n  task_id: started.task_id || '',\n  task_run_id: started.task_run_id || '',\n  output_payload_json: JSON.stringify(item),\n  conversation_id: item.conversation_id || '',\n  task_class: item.task_class || '',\n  provider_used: item.provider_used || '',\n  model_used: item.model_used || '',\n  approval_required: item.approval_required === true,\n  command_success: item.command_success === undefined ? null : item.command_success,\n  command_exit_code: item.command_exit_code === undefined ? null : item.command_exit_code,\n  error_type: item.error_type || '',\n  task_summary: item.task_summary || '',\n  artifact_path: item.artifact_path || '',\n  stdout_summary: item.stdout_summary || '',\n  stderr_summary: item.stderr_summary || '',\n  codex_command_status: item.codex_command_status || 'not_applicable',\n  n8n_execution_id: item.n8n_execution_id || normalized.n8n_execution_id || '',\n  entrypoint: normalized.entrypoint || 'direct_webhook',\n  response_mode: item.response_mode || 'direct_owner_reply',\n  parent_owner_label: item.parent_owner_label || 'Ghost',\n} }];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -1217,6 +1217,30 @@
           }
         },
         "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "WITH target_event AS (\n  SELECT id\n  FROM tool_events\n  WHERE task_id = NULLIF($1, '')::uuid\n  ORDER BY created_at DESC, id DESC\n  LIMIT 1\n)\nUPDATE tool_events AS te\nSET\n  task_run_id = COALESCE(te.task_run_id, NULLIF($2, '')::uuid),\n  payload = COALESCE(te.payload, '{}'::jsonb) || jsonb_build_object(\n    'n8n_execution_id', NULLIF($3, ''),\n    'entrypoint', NULLIF($4, ''),\n    'response_mode', NULLIF($5, ''),\n    'parent_owner_label', NULLIF($6, ''),\n    'provider_used', NULLIF($7, ''),\n    'model_used', NULLIF($8, ''),\n    'task_class', NULLIF($9, ''),\n    'command_success', $10,\n    'command_exit_code', $11,\n    'error_type', NULLIF($12, ''),\n    'stdout_summary', NULLIF($13, ''),\n    'stderr_summary', NULLIF($14, ''),\n    'artifact_path', NULLIF($15, ''),\n    'codex_command_status', NULLIF($16, ''),\n    'direct_execution', TRUE\n  )\nFROM target_event\nWHERE te.id = target_event.id\nRETURNING te.id::text AS tool_event_id;",
+          "options": {
+            "queryReplacement": "={{ [$json.task_id || '', $json.task_run_id || '', $json.n8n_execution_id || '', $json.entrypoint || 'direct_webhook', $json.response_mode || 'direct_owner_reply', $json.parent_owner_label || 'Ghost', $json.provider_used || '', $json.model_used || '', $json.task_class || '', $json.command_success, $json.command_exit_code !== undefined ? $json.command_exit_code : null, $json.error_type || '', $json.stdout_summary || '', $json.stderr_summary || '', $json.artifact_path || '', $json.codex_command_status || 'not_applicable'] }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          2032,
+          96
+        ],
+        "id": "6199b64a-3ae6-d87e-3b5a-b4159135ad37",
+        "name": "Annotate Direct Runtime Event",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        },
+        "continueOnFail": false
       },
       {
         "parameters": {
@@ -2535,6 +2559,17 @@
           [
             {
               "node": "Build API Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Complete Runtime Ledger": {
+        "main": [
+          [
+            {
+              "node": "Annotate Direct Runtime Event",
               "type": "main",
               "index": 0
             }
