@@ -77,10 +77,35 @@ function validateBaseline(baseline) {
   }
 }
 
+function validateWorkers(workersDoc) {
+  requireString(workersDoc.version, "workers.version");
+  requireArray(workersDoc.workers, "workers.workers");
+  const ids = new Set();
+  for (const worker of workersDoc.workers) {
+    requireString(worker.id, "worker.id");
+    requireString(worker.visibility_label, `worker.${worker.id}.visibility_label`);
+    requireString(worker.role, `worker.${worker.id}.role`);
+    requireString(worker.purpose, `worker.${worker.id}.purpose`);
+    requireArray(worker.invocation_intent, `worker.${worker.id}.invocation_intent`);
+    requireArray(worker.responsibility_domain, `worker.${worker.id}.responsibility_domain`);
+    requireString(worker.success_contract, `worker.${worker.id}.success_contract`);
+    requireString(worker.failure_contract, `worker.${worker.id}.failure_contract`);
+    requireString(worker.operator_identity, `worker.${worker.id}.operator_identity`);
+    requireArray(worker.environment_scope, `worker.${worker.id}.environment_scope`);
+    if (ids.has(worker.id)) {
+      fail(`duplicate worker id: ${worker.id}`);
+    }
+    ids.add(worker.id);
+  }
+}
+
 function main() {
   const baselinePath = path.join("ops", "foundation", "baseline.json");
   const baseline = loadJson(baselinePath);
+  const workersPath = path.join("ops", "foundation", "workers.json");
+  const workers = loadJson(workersPath);
   validateBaseline(baseline);
+  validateWorkers(workers);
 
   const summary = {
     version: baseline.version,
@@ -89,6 +114,7 @@ function main() {
     truth_surface_groups: Object.keys(baseline.truth_surfaces).length,
     builder_module_count: baseline.builder_modules.length,
     do_not_touch_count: baseline.do_not_touch_casually.length,
+    worker_count: workers.workers.length,
     foundation_dir: foundationDir,
   };
 
