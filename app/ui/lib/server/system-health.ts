@@ -2,7 +2,7 @@ import { getPool } from "@/lib/server/postgres";
 import { getOperationsRuntimeConfig } from "@/lib/server/runtime-env";
 
 const CANONICAL_WORKFLOW_ID = "Yh6h9OJyVCfREbp3";
-const CANONICAL_WEBHOOK_PATH = "ghost-chat-v3";
+const CANONICAL_WEBHOOK_PATH = "ghost-runtime";
 
 export interface ServiceCheck {
   id: string;

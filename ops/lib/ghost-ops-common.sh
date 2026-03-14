@@ -18,7 +18,7 @@ WORKFLOW_ID="${WORKFLOW_ID:-Yh6h9OJyVCfREbp3}"
 WORKFLOW_NAME="${WORKFLOW_NAME:-Ghost Runtime}"
 WORKFLOW_JSON="${WORKFLOW_JSON:-$PROJECT_ROOT/workflows/ghost-runtime-workflow.json}"
 WORKFLOW_BUILDER="${WORKFLOW_BUILDER:-$PROJECT_ROOT/scripts/build-ghost-runtime-workflow.js}"
-WEBHOOK_PATH="${WEBHOOK_PATH:-ghost-chat-v3}"
+WEBHOOK_PATH="${WEBHOOK_PATH:-ghost-runtime}"
 N8N_BASE_URL="${N8N_BASE_URL:-http://127.0.0.1:5678}"
 WEBHOOK_URL="${WEBHOOK_URL:-$N8N_BASE_URL/webhook/$WEBHOOK_PATH}"
 
@@ -197,7 +197,7 @@ validate_workflow_json() {
 
 export_live_workflow() {
   local output_path="$1"
-  local remote_path="${2:-/tmp/ghost-chat-v3-export.json}"
+  local remote_path="${2:-/tmp/ghost-runtime-export.json}"
   docker exec "$N8N_MAIN_CONTAINER" n8n export:workflow --id "$WORKFLOW_ID" --output "$remote_path" >/dev/null
   docker cp "$N8N_MAIN_CONTAINER:$remote_path" "$output_path" >/dev/null
 }

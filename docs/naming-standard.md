@@ -32,9 +32,9 @@ The webhook path `ghost-chat-v3` is an established live contract identifier. It 
 
 - Webhook paths are **live contract identifiers** — embedded in external callers, message metadata, task ledger rows, and ops scripts
 - Change only in a **coordinated migration** (never cosmetically)
-- Current canonical: `ghost-chat-v3` — accepted as a legacy-stable contract name, pending explicit migration
-- Preferred future: `ghost-runtime` (no chat qualifier, no version number)
-- When a new webhook path is introduced, the old one must be kept active during migration
+- Current canonical: `ghost-runtime` — live as of 2026-03-14
+- Legacy path: `ghost-chat-v3` — active as dual-path compatibility trigger, pending retirement after migration window
+- When retiring the legacy path: remove `"Incoming chat"` node from builder, confirm no live callers, rebuild and re-activate
 
 ### Builder / generator scripts
 
@@ -87,8 +87,8 @@ The webhook path `ghost-chat-v3` is an established live contract identifier. It 
 | `phase5d` | **Retired** — source artifact renamed | Was milestone marker |
 | `GHOST by Codex` | **Retired** — cleaned from n8n, ops lib, builder, task-ledger | Encoded agent identity into runtime name |
 | `Ghost Chat Runtime` | **Retired** — display name is now `Ghost Runtime` | Was transitional |
-| `chat` in webhook path | **Deferred** — `ghost-chat-v3` is a live contract; migration required | Do not rename casually |
-| `v3` in webhook path | **Deferred** — `ghost-chat-v3` is a live contract; migration required | Do not rename casually |
+| `chat` in webhook path | **Migrated** — `ghost-runtime` is canonical; `ghost-chat-v3` is legacy-active | Retire after migration window |
+| `v3` in webhook path | **Migrated** — `ghost-runtime` is canonical; `ghost-chat-v3` is legacy-active | Retire after migration window |
 
 ---
 
@@ -102,11 +102,11 @@ The webhook path `ghost-chat-v3` is an established live contract identifier. It 
 - `n8n_workflow_name` insert in `task-ledger.ts` — **done** (`Ghost Runtime`)
 - `WORKFLOW_JSON` and `WORKFLOW_BUILDER` in ops lib — **done**
 
-### Contract-sensitive migration (own coordinated pass — not done yet)
+### Contract-sensitive migration (done — 2026-03-14)
 
 **Webhook path `ghost-chat-v3` → `ghost-runtime`:**
-Embedded in: `WEBHOOK_PATH` in ops lib, `parentExecutionTarget` in builder (stored in DB task context), all ops scripts, `retry-governed-followthrough.js` dispatch, external callers, `ghost_core.webhook_entity`.
+Dual-path approach: `ghost-runtime` added as canonical trigger; `ghost-chat-v3` retained as legacy trigger in the same workflow. Both paths connect to `Normalize Input` and register in `webhook_entity`. All code/config now points to `ghost-runtime` as canonical; `ghost-chat-v3` is legacy compatibility only.
 
-Migration requires: old path active during transition, new path added, callers migrated, validation window, then old path retired.
+Retirement of `ghost-chat-v3` trigger: deferred pending a clean traffic migration window. See `docs/naming-migration-checklist.md` for the retirement checklist.
 
 **Workflow node names** (e.g., `Start Runtime Ledger`, `Persist Approval Queue Item`): embedded in `$items()` accessors in builder code. Any rename requires finding and updating every accessor reference. These are internal identifiers, not user-visible names.

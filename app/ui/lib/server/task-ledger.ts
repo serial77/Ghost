@@ -34,9 +34,9 @@ function summarizePrompt(message: string) {
 function extractWebhookTarget() {
   try {
     const url = new URL(getGhostBackendUrl());
-    return url.pathname.replace(/^\/+/, "") || "ghost-chat-v3";
+    return url.pathname.replace(/^\/+/, "") || "ghost-runtime";
   } catch {
-    return "ghost-chat-v3";
+    return "ghost-runtime";
   }
 }
 

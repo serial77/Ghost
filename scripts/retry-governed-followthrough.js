@@ -183,7 +183,7 @@ async function main() {
   const approvalQueueId = String(args["approval-queue-id"] || "").trim();
   const dryRun = args["dry-run"] === "true";
   const webhookUrl = process.env.WEBHOOK_URL
-    || `${process.env.N8N_BASE_URL || "http://127.0.0.1:5678"}/webhook/${process.env.WEBHOOK_PATH || "ghost-chat-v3"}`;
+    || `${process.env.N8N_BASE_URL || "http://127.0.0.1:5678"}/webhook/${process.env.WEBHOOK_PATH || "ghost-runtime"}`;
 
   if (!approvalQueueId) {
     fail("required arg: --approval-queue-id [--dry-run true]");
