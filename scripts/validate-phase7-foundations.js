@@ -135,6 +135,52 @@ function validateCapabilities(capabilitiesDoc, workersDoc) {
   }
 }
 
+function validateApprovalModel(approvalModel, capabilitiesDoc) {
+  requireString(approvalModel.version, "approval.version");
+  requireArray(approvalModel.states, "approval.states");
+  requireArray(approvalModel.risk_levels, "approval.risk_levels");
+  requireArray(approvalModel.categories, "approval.categories");
+  requireArray(approvalModel.required_fields, "approval.required_fields");
+  if (!approvalModel.lifecycle || typeof approvalModel.lifecycle !== "object") {
+    fail("approval.lifecycle must be an object");
+  }
+  requireString(approvalModel.lifecycle.initial_state, "approval.lifecycle.initial_state");
+  requireString(approvalModel.lifecycle.operator_queue_state, "approval.lifecycle.operator_queue_state");
+  requireArray(approvalModel.lifecycle.terminal_states, "approval.lifecycle.terminal_states");
+  if (!approvalModel.lifecycle.allowed_transitions || typeof approvalModel.lifecycle.allowed_transitions !== "object") {
+    fail("approval.lifecycle.allowed_transitions must be an object");
+  }
+
+  const states = new Set(approvalModel.states);
+  if (!states.has(approvalModel.lifecycle.initial_state)) {
+    fail("approval initial_state must exist in approval.states");
+  }
+  if (!states.has(approvalModel.lifecycle.operator_queue_state)) {
+    fail("approval operator_queue_state must exist in approval.states");
+  }
+  for (const state of approvalModel.lifecycle.terminal_states) {
+    if (!states.has(state)) {
+      fail(`approval terminal state not declared in states: ${state}`);
+    }
+  }
+  for (const [fromState, toStates] of Object.entries(approvalModel.lifecycle.allowed_transitions)) {
+    if (!states.has(fromState)) {
+      fail(`approval transition source not declared in states: ${fromState}`);
+    }
+    requireArray(toStates.length === 0 ? ["__empty__"] : toStates, `approval.lifecycle.allowed_transitions.${fromState}`);
+    for (const toState of toStates) {
+      if (!states.has(toState)) {
+        fail(`approval transition target not declared in states: ${fromState} -> ${toState}`);
+      }
+    }
+  }
+
+  const capabilityIds = new Set(capabilitiesDoc.capabilities.map((entry) => entry.id));
+  if (!capabilityIds.size) {
+    fail("approval validation requires non-empty capabilities");
+  }
+}
+
 function main() {
   const baselinePath = path.join("ops", "foundation", "baseline.json");
   const baseline = loadJson(baselinePath);
@@ -142,9 +188,12 @@ function main() {
   const workers = loadJson(workersPath);
   const capabilitiesPath = path.join("ops", "foundation", "capabilities.json");
   const capabilities = loadJson(capabilitiesPath);
+  const approvalPath = path.join("ops", "foundation", "approval-model.json");
+  const approvalModel = loadJson(approvalPath);
   validateBaseline(baseline);
   validateWorkers(workers);
   validateCapabilities(capabilities, workers);
+  validateApprovalModel(approvalModel, capabilities);
 
   const summary = {
     version: baseline.version,
@@ -155,6 +204,7 @@ function main() {
     do_not_touch_count: baseline.do_not_touch_casually.length,
     worker_count: workers.workers.length,
     capability_count: capabilities.capabilities.length,
+    approval_state_count: approvalModel.states.length,
     foundation_dir: foundationDir,
   };
 
