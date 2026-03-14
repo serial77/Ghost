@@ -84,15 +84,15 @@ async function getWorkflowStatus(): Promise<WorkflowStatus | null> {
     );
     if (wfRow.rows.length === 0) return null;
     const webhookRow = await pool.query<{ webhookpath: string }>(
-      `SELECT "webhookPath" AS webhookpath FROM webhook_entity WHERE "workflowId" = $1 AND method = 'POST' LIMIT 1`,
-      [CANONICAL_WORKFLOW_ID],
+      `SELECT "webhookPath" AS webhookpath FROM webhook_entity WHERE "workflowId" = $1 AND method = 'POST' AND "webhookPath" = $2 LIMIT 1`,
+      [CANONICAL_WORKFLOW_ID, CANONICAL_WEBHOOK_PATH],
     );
     return {
       id: CANONICAL_WORKFLOW_ID,
       name: wfRow.rows[0].name,
       active: wfRow.rows[0].active,
-      webhookPath: webhookRow.rows[0]?.webhookpath ?? "",
-      webhookRegistered: webhookRow.rows[0]?.webhookpath === CANONICAL_WEBHOOK_PATH,
+      webhookPath: CANONICAL_WEBHOOK_PATH,
+      webhookRegistered: webhookRow.rows.length > 0,
     };
   } catch {
     return null;
