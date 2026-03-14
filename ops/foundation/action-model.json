@@ -56,6 +56,26 @@
       "description": "A resolved approval produced an explicit governed outcome such as allow, deny, or cancellation."
     },
     {
+      "id": "governance.allowed",
+      "entity": "approval",
+      "description": "A governed approval resolution explicitly allowed the next backend step."
+    },
+    {
+      "id": "governance.denied",
+      "entity": "approval",
+      "description": "A governed approval resolution explicitly denied the requested action."
+    },
+    {
+      "id": "governance.retry_enqueued",
+      "entity": "approval",
+      "description": "Governed follow-through enqueued a narrow retry or unblock step."
+    },
+    {
+      "id": "governance.closed_without_retry",
+      "entity": "approval",
+      "description": "Governed follow-through closed the approval lifecycle without a retry."
+    },
+    {
       "id": "artifact.published",
       "entity": "artifact",
       "description": "A workflow or durable artifact was published or promoted."
