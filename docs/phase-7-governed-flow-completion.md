@@ -50,9 +50,9 @@ The governed loop is now durable across request, resolution, follow-through, and
 
 The following remain required after future governed-flow changes:
 
-- `node --check scripts/build-phase5gd-openclaw-workflow.js`
+- `node --check scripts/build-ghost-runtime-workflow.js`
 - `for f in scripts/workflow-modules/*.js; do node --check \"$f\"; done`
-- `node scripts/build-phase5gd-openclaw-workflow.js`
+- `node scripts/build-ghost-runtime-workflow.js`
 - `ops/reconcile-runtime.sh --recent-hours 12 --limit 25`
 - `node scripts/validate-phase7-foundations.js`
 - approval queue report/probe
@@ -86,7 +86,7 @@ The following remain required after future governed-flow changes:
 - Fixed silent approval INSERT failure in `Persist Approval Queue Item` n8n node
   - root cause: `$('Start Runtime Ledger').item.json.task_id` resolves to `undefined` for sink nodes (no outgoing connections); paired-item accessor requires the node to be in the direct execution chain
   - fix: replaced all three occurrences with `$items('Start Runtime Ledger', 0, 0)[0]?.json.task_id` — same pattern used by `Build Runtime Ledger Completion Payload` elsewhere in the workflow
-  - rebuilt workflow via `node scripts/build-phase5gd-openclaw-workflow.js`, redeployed via `ops/activate-live-workflow.sh`
+  - rebuilt workflow via `node scripts/build-ghost-runtime-workflow.js`, redeployed via `ops/activate-live-workflow.sh`
 - Live loop proven end-to-end on live stack:
   - execution 489: blocked path → `approval_required: true`, `response_mode: delegated_blocked`
   - approval `f124d02d` persisted correctly in `approvals` table

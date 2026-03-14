@@ -120,6 +120,8 @@ export function getOperationsRuntimeConfig() {
   const appDb = getValue("GHOST_APP_DB", "ghost_app", { allowEmpty: false })!;
   const coreDb = getValue("GHOST_POSTGRES_DB", "ghost_core", { allowEmpty: false })!;
 
+  const n8nBaseUrl = getValue("GHOST_N8N_BASE_URL", "http://127.0.0.1:5678", { allowEmpty: false })!;
+
   return {
     postgresHost,
     postgresPort,
@@ -127,6 +129,7 @@ export function getOperationsRuntimeConfig() {
     postgresPassword,
     appDb,
     coreDb,
+    n8nBaseUrl,
     enableOperationsMocks: getValue("GHOST_ENABLE_OPERATIONS_MOCKS", "false") === "true",
   };
 }

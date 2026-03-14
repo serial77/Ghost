@@ -1,10 +1,10 @@
 {
   "version": "phase7-baseline-v1",
   "workflow": {
-    "name": "GHOST by Codex",
+    "name": "Ghost Runtime",
     "id": "Yh6h9OJyVCfREbp3",
-    "builder": "scripts/build-phase5gd-openclaw-workflow.js",
-    "workflow_json": "workflows/ghost-chat-v3-phase5gd-openclaw.json"
+    "builder": "scripts/build-ghost-runtime-workflow.js",
+    "workflow_json": "workflows/ghost-runtime-workflow.json"
   },
   "frozen_contracts": [
     {

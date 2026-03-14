@@ -3,7 +3,7 @@
     "updatedAt": "2026-03-12T20:44:28.217Z",
     "createdAt": "2026-03-12T12:08:38.760Z",
     "id": "Yh6h9OJyVCfREbp3",
-    "name": "Ghost Chat Runtime",
+    "name": "Ghost Runtime",
     "description": "Phase 4A structured memory prod-ready artifact. Prepared for controlled cutover; do not activate directly.",
     "active": true,
     "isArchived": false,
@@ -1146,7 +1146,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const context = $input.first().json;\nconst normalized = $('Normalize Input').item.json;\nconst executionId = normalized.n8n_execution_id || '';\nreturn [{ json: {\n  conversation_id: context.conversation_id || '',\n  message: normalized.message || '',\n  entrypoint: normalized.entrypoint || 'direct_webhook',\n  input_payload_json: JSON.stringify({\n    message: normalized.message || '',\n    conversation_id: context.conversation_id || '',\n    user_id: normalized.user_id || '',\n    force_provider: normalized.force_provider || '',\n    force_model: normalized.force_model || '',\n    force_task_class: normalized.force_task_class || '',\n    entrypoint: normalized.entrypoint || 'direct_webhook',\n    n8n_execution_id: executionId || null,\n  }),\n  context_json: JSON.stringify({\n    entrypoint: normalized.entrypoint || 'direct_webhook',\n    execution_target: 'webhook/ghost-chat-v3',\n    workflow_name: 'Ghost Chat Runtime',\n    n8n_execution_id: executionId || null,\n  }),\n} }];"
+          "jsCode": "const context = $input.first().json;\nconst normalized = $('Normalize Input').item.json;\nconst executionId = normalized.n8n_execution_id || '';\nreturn [{ json: {\n  conversation_id: context.conversation_id || '',\n  message: normalized.message || '',\n  entrypoint: normalized.entrypoint || 'direct_webhook',\n  input_payload_json: JSON.stringify({\n    message: normalized.message || '',\n    conversation_id: context.conversation_id || '',\n    user_id: normalized.user_id || '',\n    force_provider: normalized.force_provider || '',\n    force_model: normalized.force_model || '',\n    force_task_class: normalized.force_task_class || '',\n    entrypoint: normalized.entrypoint || 'direct_webhook',\n    n8n_execution_id: executionId || null,\n  }),\n  context_json: JSON.stringify({\n    entrypoint: normalized.entrypoint || 'direct_webhook',\n    execution_target: 'webhook/ghost-chat-v3',\n    workflow_name: 'Ghost Runtime',\n    n8n_execution_id: executionId || null,\n  }),\n} }];"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -1160,7 +1160,7 @@
       {
         "parameters": {
           "operation": "executeQuery",
-          "query": "SELECT\n  task_id::text,\n  task_run_id::text\nFROM public.ghost_runtime_start_task_ledger(\n  NULLIF($1, '')::uuid,\n  $2,\n  $3,\n  'webhook/ghost-chat-v3',\n  'Ghost Chat Runtime',\n  $4::jsonb,\n  $5::jsonb\n);",
+          "query": "SELECT\n  task_id::text,\n  task_run_id::text\nFROM public.ghost_runtime_start_task_ledger(\n  NULLIF($1, '')::uuid,\n  $2,\n  $3,\n  'webhook/ghost-chat-v3',\n  'Ghost Runtime',\n  $4::jsonb,\n  $5::jsonb\n);",
           "options": {
             "queryReplacement": "={{ [$json.conversation_id || '', $json.message || '', $json.entrypoint || 'direct_webhook', $json.input_payload_json || '{}', $json.context_json || '{}'] }}"
           }
@@ -1518,7 +1518,7 @@
       {
         "parameters": {
           "operation": "executeQuery",
-          "query": "SELECT\n  task_id::text,\n  task_run_id::text\nFROM public.ghost_start_delegation_runtime(\n  NULLIF($1, '')::uuid,\n  'delegated_codex_session',\n  'Ghost Chat Runtime',\n  $2::jsonb,\n  $3::jsonb\n);",
+          "query": "SELECT\n  task_id::text,\n  task_run_id::text\nFROM public.ghost_start_delegation_runtime(\n  NULLIF($1, '')::uuid,\n  'delegated_codex_session',\n  'Ghost Runtime',\n  $2::jsonb,\n  $3::jsonb\n);",
           "options": {
             "queryReplacement": "={{ [$json.delegation_id || '', $json.worker_runtime_input_json || '{}', $json.worker_runtime_context_json || '{}'] }}"
           }
