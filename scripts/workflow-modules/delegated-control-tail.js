@@ -35,7 +35,7 @@ const reasons = Array.isArray(item.risk_reasons) && item.risk_reasons.length
   ? item.risk_reasons.join(' ')
   : 'Risk policy requires review before Ghost can start the delegated worker session.';
 const reply = [
-  \`${item.parent_owner_label || 'Ghost'} kept this conversation under its current owner and opened a delegated worker task instead of silently switching models.\`,
+  \`\${item.parent_owner_label || 'Ghost'} kept this conversation under its current owner and opened a delegated worker task instead of silently switching models.\`,
   \`Execution is blocked pending approval. The delegated task is now visible on the Task Board for review.\`,
   reasons,
 ].join('\\n\\n');
@@ -92,7 +92,7 @@ return [{ json: {
       `const item = $('Build Delegation Context').item.json;
 const workerLabel = item.worker_agent_label || item.delegated_provider || 'the delegated worker';
 const reply = [
-  \`${item.parent_owner_label || 'Ghost'} kept ownership of this conversation and opened delegated work for ${workerLabel}.\`,
+  \`\${item.parent_owner_label || 'Ghost'} kept ownership of this conversation and opened delegated work for \${workerLabel}.\`,
   'Delegated execution is not available in the current runtime, so the worker task could not be started automatically in this phase.',
   item.unsupported_result_summary || '',
 ].join('\\n\\n');

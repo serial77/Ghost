@@ -1294,19 +1294,6 @@
       },
       {
         "parameters": {
-          "jsCode": "const context = $('Build Delegation Context').item.json;\nconst saved = $input.first().json;\nreturn [{ json: {\n  ...context,\n  worker_user_message_id: saved.id || '',\n} }];"
-        },
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          1600,
-          -208
-        ],
-        "id": "8785096e-fc34-d3d2-2949-d5dc2df27bd6",
-        "name": "Build Delegation Execution Context"
-      },
-      {
-        "parameters": {
           "conditions": {
             "options": {
               "caseSensitive": true,
@@ -1337,6 +1324,85 @@
         ],
         "id": "9d474ed3-c37a-a85b-0849-0d8302a6579e",
         "name": "Delegation Required?"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "e682ee51-45d8-cdfb-f9ad-1d4eef50f63c",
+                "leftValue": "={{ $('Build Delegation Context').item.json.approval_required }}",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          1696,
+          -208
+        ],
+        "id": "d203629c-8deb-bb85-e3f6-d12f82a713a9",
+        "name": "Delegation Approval Required?"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "21edba14-4110-e949-7776-7f146724508a",
+                "leftValue": "={{ ($json.delegated_provider || '') === 'codex_oauth_worker' }}",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          1920,
+          -64
+        ],
+        "id": "be0c2dde-a410-eded-0cb0-577773ca7f65",
+        "name": "Delegated Worker Is Codex?"
+      },
+      {
+        "parameters": {
+          "jsCode": "const context = $('Build Delegation Context').item.json;\nconst saved = $input.first().json;\nreturn [{ json: {\n  ...context,\n  worker_user_message_id: saved.id || '',\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1600,
+          -208
+        ],
+        "id": "8785096e-fc34-d3d2-2949-d5dc2df27bd6",
+        "name": "Build Delegation Execution Context"
       },
       {
         "parameters": {
@@ -1411,146 +1477,6 @@
           }
         },
         "continueOnFail": false
-      },
-      {
-        "parameters": {
-          "conditions": {
-            "options": {
-              "caseSensitive": true,
-              "leftValue": "",
-              "typeValidation": "strict",
-              "version": 2
-            },
-            "conditions": [
-              {
-                "id": "e682ee51-45d8-cdfb-f9ad-1d4eef50f63c",
-                "leftValue": "={{ $('Build Delegation Context').item.json.approval_required }}",
-                "operator": {
-                  "type": "boolean",
-                  "operation": "true",
-                  "singleValue": true
-                }
-              }
-            ],
-            "combinator": "and"
-          },
-          "options": {}
-        },
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 2.2,
-        "position": [
-          1696,
-          -208
-        ],
-        "id": "d203629c-8deb-bb85-e3f6-d12f82a713a9",
-        "name": "Delegation Approval Required?"
-      },
-      {
-        "parameters": {
-          "operation": "executeQuery",
-          "query": "SELECT public.ghost_finalize_delegation(\n  NULLIF($1, '')::uuid,\n  NULL,\n  'blocked',\n  $2,\n  NULL\n);",
-          "options": {
-            "queryReplacement": "={{ [$json.delegation_id || '', $json.blocked_result_summary || 'Approval required before delegated worker execution.'] }}"
-          }
-        },
-        "type": "n8n-nodes-base.postgres",
-        "typeVersion": 2.6,
-        "position": [
-          1920,
-          -352
-        ],
-        "id": "72ce655e-2ccc-f6b1-5653-1c80509ba7fa",
-        "name": "Finalize Blocked Delegation",
-        "credentials": {
-          "postgres": {
-            "id": "r4pH8PimgUf2t9oM",
-            "name": "Postgres account"
-          }
-        },
-        "continueOnFail": false
-      },
-      {
-        "parameters": {
-          "jsCode": "const item = $('Build Delegation Context').item.json;\nconst reasons = Array.isArray(item.risk_reasons) && item.risk_reasons.length\n  ? item.risk_reasons.join(' ')\n  : 'Risk policy requires review before Ghost can start the delegated worker session.';\nconst reply = [\n  `${item.parent_owner_label || 'Ghost'} kept this conversation under its current owner and opened a delegated worker task instead of silently switching models.`,\n  `Execution is blocked pending approval. The delegated task is now visible on the Task Board for review.`,\n  reasons,\n].join('\\n\\n');\nreturn [{ json: {\n  conversation_id: item.conversation_id || '',\n  reply,\n  provider_used: item.parent_provider || '',\n  model_used: item.parent_model || '',\n  task_class: item.task_class || 'technical_work',\n  approval_required: true,\n  risk_level: item.risk_level || 'caution',\n  risk_reasons: item.risk_reasons || [],\n  task_summary: item.task_summary || '',\n  command_success: false,\n  command_exit_code: null,\n  stdout_summary: '',\n  stderr_summary: reasons,\n  artifact_path: '',\n  codex_command_status: 'blocked_pending_approval',\n  error_type: 'delegation_blocked_pending_approval',\n  delegation_id: item.delegation_id || '',\n  orchestration_task_id: item.orchestration_task_id || '',\n  runtime_task_id: null,\n  worker_conversation_id: item.worker_conversation_id || '',\n  n8n_execution_id: item.n8n_execution_id || null,\n  response_mode: 'delegated_blocked',\n  parent_owner_label: item.parent_owner_label || 'Ghost',\n} }];"
-        },
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          2144,
-          -352
-        ],
-        "id": "15bb4536-847b-ef38-ed45-b3158018740b",
-        "name": "Build Parent Blocked Delegation Response"
-      },
-      {
-        "parameters": {
-          "conditions": {
-            "options": {
-              "caseSensitive": true,
-              "leftValue": "",
-              "typeValidation": "strict",
-              "version": 2
-            },
-            "conditions": [
-              {
-                "id": "21edba14-4110-e949-7776-7f146724508a",
-                "leftValue": "={{ ($json.delegated_provider || '') === 'codex_oauth_worker' }}",
-                "operator": {
-                  "type": "boolean",
-                  "operation": "true",
-                  "singleValue": true
-                }
-              }
-            ],
-            "combinator": "and"
-          },
-          "options": {}
-        },
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 2.2,
-        "position": [
-          1920,
-          -64
-        ],
-        "id": "be0c2dde-a410-eded-0cb0-577773ca7f65",
-        "name": "Delegated Worker Is Codex?"
-      },
-      {
-        "parameters": {
-          "operation": "executeQuery",
-          "query": "SELECT public.ghost_finalize_delegation(\n  NULLIF($1, '')::uuid,\n  NULL,\n  'blocked',\n  $2,\n  NULL\n);",
-          "options": {
-            "queryReplacement": "={{ [$json.delegation_id || '', $json.unsupported_result_summary || 'Delegated execution is not available in the current runtime.'] }}"
-          }
-        },
-        "type": "n8n-nodes-base.postgres",
-        "typeVersion": 2.6,
-        "position": [
-          2144,
-          64
-        ],
-        "id": "02249b14-bfb6-299d-c137-7367435e4c04",
-        "name": "Finalize Unsupported Delegation",
-        "credentials": {
-          "postgres": {
-            "id": "r4pH8PimgUf2t9oM",
-            "name": "Postgres account"
-          }
-        },
-        "continueOnFail": false
-      },
-      {
-        "parameters": {
-          "jsCode": "const item = $('Build Delegation Context').item.json;\nconst workerLabel = item.worker_agent_label || item.delegated_provider || 'the delegated worker';\nconst reply = [\n  `${item.parent_owner_label || 'Ghost'} kept ownership of this conversation and opened delegated work for ${workerLabel}.`,\n  'Delegated execution is not available in the current runtime, so the worker task could not be started automatically in this phase.',\n  item.unsupported_result_summary || '',\n].join('\\n\\n');\nreturn [{ json: {\n  conversation_id: item.conversation_id || '',\n  reply,\n  provider_used: item.parent_provider || '',\n  model_used: item.parent_model || '',\n  task_class: item.task_class || 'technical_work',\n  approval_required: false,\n  risk_level: item.risk_level || 'safe',\n  risk_reasons: item.risk_reasons || [],\n  task_summary: item.task_summary || '',\n  command_success: false,\n  command_exit_code: null,\n  stdout_summary: '',\n  stderr_summary: item.unsupported_result_summary || '',\n  artifact_path: '',\n  codex_command_status: 'blocked_execution_unavailable',\n  error_type: 'delegation_execution_not_available',\n  delegation_id: item.delegation_id || '',\n  orchestration_task_id: item.orchestration_task_id || '',\n  runtime_task_id: null,\n  worker_conversation_id: item.worker_conversation_id || '',\n  n8n_execution_id: item.n8n_execution_id || null,\n  response_mode: 'delegated_execution_unavailable',\n  parent_owner_label: item.parent_owner_label || 'Ghost',\n} }];"
-        },
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          2368,
-          64
-        ],
-        "id": "f3fb2514-8c10-0c13-5769-2d7739c50040",
-        "name": "Build Parent Unsupported Delegation Response"
       },
       {
         "parameters": {
@@ -1726,6 +1652,80 @@
         ],
         "id": "96ff4f88-c0d9-9004-8321-b22be8cca8c3",
         "name": "Build Parent Delegation Response"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT public.ghost_finalize_delegation(\n  NULLIF($1, '')::uuid,\n  NULL,\n  'blocked',\n  $2,\n  NULL\n);",
+          "options": {
+            "queryReplacement": "={{ [$json.delegation_id || '', $json.blocked_result_summary || 'Approval required before delegated worker execution.'] }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1920,
+          -352
+        ],
+        "id": "72ce655e-2ccc-f6b1-5653-1c80509ba7fa",
+        "name": "Finalize Blocked Delegation",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        },
+        "continueOnFail": false
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $('Build Delegation Context').item.json;\nconst reasons = Array.isArray(item.risk_reasons) && item.risk_reasons.length\n  ? item.risk_reasons.join(' ')\n  : 'Risk policy requires review before Ghost can start the delegated worker session.';\nconst reply = [\n  `${item.parent_owner_label || 'Ghost'} kept this conversation under its current owner and opened a delegated worker task instead of silently switching models.`,\n  `Execution is blocked pending approval. The delegated task is now visible on the Task Board for review.`,\n  reasons,\n].join('\\n\\n');\nreturn [{ json: {\n  conversation_id: item.conversation_id || '',\n  reply,\n  provider_used: item.parent_provider || '',\n  model_used: item.parent_model || '',\n  task_class: item.task_class || 'technical_work',\n  approval_required: true,\n  risk_level: item.risk_level || 'caution',\n  risk_reasons: item.risk_reasons || [],\n  task_summary: item.task_summary || '',\n  command_success: false,\n  command_exit_code: null,\n  stdout_summary: '',\n  stderr_summary: reasons,\n  artifact_path: '',\n  codex_command_status: 'blocked_pending_approval',\n  error_type: 'delegation_blocked_pending_approval',\n  delegation_id: item.delegation_id || '',\n  orchestration_task_id: item.orchestration_task_id || '',\n  runtime_task_id: null,\n  worker_conversation_id: item.worker_conversation_id || '',\n  n8n_execution_id: item.n8n_execution_id || null,\n  response_mode: 'delegated_blocked',\n  parent_owner_label: item.parent_owner_label || 'Ghost',\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2144,
+          -352
+        ],
+        "id": "15bb4536-847b-ef38-ed45-b3158018740b",
+        "name": "Build Parent Blocked Delegation Response"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT public.ghost_finalize_delegation(\n  NULLIF($1, '')::uuid,\n  NULL,\n  'blocked',\n  $2,\n  NULL\n);",
+          "options": {
+            "queryReplacement": "={{ [$json.delegation_id || '', $json.unsupported_result_summary || 'Delegated execution is not available in the current runtime.'] }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          2144,
+          64
+        ],
+        "id": "02249b14-bfb6-299d-c137-7367435e4c04",
+        "name": "Finalize Unsupported Delegation",
+        "credentials": {
+          "postgres": {
+            "id": "r4pH8PimgUf2t9oM",
+            "name": "Postgres account"
+          }
+        },
+        "continueOnFail": false
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $('Build Delegation Context').item.json;\nconst workerLabel = item.worker_agent_label || item.delegated_provider || 'the delegated worker';\nconst reply = [\n  `${item.parent_owner_label || 'Ghost'} kept ownership of this conversation and opened delegated work for ${workerLabel}.`,\n  'Delegated execution is not available in the current runtime, so the worker task could not be started automatically in this phase.',\n  item.unsupported_result_summary || '',\n].join('\\n\\n');\nreturn [{ json: {\n  conversation_id: item.conversation_id || '',\n  reply,\n  provider_used: item.parent_provider || '',\n  model_used: item.parent_model || '',\n  task_class: item.task_class || 'technical_work',\n  approval_required: false,\n  risk_level: item.risk_level || 'safe',\n  risk_reasons: item.risk_reasons || [],\n  task_summary: item.task_summary || '',\n  command_success: false,\n  command_exit_code: null,\n  stdout_summary: '',\n  stderr_summary: item.unsupported_result_summary || '',\n  artifact_path: '',\n  codex_command_status: 'blocked_execution_unavailable',\n  error_type: 'delegation_execution_not_available',\n  delegation_id: item.delegation_id || '',\n  orchestration_task_id: item.orchestration_task_id || '',\n  runtime_task_id: null,\n  worker_conversation_id: item.worker_conversation_id || '',\n  n8n_execution_id: item.n8n_execution_id || null,\n  response_mode: 'delegated_execution_unavailable',\n  parent_owner_label: item.parent_owner_label || 'Ghost',\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2368,
+          64
+        ],
+        "id": "f3fb2514-8c10-0c13-5769-2d7739c50040",
+        "name": "Build Parent Unsupported Delegation Response"
       }
     ],
     "connections": {
