@@ -181,6 +181,38 @@ function validateApprovalModel(approvalModel, capabilitiesDoc) {
   }
 }
 
+function validateActionModel(actionModel) {
+  requireString(actionModel.version, "action_model.version");
+  requireArray(actionModel.entities, "action_model.entities");
+  requireArray(actionModel.event_types, "action_model.event_types");
+  requireArray(actionModel.relationships, "action_model.relationships");
+  requireArray(actionModel.required_record_fields, "action_model.required_record_fields");
+
+  const entities = new Set(actionModel.entities);
+  const eventIds = new Set();
+  for (const event of actionModel.event_types) {
+    requireString(event.id, "action_model.event_type.id");
+    requireString(event.entity, `action_model.event_type.${event.id}.entity`);
+    requireString(event.description, `action_model.event_type.${event.id}.description`);
+    if (!entities.has(event.entity)) {
+      fail(`action event references unknown entity: ${event.id} -> ${event.entity}`);
+    }
+    if (eventIds.has(event.id)) {
+      fail(`duplicate action event id: ${event.id}`);
+    }
+    eventIds.add(event.id);
+  }
+
+  for (const relationship of actionModel.relationships) {
+    requireString(relationship.from, "action_model.relationship.from");
+    requireString(relationship.to, "action_model.relationship.to");
+    requireString(relationship.description, "action_model.relationship.description");
+    if (!entities.has(relationship.from) || !entities.has(relationship.to)) {
+      fail(`action relationship references unknown entity: ${relationship.from} -> ${relationship.to}`);
+    }
+  }
+}
+
 function main() {
   const baselinePath = path.join("ops", "foundation", "baseline.json");
   const baseline = loadJson(baselinePath);
@@ -190,10 +222,13 @@ function main() {
   const capabilities = loadJson(capabilitiesPath);
   const approvalPath = path.join("ops", "foundation", "approval-model.json");
   const approvalModel = loadJson(approvalPath);
+  const actionModelPath = path.join("ops", "foundation", "action-model.json");
+  const actionModel = loadJson(actionModelPath);
   validateBaseline(baseline);
   validateWorkers(workers);
   validateCapabilities(capabilities, workers);
   validateApprovalModel(approvalModel, capabilities);
+  validateActionModel(actionModel);
 
   const summary = {
     version: baseline.version,
@@ -205,6 +240,7 @@ function main() {
     worker_count: workers.workers.length,
     capability_count: capabilities.capabilities.length,
     approval_state_count: approvalModel.states.length,
+    action_event_count: actionModel.event_types.length,
     foundation_dir: foundationDir,
   };
 
