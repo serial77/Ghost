@@ -21,6 +21,10 @@ const {
   applyDelegatedSetupTailModule,
   assertDelegatedSetupTailContract,
 } = require("./workflow-modules/delegated-setup-tail");
+const {
+  applyIngressConversationTailModule,
+  assertIngressConversationTailContract,
+} = require("./workflow-modules/ingress-conversation-tail");
 
 const projectRoot = path.join(__dirname, "..");
 const sourcePath = path.join(projectRoot, "workflows", "ghost-chat-v3-phase5d-runtime-ledger.json");
@@ -191,31 +195,12 @@ function makeIfNode(name, leftValue, operation, position, rightValue = undefined
 
 const [workflow] = loadWorkflow(sourcePath);
 
-const normalizeInput = findNode(workflow, "Normalize Input");
-ensureAssignment(normalizeInput, {
-  id: makeId("assignment:Normalize Input:entrypoint"),
-  name: "entrypoint",
-  value: "={{ $json.headers['x-ghost-entry-point'] || $json.headers['X-Ghost-Entry-Point'] || 'direct_webhook' }}",
-  type: "string",
+applyIngressConversationTailModule({
+  workflow,
+  findNode,
+  ensureAssignment,
+  makeId,
 });
-ensureAssignment(normalizeInput, {
-  id: makeId("assignment:Normalize Input:n8n_execution_id"),
-  name: "n8n_execution_id",
-  value: "={{ $execution?.id || $executionId || '' }}",
-  type: "string",
-});
-
-const exposeRouteMetadata = findNode(workflow, "Expose Route Metadata");
-ensureAssignment(exposeRouteMetadata, {
-  id: makeId("assignment:Expose Route Metadata:n8n_execution_id"),
-  name: "n8n_execution_id",
-  value: "={{ $('Normalize Input').item.json.n8n_execution_id || $execution?.id || $executionId || '' }}",
-  type: "string",
-});
-
-const saveUserMessage = findNode(workflow, "Save User Message");
-saveUserMessage.parameters.options.queryReplacement =
-  "={{ [$json.conversation_id, $('Normalize Input').item.json.message, JSON.stringify({ source: 'ghost-chat-v3', type: 'user_message', entrypoint: $('Normalize Input').item.json.entrypoint || 'direct_webhook', n8n_execution_id: $('Normalize Input').item.json.n8n_execution_id || null })] }}";
 
 const normalizeOllamaReply = findNode(workflow, "Normalize Ollama Reply");
 normalizeOllamaReply.parameters.jsCode = `${normalizeOllamaReply.parameters.jsCode.replace(
@@ -666,5 +651,6 @@ assertMemoryExtractionTailContract({ workflow, findNode, assertIncludes });
 assertDelegatedCompletionTailContract({ workflow, findNode, assertIncludes });
 assertDelegatedControlTailContract({ workflow, findNode, assertIncludes });
 assertDelegatedSetupTailContract({ workflow, findNode, assertIncludes });
+assertIngressConversationTailContract({ workflow, findNode, assertIncludes });
 fs.writeFileSync(targetPath, JSON.stringify([workflow], null, 2) + "\n");
 console.log(targetPath);
