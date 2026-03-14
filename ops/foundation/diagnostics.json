@@ -18,8 +18,16 @@
       "description": "Blocked delegated actions that may indicate governance friction."
     },
     {
+      "id": "approval_queue_pressure",
+      "description": "Durable approval backlog, bottlenecks, and capability/environment pressure."
+    },
+    {
       "id": "worker_overload_imbalance",
       "description": "Skewed delegated load concentration by worker provider."
+    },
+    {
+      "id": "action_history_gaps",
+      "description": "Missing or thin durable action history coverage for recent governed/runtime surfaces."
     },
     {
       "id": "fragile_module_hotspots",
