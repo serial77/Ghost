@@ -282,11 +282,17 @@ const stderrSummaryBase = payload.stderr_summary || (typeof result.stderr === 's
 const replyText = typeof payload.reply === 'string' ? payload.reply.trim() : '';
 const invalidPayload = payloadParseFailed || !payload || typeof payload !== 'object' || Array.isArray(payload);
 const timedOut = /timed?\\s*out|timeout/i.test((nodeError || '') + ' ' + (stderrSummaryBase || ''));
+const commandFailedWithoutStructuredOutput = !rawStdout
+  && !replyText.length
+  && !payloadParseFailed
+  && Boolean(nodeError || stderrSummaryBase || (commandExitCode !== null && commandExitCode !== 0));
 const commandSuccess = Boolean(payload.success) && !invalidPayload && replyText.length > 0;
 const derivedErrorType = commandSuccess
   ? ''
   : timedOut
       ? 'codex_command_timeout'
+      : commandFailedWithoutStructuredOutput
+          ? 'codex_command_failed'
       : invalidPayload || !replyText.length
           ? 'codex_invalid_result'
           : 'codex_command_failed';
@@ -294,6 +300,8 @@ const stderrSummary = commandSuccess
   ? stderrSummaryBase
   : stderrSummaryBase || (timedOut
       ? 'Codex execution timed out.'
+      : commandFailedWithoutStructuredOutput
+          ? 'Codex execution failed.'
       : invalidPayload
           ? 'Codex returned an invalid result payload.'
           : !replyText.length
