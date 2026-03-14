@@ -78,6 +78,26 @@ function makeApprovalRuntimeConfig(foundations) {
   };
 }
 
+function makeWorkerRuntimeConfig(foundations) {
+  const workersById = {};
+  for (const worker of foundations.workers.workers) {
+    workersById[worker.id] = {
+      id: worker.id,
+      visibility_label: worker.visibility_label,
+      role: worker.role,
+      purpose: worker.purpose,
+      operator_identity: worker.operator_identity,
+      responsibility_domain: worker.responsibility_domain,
+      environment_scope: worker.environment_scope,
+    };
+  }
+
+  return {
+    workers_by_id: workersById,
+    worker_capabilities: foundations.capabilities.worker_capabilities,
+  };
+}
+
 function hashId(value) {
   let hash = 0;
   const text = String(value || "");
@@ -214,4 +234,5 @@ module.exports = {
   inferCurrentEnvironment,
   loadPhase7Foundations,
   makeApprovalRuntimeConfig,
+  makeWorkerRuntimeConfig,
 };

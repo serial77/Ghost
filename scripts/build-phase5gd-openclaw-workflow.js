@@ -40,6 +40,7 @@ const {
 const {
   loadPhase7Foundations,
   makeApprovalRuntimeConfig,
+  makeWorkerRuntimeConfig,
 } = require("./foundation-runtime");
 
 const projectRoot = path.join(__dirname, "..");
@@ -54,6 +55,7 @@ const parentExecutionTarget = "webhook/ghost-chat-v3";
 const delegatedExecutionTarget = "delegated_codex_session";
 const phase7Foundations = loadPhase7Foundations(projectRoot);
 const approvalRuntimeConfigLiteral = JSON.stringify(makeApprovalRuntimeConfig(phase7Foundations));
+const workerRuntimeConfigLiteral = JSON.stringify(makeWorkerRuntimeConfig(phase7Foundations));
 
 function makeApprovalRuntimeHelpersCode() {
   return `const __ghostApprovalConfig = ${approvalRuntimeConfigLiteral};
@@ -603,6 +605,7 @@ applyDelegatedSetupTailModule({
   makePostgresNode,
   delegatedExecutionTarget,
   workflowName,
+  workerRuntimeConfigLiteral,
 });
 
 applyDelegatedWorkerRuntimeTailModule({

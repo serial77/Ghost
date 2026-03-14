@@ -15,6 +15,7 @@ function applyDelegatedSetupTailModule({
   makePostgresNode,
   delegatedExecutionTarget,
   workflowName,
+  workerRuntimeConfigLiteral,
 }) {
   addNode(
     workflow,
@@ -97,7 +98,20 @@ FROM public.ghost_create_conversation_delegation(
     workflow,
     makeCodeNode(
       "Build Delegation Context",
-      `const parent = $('Build Delegation Request').item.json;
+      `const __ghostWorkerRuntime = ${workerRuntimeConfigLiteral};
+const workerRegistry = __ghostWorkerRuntime.workers_by_id.forge;
+const workerCapabilities = Array.isArray(__ghostWorkerRuntime.worker_capabilities.forge)
+  ? __ghostWorkerRuntime.worker_capabilities.forge
+  : [];
+const requiredCapabilities = ['code.write', 'artifact.publish'];
+const missingCapabilities = requiredCapabilities.filter((capabilityId) => !workerCapabilities.includes(capabilityId));
+if (!workerRegistry) {
+  throw new Error('Missing forge worker registry definition');
+}
+if (missingCapabilities.length > 0) {
+  throw new Error(\`Forge worker is missing required capabilities: \${missingCapabilities.join(', ')}\`);
+}
+const parent = $('Build Delegation Request').item.json;
 const delegation = $input.first().json;
 const normalized = $('Normalize Input').item.json;
 const compact = (value, limit = 800) => String(value || '').replace(/\\s+/g, ' ').trim().slice(0, limit);
@@ -113,6 +127,9 @@ const workerRuntimeContext = {
   orchestration_task_id: delegation.orchestration_task_id || '',
   parent_conversation_id: parent.conversation_id || '',
   parent_owner_label: parent.parent_owner_label || 'Ghost',
+  worker_registry_id: workerRegistry.id,
+  worker_role: workerRegistry.role,
+  worker_operator_identity: workerRegistry.operator_identity,
   delegated_provider: delegation.worker_provider || parent.delegated_provider || '',
   delegated_model: delegation.worker_model || parent.delegated_model || '',
   entrypoint: normalized.entrypoint || 'direct_webhook',
@@ -124,7 +141,12 @@ return [{ json: {
   orchestration_task_id: delegation.orchestration_task_id || '',
   worker_conversation_id: delegation.worker_conversation_id || '',
   worker_agent_id: delegation.worker_agent_id || '',
-  worker_agent_label: delegation.worker_agent_label || 'Delegated worker',
+  worker_registry_id: workerRegistry.id,
+  worker_agent_label: workerRegistry.visibility_label,
+  worker_role: workerRegistry.role,
+  worker_operator_identity: workerRegistry.operator_identity,
+  worker_environment_scope: workerRegistry.environment_scope || [],
+  worker_allowed_capabilities: workerCapabilities,
   delegated_provider: delegation.worker_provider || parent.delegated_provider || '',
   delegated_model: delegation.worker_model || parent.delegated_model || '',
   worker_runtime_input_json: JSON.stringify(workerRuntimeInput),
@@ -138,10 +160,14 @@ return [{ json: {
     delegated_provider: delegation.worker_provider || parent.delegated_provider || null,
     delegated_model: delegation.worker_model || parent.delegated_model || null,
     parent_owner_label: parent.parent_owner_label || 'Ghost',
+    worker_registry_id: workerRegistry.id,
+    worker_role: workerRegistry.role,
+    worker_operator_identity: workerRegistry.operator_identity,
+    worker_allowed_capabilities: workerCapabilities,
     n8n_execution_id: parent.n8n_execution_id || normalized.n8n_execution_id || null,
   }),
   blocked_result_summary: compact(\`Approval required before delegated worker execution. \${(parent.risk_reasons || []).join(' ')}\`, 400),
-  unsupported_result_summary: compact(\`Delegated execution is not available for \${delegation.worker_provider || parent.delegated_provider || 'the selected worker'} in the current runtime. The task cannot start automatically in this phase.\`, 400),
+  unsupported_result_summary: compact(\`Delegated execution is not available for \${workerRegistry.visibility_label || delegation.worker_provider || parent.delegated_provider || 'the selected worker'} in the current runtime. The task cannot start automatically in this phase.\`, 400),
 } }];`,
       [1248, -208],
     ),
@@ -245,6 +271,11 @@ function assertDelegatedSetupTailContract({ workflow, findNode, assertIncludes }
   for (const field of [
     "orchestration_task_id",
     "worker_conversation_id",
+    "worker_registry_id",
+    "worker_role",
+    "worker_operator_identity",
+    "worker_environment_scope",
+    "worker_allowed_capabilities",
     "worker_runtime_input_json",
     "worker_runtime_context_json",
     "worker_user_metadata_json",
