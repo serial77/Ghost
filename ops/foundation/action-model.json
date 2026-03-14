@@ -76,6 +76,16 @@
       "description": "Governed follow-through closed the approval lifecycle without a retry."
     },
     {
+      "id": "governance.retry_dispatched",
+      "entity": "approval",
+      "description": "Governed follow-through dispatched a real webhook retry for an approved blocked path."
+    },
+    {
+      "id": "governance.retry_failed",
+      "entity": "approval",
+      "description": "Governed follow-through attempted a webhook retry but the dispatch failed."
+    },
+    {
       "id": "artifact.published",
       "entity": "artifact",
       "description": "A workflow or durable artifact was published or promoted."

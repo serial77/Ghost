@@ -65,26 +65,35 @@ The following remain required after future governed-flow changes:
 - worker-selection probe
 - governed-flow scenario harness
 
+## Added: controlled retry executor (Phase 7 follow-through completion)
+
+- `scripts/retry-governed-followthrough.js`
+  - consumes `retry_enqueued` rows durably
+  - validates `outcome_status = allowed` before any dispatch
+  - POSTs to Ghost webhook (`N8N_BASE_URL/webhook/WEBHOOK_PATH`) with `conversation_id`,
+    approval-continuation message, and `X-Ghost-Entry-Point: approval_retry` header
+  - transitions `execution_state`: `retry_enqueued` → `retry_dispatched` (or `retry_failed`)
+  - embeds retry result (`retry_n8n_execution_id`, `retry_dispatched_at`, reply summary)
+    into `next_step_payload` of `ghost_governed_followthrough`
+  - records `governance.retry_dispatched` or `governance.retry_failed` in `ghost_action_history`
+  - `--dry-run true` mode for safe inspection without live webhook hit
+- `ops/retry-governed-followthrough.sh` — operator wrapper
+- `ops/foundation/action-model.json` — added `governance.retry_dispatched` and `governance.retry_failed`
+- `scripts/run-governed-flow-scenarios.js` — `--with-retry` flag runs dry-run probe
+
 ## Remaining thin areas
 
-- approval resolution is not yet tied to automated unblock/retry execution
-- no UI/operator queue exists for the durable approval surface
-- durable action history is still reported primarily through shell helpers
+- no first-class operator UI for approval queue or retry queue
+- retry is operator-invoked (script); not automated or event-driven
 - worker registry authority is stronger, but not yet system-wide
 - broad policy admission remains intentionally narrow and bounded
 
-## Best next supervised Phase 7 step
+## MVP posture after retry executor
 
-Implement a controlled approval-resolution follow-through path:
+The governed loop is now end-to-end executable:
 
-- approved -> durable governed outcome marked `allowed`
-- durable retry/unblock executor for one blocked path
-- denied/cancelled -> durable governed closure without retry
-
-That is the highest-value next step because it closes the loop between:
-
-- durable approval queue
-- durable action history
-- governed outcome state
-- durable follow-through state
-- live blocked work
+- approval request → durable queue
+- operator resolution → durable governed outcome
+- follow-through planning → durable `retry_enqueued` intent
+- retry executor → real webhook dispatch → durable `retry_dispatched` + new n8n execution
+- action history captures full timeline at every stage

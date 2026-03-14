@@ -131,9 +131,11 @@ function buildScenarioMetadata({ sourcePath, conversationId, delegationId, taskI
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const keepRows = args.keep === "true";
+  const withRetry = args["with-retry"] === "true";
   const root = args["project-root"] || process.cwd();
   const resolveScript = `${root}/scripts/resolve-approval-queue.js`;
   const followthroughScript = `${root}/scripts/execute-governed-followthrough.js`;
+  const retryScript = `${root}/scripts/retry-governed-followthrough.js`;
   const reportApprovalScript = `${root}/scripts/report-approval-queue.js`;
   const reportActionScript = `${root}/scripts/report-action-history.js`;
   const reportFlowScript = `${root}/scripts/report-governed-flow.js`;
@@ -256,6 +258,16 @@ function main() {
     const directProdPolicy = runNodeScript(reportPolicyScript, ["--environment", "prod"]);
     const directLabPolicy = runNodeScript(reportPolicyScript, ["--environment", "lab"]);
 
+    // Optional: dry-run the retry executor for the direct approved scenario to validate
+    // the full approve -> followthrough -> retry dispatch loop without hitting the live webhook.
+    let retryDryRunResult = null;
+    if (withRetry) {
+      retryDryRunResult = runNodeScript(retryScript, [
+        "--approval-queue-id", directApprovedId,
+        "--dry-run", "true",
+      ]);
+    }
+
     console.log(JSON.stringify({
       scenario_count: 4,
       approvals: {
@@ -287,6 +299,7 @@ function main() {
         delegated_approved_worker_label:
           delegatedApprovedTrace.traces[0]?.followthrough_worker_label || null,
       },
+      retry_dry_run: retryDryRunResult,
       kept_rows: keepRows,
     }, null, 2));
   } finally {

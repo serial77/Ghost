@@ -18,16 +18,28 @@
 ## Thin but acceptable for near-MVP
 
 - approval queue is backend/report-helper driven, not operator UI driven
-- follow-through records retry intent, but does not yet replay blocked work
+- retry dispatch is durable and inspectable, but triggered by operator/script — not automated
 - action history is durable, but mostly helper-consumed
 - policy gating is authoritative in bounded slices, not broad policy-engine form
 - worker registry authority is real, but not system-wide
 
+## Completed since last gap list
+
+- controlled unblock/retry executor added (`scripts/retry-governed-followthrough.js`)
+  - consumes `retry_enqueued` rows from `ghost_governed_followthrough`
+  - validates `outcome_status = allowed` before dispatch
+  - POSTs to Ghost webhook with `conversation_id` and approval-continuation message
+  - records `retry_dispatched` or `retry_failed` durably in `ghost_governed_followthrough`
+  - emits `governance.retry_dispatched` or `governance.retry_failed` to `ghost_action_history`
+  - `--dry-run true` mode for validation without live webhook hit
+  - `governance.retry_dispatched` and `governance.retry_failed` added to action-model.json
+  - scenario harness extended with `--with-retry` dry-run probe
+
 ## Still missing for a stronger MVP claim
 
-- one controlled unblock/retry executor that consumes approved follow-through rows
-- one durable operator-facing retrieval surface beyond shell helpers
+- first-class operator UI surface for approval queue and retry queue
 - broader authoritative worker/capability policy checks in more than one routing/execution slice
+- automated retry trigger (current: operator-invoked script)
 
 ## Do not weaken
 
