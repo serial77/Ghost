@@ -2,7 +2,7 @@
   "project": {
     "name": "Ghost Build Tracker",
     "schema_version": "1.0",
-    "last_updated": "2026-03-15T07:14:00Z",
+    "last_updated": "2026-03-15T13:10:00Z",
     "current_focus": "Architecture-sensitive queue: 2E migration strategy; 3C-ii/3E/3E-ii/3F runtime load; 7C-ii/7C-iii/7D-ii followthrough reliability"
   },
   "core_framing": {
@@ -105,13 +105,11 @@
       {
         "name": "Claude",
         "lane": "implementation",
-        "status": "standby",
-        "summary": "TASK-008 Phase C complete: memory.ts + memories migration + Ghost_Memory pipeline upgrade. Stopped at Checkpoint 2 awaiting operator approval.",
-        "updated_at": "2026-03-15T07:14:00Z",
+        "status": "completed",
+        "summary": "TASK-008 finalized: memories table migrated, memory.ts Extract→Consolidate→Store pipeline complete, Ghost Runtime inline pipeline updated with Store to Memories (pipeline) node, dual-write to ghost_memory + memories verified (1 row confirmed), 203/203 tests passing, CI green on branch phase4/4F-ghost-memory-subworkflow.",
+        "updated_at": "2026-03-15T13:10:00Z",
         "assigned_phase_id": "phase-4",
-        "assigned_step_id": "p4b-shared-context-source-of-truth-layer",
-        "note": "Current live assignment on TASK-004.",
-        "branch": "phase4/4F-ghost-memory-subworkflow"
+        "assigned_step_id": "p4b-shared-context-source-of-truth-layer"
       },
       {
         "name": "Codex",
@@ -883,6 +881,13 @@
   ],
   "recent_activity": [
     {
+      "time": "2026-03-15T13:10:00Z",
+      "worker": "Claude",
+      "status": "done",
+      "step_id": "p4b-shared-context-source-of-truth-layer",
+      "note": "TASK-008 finalized: memories table migrated (008_phase4f_memories.sql applied to live DB), memory.ts public API complete (extractMemories/consolidateMemories/storeMemories), Ghost Runtime inline pipeline updated (79 nodes, Filter+Store nodes upgraded to Phase 4F code), dual-write E2E verified (ghost_memory row + memories row confirmed), 203/203 tests passing. Branch: phase4/4F-ghost-memory-subworkflow."
+    },
+    {
       "time": "2026-03-15T07:14:00Z",
       "worker": "Claude",
       "status": "review",
@@ -909,6 +914,13 @@
       "status": "working",
       "step_id": "p2e-schema-migration-strategy",
       "note": "Schema migration strategy remains an explicit active load-bearing item"
+    },
+    {
+      "time": "2026-03-15T00:06:56Z",
+      "worker": "Claude",
+      "status": "done",
+      "step_id": "p2e-schema-migration-strategy",
+      "note": "Architecture closure audit complete. Reconciliation doc created at docs/reviews/v3-architecture-closure-audit.md. All 8 scoped steps assessed. Tier 0 recommendation: 2E migration runner, 3E-ii src/runtime scaffold, 7D-ii ghost_events migration \u2014 all safe to start immediately with no dependencies."
     },
     {
       "time": "2026-03-15T00:06:56Z",

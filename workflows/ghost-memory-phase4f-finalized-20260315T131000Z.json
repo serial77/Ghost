@@ -1,0 +1,375 @@
+{
+  "id": "u7omvbq1Lkn7We5F",
+  "name": "Ghost_Memory",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "c050b101-071e-4ceb-bcee-1aeb6c1b021c",
+      "name": "Ghost Memory Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        16,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const savedMessage = $input.first().json;\nconst replyContext = $('Build API Response').item.json;\nlet routeContext = { messages: [] };\ntry {\n  routeContext = $('Expose Route Metadata').item.json;\n} catch (error) {\n  routeContext = { messages: [] };\n}\nconst messages = Array.isArray(routeContext.messages) ? routeContext.messages : [];\nconst lastUserFromRoute = [...messages].reverse().find((m) => m.role === 'user');\nconst latestUserMessage = (lastUserFromRoute?.content || $('Normalize Input').item.json.message || '').trim();\n\nconst { shouldExtractMemory, buildExtractionPrompt } = require('/opt/ghost/src/runtime/memory.ts');\n\nconst ctx = {\n  conversation_id: replyContext.conversation_id || null,\n  source_message_id: savedMessage.id || null,\n  task_class: replyContext.task_class || 'chat',\n  assistant_reply: (replyContext.reply || '').trim(),\n  latest_user_message: latestUserMessage,\n  command_success: replyContext.command_success ?? null,\n  response_mode: replyContext.response_mode || 'direct_owner_reply',\n  approval_required: !!replyContext.approval_required,\n  error_type: replyContext.error_type || '',\n  memory_test_mode: $('Normalize Input').item.json.memory_test_mode || '',\n  provider_used: replyContext.provider_used || '',\n  model_used: replyContext.model_used || '',\n  risk_level: replyContext.risk_level || 'safe',\n};\n\nconst { should_extract, meaningful_technical_work, explicit_memory_cue } = shouldExtractMemory(ctx);\nconst extractionPrompt = should_extract ? buildExtractionPrompt(ctx) : '';\n\nreturn [{ json: {\n  ...ctx,\n  should_extract_memory: should_extract,\n  meaningful_technical_work,\n  explicit_memory_cue,\n  extraction_prompt: extractionPrompt,\n  memory_debug: {\n    extractor_attempted: should_extract,\n    extractor_skipped: !should_extract,\n    fallback_used: false,\n    candidate_count: 0,\n    filtered_count: 0,\n    saved_count: 0,\n  },\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "id": "aef24c01-fca3-4fe1-b20d-b0e94496fca4",
+      "name": "Build Memory Extraction Input"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "236092d1-61b2-4062-8188-05e31a893787",
+              "leftValue": "={{ $json.should_extract_memory }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        464,
+        300
+      ],
+      "id": "59062447-e144-4794-a980-a960b0dc2e01",
+      "name": "Should Extract Memory?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9dbbbe1b-ea60-4cc5-814f-51a4b32e0c9c",
+              "leftValue": "={{ $json.memory_test_mode === 'invalid_json' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        688,
+        300
+      ],
+      "id": "28c04af7-4a2f-4e33-9a69-db71fc6239d5",
+      "name": "Use Invalid Memory Stub?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nreturn [{ json: { ...item, output_text: 'not valid json', memory_extractor_debug: 'invalid_json' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        204
+      ],
+      "id": "4656de8b-3765-4a61-8f0a-95f10f68e49f",
+      "name": "Return Invalid Memory Extractor Output"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.openai.com/v1/responses",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "=gpt-4.1-mini"
+            },
+            {
+              "name": "input",
+              "value": "={{ $json.extraction_prompt }}"
+            },
+            {
+              "name": "max_output_tokens",
+              "value": "=350"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        912,
+        396
+      ],
+      "id": "3779dbfc-0ecf-43f9-9583-049f4a149663",
+      "name": "Call OpenAI Memory Extractor",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YQzVSBDDIUnZHT10",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst ctx = $('Build Memory Extraction Input').item.json;\n\nconst { parseMemoryCandidates } = require('/opt/ghost/src/runtime/memory.ts');\n\nconst { candidates, parse_status, parse_error, fallback_used, raw_text } =\n  parseMemoryCandidates(response, ctx);\n\nreturn [{ json: {\n  ...ctx,\n  memory_parse_status: parse_status,\n  memory_parse_error: parse_error,\n  memory_raw_text: raw_text,\n  memory_candidate_items: candidates,\n  memory_debug: {\n    ...(ctx.memory_debug || {}),\n    extractor_attempted: Boolean(ctx.should_extract_memory),\n    extractor_skipped: !ctx.should_extract_memory,\n    candidate_count: candidates.length,\n    fallback_used,\n    parse_status,\n  },\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        300
+      ],
+      "id": "28475fa8-e8b5-4185-8c99-eae33744075a",
+      "name": "Parse Structured Memory"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst candidates = Array.isArray(item.memory_candidate_items) ? item.memory_candidate_items : [];\n\nconst { consolidateMemories, storeMemories } = require('/opt/ghost/src/runtime/memory.ts');\n\nconst { memories, filtered_out_count, filtered_out_reasons, normalization_changes } =\n  consolidateMemories(candidates, item);\n\nconst writeRows = storeMemories(memories, item);\n\nreturn [{ json: {\n  ...item,\n  memory_items: memories,\n  memory_write_rows: writeRows,\n  memory_debug: {\n    ...(item.memory_debug || {}),\n    candidate_count: candidates.length,\n    filtered_count: memories.length,\n    filtered_out_count,\n    filtered_out_reasons,\n    normalization_changes,\n  },\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        300
+      ],
+      "id": "8f205b15-3096-4ab6-b419-bac8bcbea561",
+      "name": "Filter Structured Memory Candidates"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input_rows AS (\n  SELECT *\n  FROM jsonb_to_recordset($1::jsonb) AS x(\n    scope TEXT,\n    memory_type TEXT,\n    conversation_id UUID,\n    task_run_id UUID,\n    source_message_id UUID,\n    title TEXT,\n    summary TEXT,\n    details_json JSONB,\n    importance SMALLINT,\n    status TEXT\n  )\n), validated AS (\n  SELECT\n    gen_random_uuid() AS id,\n    scope,\n    memory_type,\n    conversation_id,\n    task_run_id,\n    source_message_id,\n    NULLIF(title, '') AS title,\n    summary,\n    COALESCE(details_json, '{}'::jsonb) AS details_json,\n    GREATEST(1, LEAST(5, COALESCE(importance, 3)))::smallint AS importance,\n    COALESCE(status, 'active') AS status\n  FROM input_rows\n  WHERE scope IN ('global', 'conversation', 'task')\n    AND memory_type IN ('task_summary', 'decision', 'environment_fact', 'operational_note', 'conversation_summary')\n    AND COALESCE(status, 'active') IN ('active', 'superseded', 'archived')\n    AND NULLIF(summary, '') IS NOT NULL\n), inserted AS (\n  INSERT INTO ghost_memory (\n    id,\n    scope,\n    memory_type,\n    conversation_id,\n    task_run_id,\n    source_message_id,\n    title,\n    summary,\n    details_json,\n    importance,\n    status\n  )\n  SELECT\n    id,\n    scope,\n    memory_type,\n    conversation_id,\n    task_run_id,\n    source_message_id,\n    title,\n    summary,\n    details_json,\n    importance,\n    status\n  FROM validated\n  RETURNING id, scope, memory_type, conversation_id, summary, details_json, created_at\n), superseded AS (\n  UPDATE ghost_memory older\n  SET status = 'superseded', updated_at = NOW()\n  FROM inserted newer\n  WHERE older.id <> newer.id\n    AND older.status = 'active'\n    AND older.memory_type = newer.memory_type\n    AND older.scope = newer.scope\n    AND older.memory_type IN ('decision', 'environment_fact', 'operational_note')\n    AND COALESCE(older.conversation_id, '00000000-0000-0000-0000-000000000000'::uuid) = COALESCE(newer.conversation_id, '00000000-0000-0000-0000-000000000000'::uuid)\n    AND (\n      (\n        COALESCE(NULLIF(newer.details_json->>'topic_key', ''), '') <> ''\n        AND NULLIF(older.details_json->>'topic_key', '') = NULLIF(newer.details_json->>'topic_key', '')\n      )\n      OR lower(older.summary) = lower(newer.summary)\n    )\n  RETURNING older.id\n)\nSELECT\n  inserted.id,\n  inserted.scope,\n  inserted.memory_type,\n  inserted.summary,\n  inserted.created_at,\n  (SELECT COUNT(*) FROM superseded) AS superseded_count\nFROM inserted;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.memory_items || []) }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1584,
+        300
+      ],
+      "id": "1d5067f9-ae66-4dff-991d-72be73ae0e48",
+      "name": "Save Structured Memory",
+      "credentials": {
+        "postgres": {
+          "id": "r4pH8PimgUf2t9oM",
+          "name": "Postgres account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map((entry) => entry.json || {});\nconst context = $('Filter Structured Memory Candidates').item.json;\nconst savedRows = rows.filter((row) => !row.error && row.id);\nconst supersededCount = savedRows.length ? Number(savedRows[0].superseded_count || 0) : 0;\nreturn [{ json: {\n  conversation_id: context.conversation_id || '',\n  source_message_id: context.source_message_id || '',\n  memory_debug: {\n    ...(context.memory_debug || {}),\n    saved_count: savedRows.length,\n    superseded_count: supersededCount,\n    saved_items: savedRows.map((row) => ({\n      id: row.id,\n      scope: row.scope,\n      memory_type: row.memory_type,\n      summary: row.summary,\n    })),\n  },\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        300
+      ],
+      "id": "38a83a81-612d-4c8a-bfd2-8db867c956c5",
+      "name": "Summarize Memory Write Outcome"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input_rows AS (\n  SELECT *\n  FROM jsonb_to_recordset($1::jsonb) AS x(\n    user_id UUID,\n    conversation_id UUID,\n    memory_tier TEXT,\n    content TEXT,\n    category TEXT,\n    confidence NUMERIC,\n    status TEXT,\n    superseded_by UUID,\n    supersedes UUID,\n    source_type TEXT,\n    source_message TEXT\n  )\n), validated AS (\n  SELECT\n    gen_random_uuid() AS memory_id,\n    user_id,\n    conversation_id,\n    memory_tier,\n    content,\n    category,\n    GREATEST(0.00, LEAST(1.00, COALESCE(confidence, 0.60)))::numeric(3,2) AS confidence,\n    COALESCE(status, 'active') AS status,\n    superseded_by,\n    supersedes,\n    NULLIF(source_type, '') AS source_type,\n    NULLIF(source_message, '') AS source_message\n  FROM input_rows\n  WHERE memory_tier IN ('working', 'long_term', 'episodic')\n    AND category IN ('task_summary', 'decision', 'environment_fact', 'operational_note', 'conversation_summary')\n    AND COALESCE(status, 'active') IN ('active', 'superseded', 'conflicted', 'archived')\n    AND NULLIF(content, '') IS NOT NULL\n), inserted AS (\n  INSERT INTO memories (\n    memory_id, user_id, conversation_id, memory_tier,\n    content, category, confidence, status,\n    superseded_by, supersedes, source_type, source_message\n  )\n  SELECT\n    memory_id, user_id, conversation_id, memory_tier,\n    content, category, confidence, status,\n    superseded_by, supersedes, source_type, source_message\n  FROM validated\n  RETURNING memory_id, category, memory_tier, content, conversation_id, created_at\n), superseded AS (\n  UPDATE memories older\n  SET\n    status = 'superseded',\n    superseded_by = newer.memory_id,\n    updated_at = NOW()\n  FROM inserted newer\n  WHERE older.memory_id <> newer.memory_id\n    AND older.status = 'active'\n    AND older.category = newer.category\n    AND older.memory_tier = newer.memory_tier\n    AND older.category IN ('decision', 'environment_fact', 'operational_note')\n    AND COALESCE(older.conversation_id, '00000000-0000-0000-0000-000000000000'::uuid)\n      = COALESCE(newer.conversation_id, '00000000-0000-0000-0000-000000000000'::uuid)\n    AND lower(older.content) = lower(newer.content)\n  RETURNING older.memory_id, newer.memory_id AS new_memory_id\n), update_supersedes AS (\n  UPDATE memories\n  SET supersedes = superseded.memory_id\n  FROM superseded\n  WHERE memories.memory_id = superseded.new_memory_id\n)\nSELECT\n  inserted.memory_id,\n  inserted.category,\n  inserted.memory_tier,\n  inserted.content,\n  inserted.created_at,\n  (SELECT COUNT(*) FROM superseded) AS superseded_count\nFROM inserted;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($('Filter Structured Memory Candidates').item.json.memory_write_rows || []) }}"
+        }
+      },
+      "id": "b4c7d2e1-9f3a-4b8c-a5d6-7e8f9a0b1c2d",
+      "name": "Store to Memories (pipeline)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1696,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "r4pH8PimgUf2t9oM",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Ghost Memory Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build Memory Extraction Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Memory Extraction Input": {
+      "main": [
+        [
+          {
+            "node": "Should Extract Memory?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Extract Memory?": {
+      "main": [
+        [
+          {
+            "node": "Use Invalid Memory Stub?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Use Invalid Memory Stub?": {
+      "main": [
+        [
+          {
+            "node": "Return Invalid Memory Extractor Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call OpenAI Memory Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return Invalid Memory Extractor Output": {
+      "main": [
+        [
+          {
+            "node": "Parse Structured Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OpenAI Memory Extractor": {
+      "main": [
+        [
+          {
+            "node": "Parse Structured Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Structured Memory": {
+      "main": [
+        [
+          {
+            "node": "Filter Structured Memory Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Structured Memory Candidates": {
+      "main": [
+        [
+          {
+            "node": "Save Structured Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Structured Memory": {
+      "main": [
+        [
+          {
+            "node": "Store to Memories (pipeline)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store to Memories (pipeline)": {
+      "main": [
+        [
+          {
+            "node": "Summarize Memory Write Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "28dabf20-76dd-4529-9809-c756cc759e84",
+  "meta": {
+    "exportedAt": "2026-03-15T13:10:00Z",
+    "instanceId": "ghost-stack-phase4f"
+  }
+}
