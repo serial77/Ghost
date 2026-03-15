@@ -1,40 +1,54 @@
 BEGIN;
 
--- Phase 4F: structured memories table for the Extract→Consolidate→Store pipeline.
+-- Phase 4F: approved store-side long-term memory table for the
+-- Extract→Consolidate→Store structured pipeline.
 -- Separate from ghost_memory (Phase 4A) which is preserved unchanged.
--- 15 columns: 14 structural + embedding added conditionally for pgvector readiness.
+--
+-- Columns (15 structural + embedding conditional = 16 total):
+--   memory_id, user_id, conversation_id, memory_tier, content, category,
+--   confidence, status, superseded_by, supersedes, source_type,
+--   source_message, created_at, updated_at, last_accessed
+--   + embedding (pgvector-prepared, conditional)
 
 CREATE TABLE IF NOT EXISTS memories (
-  id                UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-  scope             TEXT         NOT NULL,
-  memory_type       TEXT         NOT NULL,
-  topic_key         TEXT         NULL,
-  title             TEXT         NULL,
-  summary           TEXT         NOT NULL,
-  details_json      JSONB        NOT NULL DEFAULT '{}'::jsonb,
-  importance        SMALLINT     NOT NULL DEFAULT 3,
-  status            TEXT         NOT NULL DEFAULT 'active',
-  conversation_id   UUID         NULL REFERENCES conversations(id) ON DELETE SET NULL,
-  source_message_id UUID         NULL REFERENCES messages(id) ON DELETE SET NULL,
-  task_run_id       UUID         NULL REFERENCES task_runs(id) ON DELETE SET NULL,
-  created_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
-  updated_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  memory_id         UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           UUID          NULL,
+  -- user_id is schema-prepared for multi-user; no FK enforced until p7i activation.
+  -- Future: REFERENCES users(id) ON DELETE SET NULL
 
-  CONSTRAINT memories_scope_check
-    CHECK (scope IN ('global', 'conversation', 'task')),
-  CONSTRAINT memories_type_check
-    CHECK (memory_type IN (
+  conversation_id   UUID          NULL REFERENCES conversations(id) ON DELETE SET NULL,
+  memory_tier       TEXT          NOT NULL DEFAULT 'working',
+  content           TEXT          NOT NULL,
+  category          TEXT          NOT NULL,
+  confidence        NUMERIC(3,2)  NOT NULL DEFAULT 0.60,
+  status            TEXT          NOT NULL DEFAULT 'active',
+  superseded_by     UUID          NULL REFERENCES memories(memory_id) ON DELETE SET NULL,
+  supersedes        UUID          NULL REFERENCES memories(memory_id) ON DELETE SET NULL,
+  source_type       TEXT          NOT NULL DEFAULT 'llm_extraction',
+  source_message    TEXT          NULL,
+  created_at        TIMESTAMPTZ   NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ   NOT NULL DEFAULT now(),
+  last_accessed     TIMESTAMPTZ   NULL,
+
+  CONSTRAINT memories_tier_check
+    CHECK (memory_tier IN ('working', 'long_term', 'semantic')),
+  CONSTRAINT memories_category_check
+    CHECK (category IN (
       'task_summary', 'decision', 'environment_fact',
       'operational_note', 'conversation_summary'
     )),
+  CONSTRAINT memories_confidence_check
+    CHECK (confidence BETWEEN 0.00 AND 1.00),
   CONSTRAINT memories_status_check
     CHECK (status IN ('active', 'superseded', 'archived')),
-  CONSTRAINT memories_importance_check
-    CHECK (importance BETWEEN 1 AND 5)
+  CONSTRAINT memories_source_type_check
+    CHECK (source_type IN (
+      'llm_extraction', 'heuristic_fallback', 'operator_direct', 'system'
+    ))
 );
 
--- 15th column: embedding — pgvector-prepared, nullable.
--- Added as vector(1536) when pgvector extension is present, otherwise as TEXT NULL.
+-- Conditional embedding column (16th column, pgvector-prepared).
+-- Added as vector(1536) if pgvector is installed, otherwise TEXT NULL as a placeholder.
 -- To activate after installing pgvector:
 --   ALTER TABLE memories ALTER COLUMN embedding TYPE vector(1536) USING NULL;
 DO $$
@@ -49,28 +63,29 @@ BEGIN
       EXECUTE 'ALTER TABLE memories ADD COLUMN embedding TEXT NULL';
       EXECUTE $comment$
         COMMENT ON COLUMN memories.embedding IS
-          'pgvector-prepared: install pgvector extension and ALTER TYPE to vector(1536) when ready'
+          'pgvector-prepared: install pgvector and ALTER TYPE to vector(1536) when ready'
       $comment$;
     END IF;
   END IF;
 END $$;
 
--- Index 1: conversation timeline (primary recall path)
+-- Index 1: conversation timeline (primary recall path by recency)
 CREATE INDEX IF NOT EXISTS idx_memories_conversation_created
-  ON memories (conversation_id, created_at DESC);
+  ON memories (conversation_id, created_at DESC)
+  WHERE conversation_id IS NOT NULL;
 
--- Index 2: scope/status/type filtering (retrieval by category)
-CREATE INDEX IF NOT EXISTS idx_memories_scope_status_type
-  ON memories (scope, status, memory_type);
+-- Index 2: tier + status + category (retrieval by classification)
+CREATE INDEX IF NOT EXISTS idx_memories_tier_status_category
+  ON memories (memory_tier, status, category);
 
--- Index 3: topic deduplication lookups
-CREATE INDEX IF NOT EXISTS idx_memories_topic_key
-  ON memories (topic_key)
-  WHERE topic_key IS NOT NULL;
+-- Index 3: supersession chain traversal
+CREATE INDEX IF NOT EXISTS idx_memories_superseded_by
+  ON memories (superseded_by)
+  WHERE superseded_by IS NOT NULL;
 
--- Index 4: active high-importance recall (operator/worker surfaces)
-CREATE INDEX IF NOT EXISTS idx_memories_active_importance
-  ON memories (memory_type, importance DESC)
+-- Index 4: active high-confidence recall (operator/worker surfaces)
+CREATE INDEX IF NOT EXISTS idx_memories_active_confidence
+  ON memories (category, confidence DESC)
   WHERE status = 'active';
 
 DROP TRIGGER IF EXISTS trg_memories_updated_at ON memories;

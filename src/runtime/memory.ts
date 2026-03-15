@@ -1,23 +1,39 @@
 // Ghost memory pipeline: extract, consolidate, and persist structured memories.
 // Extracted from Ghost_Memory sub-workflow nodes:
 //   - Build Memory Extraction Input  (shouldExtractMemory, buildExtractionPrompt)
-//   - Parse Structured Memory        (parseMemoryCandidates)
+//   - Parse Structured Memory        (extractMemories)
 //   - Filter Structured Memory Candidates (consolidateMemories)
-//   - Filter Structured Memory Candidates (buildMemoryWriteRows)
+//   - Filter Structured Memory Candidates (storeMemories)
+//
+// Public contract:
+//   extractMemories(rawOutput, ctx)  — parse LLM output into validated candidates
+//   consolidateMemories(candidates, ctx) — deduplicate, normalize, filter, sort
+//   storeMemories(memories, ctx)     — map to approved memories table write rows
+//
+// Supporting exports (used by workflow pre-LLM nodes):
+//   shouldExtractMemory(ctx)         — extraction gate decision
+//   buildExtractionPrompt(ctx)       — build prompt for the LLM extractor
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type MemoryScope = 'global' | 'conversation' | 'task';
-export type MemoryType =
+export type MemoryCategory =
   | 'task_summary'
   | 'decision'
   | 'environment_fact'
   | 'operational_note'
   | 'conversation_summary';
+export type MemoryTier = 'working' | 'long_term' | 'semantic';
 export type MemoryStatus = 'active' | 'superseded' | 'archived';
+export type MemorySourceType =
+  | 'llm_extraction'
+  | 'heuristic_fallback'
+  | 'operator_direct'
+  | 'system';
 
 export interface MemoryContext {
   conversation_id?: string | null;
+  user_id?: string | null;
   source_message_id?: string | null;
   task_run_id?: string | null;
   task_class?: string;
@@ -40,9 +56,10 @@ export interface ShouldExtractResult {
   explicit_memory_cue: boolean;
 }
 
+// Internal candidate shape — preserves original extraction fields across pipeline stages
 export interface MemoryCandidate {
   scope: MemoryScope;
-  memory_type: MemoryType;
+  memory_type: MemoryCategory;
   title: string;
   summary: string;
   details_json: Record<string, unknown>;
@@ -53,21 +70,22 @@ export interface MemoryCandidate {
   status?: MemoryStatus;
 }
 
+// Approved store-side row shape — maps to the memories table
 export interface MemoryWriteRow {
-  scope: MemoryScope;
-  memory_type: MemoryType;
-  topic_key: string | null;
-  title: string | null;
-  summary: string;
-  details_json: Record<string, unknown>;
-  importance: number;
-  status: MemoryStatus;
+  user_id: string | null;
   conversation_id: string | null;
-  source_message_id: string | null;
-  task_run_id: string | null;
+  memory_tier: MemoryTier;
+  content: string;
+  category: MemoryCategory;
+  confidence: number;
+  status: MemoryStatus;
+  superseded_by: string | null;
+  supersedes: string | null;
+  source_type: MemorySourceType;
+  source_message: string | null;
 }
 
-export interface ParseResult {
+export interface ExtractMemoriesResult {
   candidates: MemoryCandidate[];
   parse_status: string;
   parse_error: string;
@@ -85,7 +103,7 @@ export interface ConsolidationResult {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ALLOWED_SCOPES = new Set<string>(['global', 'conversation', 'task']);
-const ALLOWED_TYPES = new Set<string>([
+const ALLOWED_CATEGORIES = new Set<string>([
   'task_summary',
   'decision',
   'environment_fact',
@@ -135,6 +153,13 @@ const NOISE_PATTERNS = [
 const NOISY_SUMMARY_RE =
   /```|stack trace|exception:|error:|stderr|stdout|traceback|OpenAI Codex|session id:|tokens used|^hi$|^hello$|^thanks$|^ok$|^okay$|^understood$/i;
 
+// Scope → memory_tier mapping
+const SCOPE_TO_TIER: Record<MemoryScope, MemoryTier> = {
+  global: 'long_term',
+  conversation: 'working',
+  task: 'working',
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function normalizeWhitespace(value: unknown): string {
@@ -153,7 +178,7 @@ function extractJsonText(text: string): string {
 function sanitizeRawItem(entry: Record<string, unknown>): MemoryCandidate {
   return {
     scope: String(entry.scope ?? '').trim() as MemoryScope,
-    memory_type: String(entry.memory_type ?? '').trim() as MemoryType,
+    memory_type: String(entry.memory_type ?? '').trim() as MemoryCategory,
     title: entry.title ? String(entry.title).replace(/\s+/g, ' ').trim().slice(0, 160) : '',
     summary: String(entry.summary ?? '')
       .replace(/\s+/g, ' ')
@@ -313,7 +338,7 @@ function normalizeKey(
   return `${entry.scope}|${entry.memory_type}|${topicKey || entry.summary.toLowerCase()}`;
 }
 
-// ─── shouldExtractMemory ──────────────────────────────────────────────────────
+// ─── shouldExtractMemory (supporting export) ──────────────────────────────────
 
 export function shouldExtractMemory(ctx: MemoryContext): ShouldExtractResult {
   const taskClass = ctx.task_class ?? 'chat';
@@ -351,7 +376,7 @@ export function shouldExtractMemory(ctx: MemoryContext): ShouldExtractResult {
   };
 }
 
-// ─── buildExtractionPrompt ────────────────────────────────────────────────────
+// ─── buildExtractionPrompt (supporting export) ────────────────────────────────
 
 export function buildExtractionPrompt(ctx: MemoryContext): string {
   const taskClass = ctx.task_class ?? 'chat';
@@ -413,7 +438,10 @@ export function buildExtractionPrompt(ctx: MemoryContext): string {
   ].join('\n');
 }
 
-// ─── parseMemoryCandidates ────────────────────────────────────────────────────
+// ─── extractMemories (primary public export) ──────────────────────────────────
+//
+// Parses raw LLM output into validated MemoryCandidate[].
+// Activates heuristic fallback when the LLM returns empty or unparseable output.
 
 function buildFallbackItems(ctx: MemoryContext): MemoryCandidate[] {
   if (ctx.memory_test_mode === 'invalid_json') return [];
@@ -442,10 +470,7 @@ function buildFallbackItems(ctx: MemoryContext): MemoryCandidate[] {
   const prefersSentence = userText.match(
     /(the user prefers .+?)(?:\.\s*(remember this preference|remember this|save this preference))?$/i,
   );
-  if (
-    prefersSentence?.[1] &&
-    /(prefers|avoid|use|do not|don't)/i.test(prefersSentence[1])
-  ) {
+  if (prefersSentence?.[1] && /(prefers|avoid|use|do not|don't)/i.test(prefersSentence[1])) {
     fallbackItems.push({
       scope: 'conversation',
       memory_type: 'decision',
@@ -507,10 +532,10 @@ function buildFallbackItems(ctx: MemoryContext): MemoryCandidate[] {
   });
 }
 
-export function parseMemoryCandidates(
+export function extractMemories(
   rawOutput: unknown,
   ctx: MemoryContext,
-): ParseResult {
+): ExtractMemoriesResult {
   let rawText = '';
   const response = rawOutput as Record<string, unknown>;
   if (typeof response?.output_text === 'string' && response.output_text.trim()) {
@@ -565,7 +590,9 @@ export function parseMemoryCandidates(
     .map(sanitizeRawItem)
     .filter(
       (entry) =>
-        ALLOWED_SCOPES.has(entry.scope) && ALLOWED_TYPES.has(entry.memory_type) && entry.summary,
+        ALLOWED_SCOPES.has(entry.scope) &&
+        ALLOWED_CATEGORIES.has(entry.memory_type) &&
+        entry.summary,
     )
     .filter((entry) => JSON.stringify(entry.details_json).length <= 800)
     .filter((entry) => !NOISY_SUMMARY_RE.test(entry.summary))
@@ -604,7 +631,10 @@ export function parseMemoryCandidates(
   };
 }
 
-// ─── consolidateMemories ──────────────────────────────────────────────────────
+// ─── consolidateMemories (primary public export) ──────────────────────────────
+//
+// Normalizes summaries, derives topic keys, deduplicates, filters noise,
+// sorts by priority, and caps at 3 items.
 
 export function consolidateMemories(
   candidates: MemoryCandidate[],
@@ -693,30 +723,43 @@ export function consolidateMemories(
   };
 }
 
-// ─── buildMemoryWriteRows ─────────────────────────────────────────────────────
+// ─── storeMemories (primary public export) ────────────────────────────────────
+//
+// Maps consolidated MemoryCandidate[] to MemoryWriteRow[] aligned with the
+// approved memories table schema (memory_id, user_id, conversation_id,
+// memory_tier, content, category, confidence, status, superseded_by,
+// supersedes, source_type, source_message, created_at, updated_at, last_accessed).
 
-export function buildMemoryWriteRows(
+export function storeMemories(
   memories: MemoryCandidate[],
   ctx: MemoryContext,
 ): MemoryWriteRow[] {
   return memories.map((entry) => {
     const details = entry.details_json ?? {};
-    const topicKey = normalizeWhitespace(String(details.topic_key ?? '')) || null;
+    const sourceType: MemorySourceType =
+      details.source === 'heuristic_fallback' ? 'heuristic_fallback' : 'llm_extraction';
+    const tier: MemoryTier = SCOPE_TO_TIER[entry.scope] ?? 'working';
+    // confidence: map importance 1–5 to 0.20–1.00
+    const confidence = Math.round((Math.max(1, Math.min(5, entry.importance ?? 3)) / 5) * 100) / 100;
+    const sourceMessage = ctx.latest_user_message
+      ? normalizeWhitespace(ctx.latest_user_message).slice(0, 500) || null
+      : null;
+
     return {
-      scope: entry.scope,
-      memory_type: entry.memory_type,
-      topic_key: topicKey,
-      title: entry.title ? normalizeWhitespace(entry.title) || null : null,
-      summary: normalizeWhitespace(entry.summary),
-      details_json: details,
-      importance: Math.max(1, Math.min(5, Math.round(entry.importance ?? 3))),
-      status: 'active' as MemoryStatus,
+      user_id: ctx.user_id ?? null,
       conversation_id:
         entry.scope === 'conversation'
           ? (entry.conversation_id ?? ctx.conversation_id ?? null)
           : null,
-      source_message_id: entry.source_message_id ?? ctx.source_message_id ?? null,
-      task_run_id: entry.task_run_id ?? ctx.task_run_id ?? null,
+      memory_tier: tier,
+      content: normalizeWhitespace(entry.summary),
+      category: entry.memory_type,
+      confidence,
+      status: 'active' as MemoryStatus,
+      superseded_by: null,
+      supersedes: null,
+      source_type: sourceType,
+      source_message: sourceMessage,
     };
   });
 }

@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   shouldExtractMemory,
   buildExtractionPrompt,
-  parseMemoryCandidates,
+  extractMemories,
   consolidateMemories,
-  buildMemoryWriteRows,
+  storeMemories,
 } from '../../src/runtime/memory.js';
 import type { MemoryContext, MemoryCandidate } from '../../src/runtime/memory.js';
 
@@ -182,9 +182,9 @@ describe('buildExtractionPrompt', () => {
   });
 });
 
-// ─── parseMemoryCandidates ────────────────────────────────────────────────────
+// ─── extractMemories ────────────────────────────────────────────────────
 
-describe('parseMemoryCandidates — valid JSON output', () => {
+describe('extractMemories — valid JSON output', () => {
   const ctx: MemoryContext = {
     source_message_id: 'msg-abc',
     conversation_id: 'conv-xyz',
@@ -206,7 +206,7 @@ describe('parseMemoryCandidates — valid JSON output', () => {
         ],
       }),
     };
-    const result = parseMemoryCandidates(output, ctx);
+    const result = extractMemories(output, ctx);
     expect(result.parse_status).toBe('parsed');
     expect(result.candidates).toHaveLength(1);
     expect(result.candidates[0].scope).toBe('global');
@@ -228,7 +228,7 @@ describe('parseMemoryCandidates — valid JSON output', () => {
         ],
       }),
     };
-    const result = parseMemoryCandidates(output, ctx);
+    const result = extractMemories(output, ctx);
     expect(result.candidates[0].source_message_id).toBe('msg-abc');
   });
 
@@ -255,7 +255,7 @@ describe('parseMemoryCandidates — valid JSON output', () => {
         ],
       }),
     };
-    const result = parseMemoryCandidates(output, ctx);
+    const result = extractMemories(output, ctx);
     const global = result.candidates.find((c) => c.scope === 'global');
     const convo = result.candidates.find((c) => c.scope === 'conversation');
     expect(global?.conversation_id).toBeNull();
@@ -277,7 +277,7 @@ describe('parseMemoryCandidates — valid JSON output', () => {
         ],
       }),
     };
-    const result = parseMemoryCandidates(output, ctx);
+    const result = extractMemories(output, ctx);
     expect(result.candidates).toHaveLength(0);
   });
 
@@ -296,37 +296,37 @@ describe('parseMemoryCandidates — valid JSON output', () => {
         ],
       }),
     };
-    const result = parseMemoryCandidates(output, ctx);
+    const result = extractMemories(output, ctx);
     expect(result.candidates).toHaveLength(0);
   });
 
   it('returns empty candidates for empty items array', () => {
     const output = { output_text: '{"items":[]}' };
-    const result = parseMemoryCandidates(output, ctx);
+    const result = extractMemories(output, ctx);
     expect(result.candidates).toHaveLength(0);
     expect(result.parse_status).toBe('parsed');
   });
 });
 
-describe('parseMemoryCandidates — malformed output', () => {
+describe('extractMemories — malformed output', () => {
   const ctx: MemoryContext = { source_message_id: 'msg-1', task_class: 'chat' };
 
   it('sets parse_status=invalid_json for non-JSON output', () => {
     const output = { output_text: 'not valid json' };
-    const result = parseMemoryCandidates(output, ctx);
+    const result = extractMemories(output, ctx);
     expect(result.parse_status).toBe('invalid_json');
     expect(result.candidates).toHaveLength(0);
   });
 
   it('sets parse_status=invalid_shape when items key missing', () => {
     const output = { output_text: '{"something_else": []}' };
-    const result = parseMemoryCandidates(output, ctx);
+    const result = extractMemories(output, ctx);
     expect(result.parse_status).toBe('invalid_shape');
   });
 
   it('sets parse_status=extractor_error when response contains error', () => {
     const output = { error: 'API call failed with 503' };
-    const result = parseMemoryCandidates(output, ctx);
+    const result = extractMemories(output, ctx);
     expect(result.parse_status).toBe('extractor_error');
     expect(result.parse_error).toBe('API call failed with 503');
   });
@@ -336,20 +336,20 @@ describe('parseMemoryCandidates — malformed output', () => {
       output_text:
         'Here is the memory: {"items":[{"scope":"global","memory_type":"decision","title":"T","summary":"Always use explicit types in TypeScript interfaces.","details_json":{},"importance":4}]}',
     };
-    const result = parseMemoryCandidates(output, ctx);
+    const result = extractMemories(output, ctx);
     expect(result.parse_status).toBe('parsed');
     expect(result.candidates).toHaveLength(1);
   });
 });
 
-describe('parseMemoryCandidates — heuristic fallback', () => {
+describe('extractMemories — heuristic fallback', () => {
   it('falls back for explicit durable preference pattern', () => {
     const ctx: MemoryContext = {
       source_message_id: 'msg-1',
       latest_user_message: 'durable preference: always use full config files not snippets',
       task_class: 'chat',
     };
-    const result = parseMemoryCandidates({ output_text: 'not valid json' }, ctx);
+    const result = extractMemories({ output_text: 'not valid json' }, ctx);
     expect(result.fallback_used).toBe(true);
     expect(result.candidates.length).toBeGreaterThan(0);
     expect(result.candidates[0].memory_type).toBe('decision');
@@ -361,7 +361,7 @@ describe('parseMemoryCandidates — heuristic fallback', () => {
       latest_user_message: 'the user prefers concise replies without preamble',
       task_class: 'chat',
     };
-    const result = parseMemoryCandidates({ output_text: '{"items":[]}' }, ctx);
+    const result = extractMemories({ output_text: '{"items":[]}' }, ctx);
     expect(result.fallback_used).toBe(true);
     expect(result.candidates[0].details_json).toMatchObject({ trigger: 'preference_sentence' });
   });
@@ -372,7 +372,7 @@ describe('parseMemoryCandidates — heuristic fallback', () => {
       latest_user_message: 'environment fact: n8n version is 2.11.3 running on Docker',
       task_class: 'chat',
     };
-    const result = parseMemoryCandidates({ output_text: '{"items":[]}' }, ctx);
+    const result = extractMemories({ output_text: '{"items":[]}' }, ctx);
     expect(result.fallback_used).toBe(true);
     expect(result.candidates[0].memory_type).toBe('environment_fact');
   });
@@ -384,7 +384,7 @@ describe('parseMemoryCandidates — heuristic fallback', () => {
       memory_test_mode: 'invalid_json',
       task_class: 'chat',
     };
-    const result = parseMemoryCandidates({ output_text: 'not valid json' }, ctx);
+    const result = extractMemories({ output_text: 'not valid json' }, ctx);
     expect(result.fallback_used).toBe(false);
     expect(result.candidates).toHaveLength(0);
   });
@@ -578,13 +578,15 @@ describe('consolidateMemories — priority ordering', () => {
   });
 });
 
-// ─── buildMemoryWriteRows ─────────────────────────────────────────────────────
+// ─── storeMemories ────────────────────────────────────────────────────────────
 
-describe('buildMemoryWriteRows', () => {
+describe('storeMemories — approved schema mapping', () => {
   const ctx: MemoryContext = {
     conversation_id: 'conv-123',
+    user_id: 'user-abc',
     source_message_id: 'msg-456',
     task_run_id: 'run-789',
+    latest_user_message: 'durable preference: always use full config files not snippets',
   };
 
   it('produces one MemoryWriteRow per input candidate', () => {
@@ -594,31 +596,86 @@ describe('buildMemoryWriteRows', () => {
         memory_type: 'environment_fact',
         title: 'Postgres version',
         summary: 'Postgres 16 is used as the primary database.',
-        details_json: { topic_key: 'environment_fact:postgres' },
+        details_json: {},
         importance: 4,
         status: 'active',
       },
     ];
-    const rows = buildMemoryWriteRows(candidates, ctx);
+    const rows = storeMemories(candidates, ctx);
     expect(rows).toHaveLength(1);
-    expect(rows[0].scope).toBe('global');
-    expect(rows[0].memory_type).toBe('environment_fact');
+    expect(rows[0].category).toBe('environment_fact');
     expect(rows[0].status).toBe('active');
   });
 
-  it('sets topic_key from details_json', () => {
+  it('maps scope→memory_tier: global→long_term', () => {
+    const candidates: MemoryCandidate[] = [
+      {
+        scope: 'global',
+        memory_type: 'environment_fact',
+        title: 'Fact',
+        summary: 'The system runs on Ubuntu 24.04 LTS with Docker Compose.',
+        details_json: {},
+        importance: 3,
+      },
+    ];
+    const rows = storeMemories(candidates, ctx);
+    expect(rows[0].memory_tier).toBe('long_term');
+  });
+
+  it('maps scope→memory_tier: conversation→working', () => {
+    const candidates: MemoryCandidate[] = [
+      {
+        scope: 'conversation',
+        memory_type: 'decision',
+        title: 'Pref',
+        summary: 'Always prefer verbose output in all assistant responses.',
+        details_json: {},
+        importance: 4,
+        conversation_id: 'conv-123',
+      },
+    ];
+    const rows = storeMemories(candidates, ctx);
+    expect(rows[0].memory_tier).toBe('working');
+  });
+
+  it('maps summary→content', () => {
     const candidates: MemoryCandidate[] = [
       {
         scope: 'global',
         memory_type: 'decision',
-        title: 'DB choice',
-        summary: 'Use Postgres for all structured data.',
-        details_json: { topic_key: 'exact:decision:use postgres for all structured data' },
-        importance: 5,
+        title: 'T',
+        summary: 'Use TypeScript strict mode in all source files.',
+        details_json: {},
+        importance: 4,
       },
     ];
-    const rows = buildMemoryWriteRows(candidates, ctx);
-    expect(rows[0].topic_key).toBe('exact:decision:use postgres for all structured data');
+    const rows = storeMemories(candidates, ctx);
+    expect(rows[0].content).toBe('Use TypeScript strict mode in all source files.');
+  });
+
+  it('maps importance to confidence on 0–1 scale', () => {
+    const cases: Array<[number, number]> = [
+      [1, 0.20],
+      [2, 0.40],
+      [3, 0.60],
+      [4, 0.80],
+      [5, 1.00],
+    ];
+    for (const [importance, expected] of cases) {
+      const rows = storeMemories(
+        [{ scope: 'global', memory_type: 'decision', title: '', summary: 'A long enough summary text here.', details_json: {}, importance }],
+        ctx,
+      );
+      expect(rows[0].confidence).toBe(expected);
+    }
+  });
+
+  it('clamps out-of-range importance before confidence mapping', () => {
+    const rows = storeMemories(
+      [{ scope: 'global', memory_type: 'decision', title: '', summary: 'Strict type checking in all files.', details_json: {}, importance: 99 }],
+      ctx,
+    );
+    expect(rows[0].confidence).toBe(1.00);
   });
 
   it('sets conversation_id only for conversation-scoped rows', () => {
@@ -641,60 +698,73 @@ describe('buildMemoryWriteRows', () => {
         conversation_id: 'conv-123',
       },
     ];
-    const rows = buildMemoryWriteRows(candidates, ctx);
-    const global = rows.find((r) => r.scope === 'global');
-    const convo = rows.find((r) => r.scope === 'conversation');
+    const rows = storeMemories(candidates, ctx);
+    const global = rows.find((r) => r.memory_tier === 'long_term');
+    const convo = rows.find((r) => r.memory_tier === 'working');
     expect(global?.conversation_id).toBeNull();
     expect(convo?.conversation_id).toBe('conv-123');
   });
 
-  it('uses ctx.source_message_id when candidate does not provide one', () => {
-    const candidates: MemoryCandidate[] = [
-      {
-        scope: 'global',
+  it('sets user_id from ctx', () => {
+    const rows = storeMemories(
+      [{ scope: 'global', memory_type: 'decision', title: '', summary: 'Use strict types in all modules.', details_json: {}, importance: 4 }],
+      ctx,
+    );
+    expect(rows[0].user_id).toBe('user-abc');
+  });
+
+  it('sets user_id to null when ctx has no user_id', () => {
+    const rows = storeMemories(
+      [{ scope: 'global', memory_type: 'decision', title: '', summary: 'Use strict types in all modules.', details_json: {}, importance: 4 }],
+      { ...ctx, user_id: undefined },
+    );
+    expect(rows[0].user_id).toBeNull();
+  });
+
+  it('initialises superseded_by and supersedes to null', () => {
+    const rows = storeMemories(
+      [{ scope: 'global', memory_type: 'decision', title: '', summary: 'Use Postgres for all data.', details_json: {}, importance: 5 }],
+      ctx,
+    );
+    expect(rows[0].superseded_by).toBeNull();
+    expect(rows[0].supersedes).toBeNull();
+  });
+
+  it('detects heuristic_fallback source_type', () => {
+    const rows = storeMemories(
+      [{
+        scope: 'conversation',
         memory_type: 'decision',
-        title: 'T',
-        summary: 'Use TypeScript strict mode in all source files.',
-        details_json: {},
+        title: 'Pref',
+        summary: 'always use full config files not snippets',
+        details_json: { source: 'heuristic_fallback', trigger: 'explicit_preference' },
         importance: 4,
-      },
-    ];
-    const rows = buildMemoryWriteRows(candidates, ctx);
-    expect(rows[0].source_message_id).toBe('msg-456');
+      }],
+      ctx,
+    );
+    expect(rows[0].source_type).toBe('heuristic_fallback');
   });
 
-  it('clamps importance to [1, 5]', () => {
-    const candidates: MemoryCandidate[] = [
-      {
-        scope: 'global',
-        memory_type: 'decision',
-        title: 'T',
-        summary: 'Use strict type checking across the entire codebase.',
-        details_json: {},
-        importance: 99,
-      },
-    ];
-    const rows = buildMemoryWriteRows(candidates, ctx);
-    expect(rows[0].importance).toBe(5);
+  it('defaults to llm_extraction source_type for normal candidates', () => {
+    const rows = storeMemories(
+      [{ scope: 'global', memory_type: 'environment_fact', title: '', summary: 'n8n is running on port 5678.', details_json: {}, importance: 3 }],
+      ctx,
+    );
+    expect(rows[0].source_type).toBe('llm_extraction');
   });
 
-  it('sets title to null when entry title is empty', () => {
-    const candidates: MemoryCandidate[] = [
-      {
-        scope: 'global',
-        memory_type: 'operational_note',
-        title: '',
-        summary: 'Run docker compose up -d after every schema migration.',
-        details_json: {},
-        importance: 3,
-      },
-    ];
-    const rows = buildMemoryWriteRows(candidates, ctx);
-    expect(rows[0].title).toBeNull();
+  it('populates source_message from ctx.latest_user_message', () => {
+    const rows = storeMemories(
+      [{ scope: 'global', memory_type: 'decision', title: '', summary: 'Use full config files.', details_json: {}, importance: 4 }],
+      ctx,
+    );
+    expect(rows[0].source_message).toBe(
+      'durable preference: always use full config files not snippets',
+    );
   });
 
   it('returns empty array for empty input', () => {
-    expect(buildMemoryWriteRows([], ctx)).toHaveLength(0);
+    expect(storeMemories([], ctx)).toHaveLength(0);
   });
 });
 
@@ -716,7 +786,7 @@ describe('memory pipeline — full Extract→Consolidate→Store pass', () => {
     expect(should_extract).toBe(true);
 
     // Step 2: parse (LLM returned empty, fallback kicks in)
-    const parseResult = parseMemoryCandidates({ output_text: '{"items":[]}' }, ctx);
+    const parseResult = extractMemories({ output_text: '{"items":[]}' }, ctx);
     expect(parseResult.fallback_used).toBe(true);
     expect(parseResult.candidates.length).toBeGreaterThan(0);
 
@@ -725,12 +795,16 @@ describe('memory pipeline — full Extract→Consolidate→Store pass', () => {
     expect(memories.length).toBeGreaterThan(0);
     expect(memories[0].memory_type).toBe('decision');
 
-    // Step 4: build write rows
-    const rows = buildMemoryWriteRows(memories, ctx);
+    // Step 4: build write rows (approved schema)
+    const rows = storeMemories(memories, ctx);
     expect(rows).toHaveLength(memories.length);
     expect(rows[0].status).toBe('active');
-    expect(rows[0].summary).toBeTruthy();
-    expect(rows[0].summary.length).toBeGreaterThanOrEqual(16);
+    expect(rows[0].content).toBeTruthy();
+    expect(rows[0].content.length).toBeGreaterThanOrEqual(16);
+    expect(rows[0].category).toBe('decision');
+    expect(rows[0].memory_tier).toBe('working'); // conversation scope → working tier
+    expect(rows[0].superseded_by).toBeNull();
+    expect(rows[0].supersedes).toBeNull();
   });
 
   it('skips the pipeline when extraction gate returns false', () => {
