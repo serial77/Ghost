@@ -2,8 +2,8 @@
   "project": {
     "name": "Ghost Build Tracker",
     "schema_version": "1.0",
-    "last_updated": "2026-03-15T13:25:00Z",
-    "current_focus": "Architecture-sensitive queue: 2E migration strategy; 3C-ii/3E/3E-ii/3F runtime load; 7C-ii/7C-iii/7D-ii followthrough reliability"
+    "last_updated": "2026-03-15T16:00:00Z",
+    "current_focus": "TASK-010: merge unmerged branches (TASK-006 circuit-breaker, TASK-007 sub-workflow interfaces, 7D-ii ghost_events) + implement Ghost_Classify logical boundary"
   },
   "core_framing": {
     "title": "Core framing / governing principles",
@@ -106,8 +106,8 @@
         "name": "Claude",
         "lane": "implementation",
         "status": "completed",
-        "summary": "TASK-008-CLOSEOUT complete: docs/status/CURRENT_STATE.md updated to reflect inline pipeline as the accepted active path, Ghost_Memory sub-workflow as reference artifact, execute-subworkflow failure as documented non-blocking follow-up. TASK-008 branch phase4/4F-ghost-memory-subworkflow is merge-ready under inline-accepted decision.",
-        "updated_at": "2026-03-15T13:25:00Z",
+        "summary": "TASK-009 complete: backend canon reconciliation produced full implementation matrix. Key findings: 2E/3E-ii COMPLETE on main, TASK-006 circuit-breaker and TASK-007 sub-workflow interfaces are branch-ready, 7D-ii ghost_events has migration number conflict (needs 009 renumber). Three unmerged branches are the primary gap. n8n Execute Sub-Workflow declared not reliable — inline+module-boundary pattern is canonical. TASK-010 recommended: merge branches + Ghost_Classify logical boundary.",
+        "updated_at": "2026-03-15T16:00:00Z",
         "assigned_phase_id": "phase-4",
         "assigned_step_id": "p4b-shared-context-source-of-truth-layer"
       },
@@ -880,6 +880,20 @@
     }
   ],
   "recent_activity": [
+    {
+      "time": "2026-03-15T16:00:00Z",
+      "worker": "Claude",
+      "status": "done",
+      "step_id": "p3e-runtime-decomposition",
+      "note": "TASK-009 complete: backend canon reconciliation. 2E/3E-ii COMPLETE on main. TASK-006 (circuit-breaker) + TASK-007 (sub-workflow interfaces) + 7D-ii (ghost_events, needs 009 renumber) are branch-ready. n8n Execute Sub-Workflow declared unreliable — inline+module-boundary is canonical. TASK-010 recommended: merge 3 branches + Ghost_Classify logical boundary + circuit-breaker wiring."
+    },
+    {
+      "time": "2026-03-15T15:30:00Z",
+      "worker": "Claude",
+      "status": "working",
+      "step_id": "p3e-runtime-decomposition",
+      "note": "TASK-009 started: backend canon reconciliation against v3.0. Branch: task-009-v3-backend-canon-reconciliation. Inspecting 2E/3B-ii/3C-ii/3E/3E-ii/3F/7C-ii/7C-iii/7D-ii/7H/7I state."
+    },
     {
       "time": "2026-03-15T13:25:00Z",
       "worker": "Claude",
