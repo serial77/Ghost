@@ -2,7 +2,7 @@
   "project": {
     "name": "Ghost Build Tracker",
     "schema_version": "1.0",
-    "last_updated": "2026-03-15T03:15:00Z",
+    "last_updated": "2026-03-15T05:34:22Z",
     "current_focus": "Architecture-sensitive queue: 2E migration strategy; 3C-ii/3E/3E-ii/3F runtime load; 7C-ii/7C-iii/7D-ii followthrough reliability"
   },
   "core_framing": {
@@ -106,13 +106,12 @@
         "name": "Claude",
         "lane": "implementation",
         "status": "assigned",
-        "summary": "TASK-004 in progress — extracting router.ts + approval.ts + delegation.ts.",
-        "task_title": "TASK-004 — Extract router.ts + approval.ts + delegation.ts",
-        "updated_at": "2026-03-15T03:15:00Z",
+        "summary": "TASK-008 started — supervised extraction of Ghost_Memory sub-workflow with two checkpoints (no p4f step-id exists in tracker; using p3e-runtime-decomposition as closest match)",
+        "updated_at": "2026-03-15T05:34:22Z",
         "assigned_phase_id": "phase-3",
-        "assigned_step_id": "p3e-ii-extract-business-logic-to-source-files",
+        "assigned_step_id": "p3e-runtime-decomposition",
         "note": "Current live assignment on TASK-004.",
-        "branch": "phase3/3E-extract-remaining"
+        "branch": "phase4/4F-ghost-memory-subworkflow"
       },
       {
         "name": "Codex",
@@ -909,7 +908,6 @@
       "worker": "Claude",
       "status": "done",
       "step_id": "p2e-schema-migration-strategy",
-      "task_title": "Architecture closure audit reconciliation",
       "note": "Architecture closure audit complete. Reconciliation doc created at docs/reviews/v3-architecture-closure-audit.md. All 8 scoped steps assessed. Tier 0 recommendation: 2E migration runner, 3E-ii src/runtime scaffold, 7D-ii ghost_events migration — all safe to start immediately with no dependencies."
     }
   ]
