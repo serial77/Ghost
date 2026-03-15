@@ -1,5 +1,5 @@
 # Ghost Stack — Current State
-*Generated: 2026-03-15 | Last completed task: TASK-008*
+*Generated: 2026-03-15 | Last completed task: TASK-008 (closeout: TASK-008-CLOSEOUT)*
 
 ## Last Completed Task
 
@@ -31,7 +31,7 @@
 | Postgres | 16 | Active |
 | Redis | 7 | Active |
 | Ghost Runtime | 79 nodes | Active |
-| Ghost_Memory | 11 nodes | Published |
+| Ghost_Memory | 11 nodes | Published (reference artifact) |
 
 ### Database State
 | Table | Rows | Notes |
@@ -56,17 +56,19 @@ Migrations applied manually (no schema_migrations tracking table):
 | `memory.ts` | `extractMemories`, `consolidateMemories`, `storeMemories`, `shouldExtractMemory`, `buildExtractionPrompt` | ✓ 203 tests |
 | `delegation.ts` | `buildDelegationRequest`, `resolveWorkerByIntent`, etc. | ✓ |
 
-## Key Decisions Made This Session
+## Architecture Decisions
 
-1. **Inline memory pipeline in Ghost Runtime**: The sub-workflow approach (`Execute Ghost_Memory Sub-Workflow`) was attempted but blocked by n8n's `workflow_published_version` lookup. The inline approach (79 nodes) is used instead — architecturally correct since `Build Memory Extraction Input` references parent workflow nodes (`$('Build API Response')`, `$('Normalize Input')`).
+1. **Inline memory pipeline is the accepted active path**: Ghost Runtime uses the inline 10-node memory pipeline (nodes 70–79). This is the deliberate accepted architecture — not a fallback. The `Build Memory Extraction Input` node references parent workflow nodes (`$('Build API Response')`, `$('Normalize Input')`) which are only accessible inline, making this approach architecturally correct.
 
-2. **Store to Memories (pipeline)**: Added as the 79th node in Ghost Runtime, positioned between `Save Structured Memory` and `Summarize Memory Write Outcome`. Dual-write confirmed.
+2. **Ghost_Memory sub-workflow is a reference artifact**: The Ghost_Memory sub-workflow (ID: `u7omvbq1Lkn7We5F`) is published and preserved as a reference artifact containing the canonical Phase 4F pipeline logic. It is **not** the active execution path. The `Execute Ghost_Memory Sub-Workflow` node was removed from Ghost Runtime.
 
-3. **RETURNING clause fix**: The original Store SQL was missing `conversation_id` in the `inserted` CTE's RETURNING clause, causing the supersession logic to fail. Fixed in both Ghost Runtime and Ghost_Memory sub-workflow.
+3. **Store to Memories (pipeline)**: Added as the 79th node in Ghost Runtime, positioned between `Save Structured Memory` and `Summarize Memory Write Outcome`. Dual-write confirmed.
 
-4. **Filter node Phase 4F upgrade**: The inline `Filter Structured Memory Candidates` node was upgraded from the pre-Phase 4F version (no `memory_write_rows`) to the Phase 4F version (calls `consolidateMemories` + `storeMemories` from `memory.ts`).
+4. **RETURNING clause fix**: The original Store SQL was missing `conversation_id` in the `inserted` CTE's RETURNING clause, causing the supersession logic to fail. Fixed in both Ghost Runtime and Ghost_Memory sub-workflow.
 
-## Open Issues
+5. **Filter node Phase 4F upgrade**: The inline `Filter Structured Memory Candidates` node was upgraded from the pre-Phase 4F version (no `memory_write_rows`) to the Phase 4F version (calls `consolidateMemories` + `storeMemories` from `memory.ts`).
 
-- Ghost_Memory sub-workflow (ID: `u7omvbq1Lkn7We5F`) is published but the `Execute Ghost_Memory Sub-Workflow` executeWorkflow node in Ghost Runtime fails with "Workflow does not exist" due to an n8n `WorkflowRepository.get` issue. The inline approach works correctly and is the active path.
-- No `schema_migrations` tracking table exists — migrations are applied manually.
+## Known Issues / Follow-up
+
+- **Execute Ghost_Memory Sub-Workflow failure (follow-up, non-blocking)**: When the `Execute Ghost_Memory Sub-Workflow` executeWorkflow node was active in Ghost Runtime, it failed with "Workflow does not exist" from n8n's `WorkflowRepository.get` / `workflow_published_version` lookup. Root cause: unclear (DB entries were correct, manual SQL confirmed the row, but in-memory resolution failed). The inline approach is the accepted fix. Investigating or resolving the n8n sub-workflow lookup behavior is a potential follow-up but does not block any current work.
+- **No `schema_migrations` tracking table**: Migrations are applied manually. A migration runner is tracked as active architecture work (step 2E).

@@ -2,7 +2,7 @@
   "project": {
     "name": "Ghost Build Tracker",
     "schema_version": "1.0",
-    "last_updated": "2026-03-15T13:10:00Z",
+    "last_updated": "2026-03-15T13:25:00Z",
     "current_focus": "Architecture-sensitive queue: 2E migration strategy; 3C-ii/3E/3E-ii/3F runtime load; 7C-ii/7C-iii/7D-ii followthrough reliability"
   },
   "core_framing": {
@@ -106,8 +106,8 @@
         "name": "Claude",
         "lane": "implementation",
         "status": "completed",
-        "summary": "TASK-008 finalized: memories table migrated, memory.ts Extract→Consolidate→Store pipeline complete, Ghost Runtime inline pipeline updated with Store to Memories (pipeline) node, dual-write to ghost_memory + memories verified (1 row confirmed), 203/203 tests passing, CI green on branch phase4/4F-ghost-memory-subworkflow.",
-        "updated_at": "2026-03-15T13:10:00Z",
+        "summary": "TASK-008-CLOSEOUT complete: docs/status/CURRENT_STATE.md updated to reflect inline pipeline as the accepted active path, Ghost_Memory sub-workflow as reference artifact, execute-subworkflow failure as documented non-blocking follow-up. TASK-008 branch phase4/4F-ghost-memory-subworkflow is merge-ready under inline-accepted decision.",
+        "updated_at": "2026-03-15T13:25:00Z",
         "assigned_phase_id": "phase-4",
         "assigned_step_id": "p4b-shared-context-source-of-truth-layer"
       },
@@ -880,6 +880,13 @@
     }
   ],
   "recent_activity": [
+    {
+      "time": "2026-03-15T13:25:00Z",
+      "worker": "Claude",
+      "status": "done",
+      "step_id": "p4b-shared-context-source-of-truth-layer",
+      "note": "TASK-008-CLOSEOUT: Updated docs/status/CURRENT_STATE.md — inline memory pipeline designated as accepted active path, Ghost_Memory sub-workflow marked reference artifact only, execute-subworkflow failure reframed as documented non-blocking follow-up. Tracker updated. Branch phase4/4F-ghost-memory-subworkflow is merge-ready under inline-accepted decision."
+    },
     {
       "time": "2026-03-15T13:10:00Z",
       "worker": "Claude",
