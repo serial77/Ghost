@@ -124,6 +124,7 @@ services:
     volumes:
       - ghost_n8n_data:/home/node/.n8n
       - ../app/identity:/files/identity:ro
+      - ../src:/opt/ghost/src:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5678 >/dev/null 2>&1 || exit 1"]
       interval: 15s
@@ -182,6 +183,7 @@ services:
     volumes:
       - ghost_n8n_data:/home/node/.n8n
       - ../app/identity:/files/identity:ro
+      - ../src:/opt/ghost/src:ro
       - /home/deicide/.codex:/home/node/.codex
       - /home/deicide/bin/codex-auth.sh:/opt/ghost/bin/codex-auth.sh:ro
       - ./bin/codex-safe:/opt/ghost/bin/codex-safe:ro
