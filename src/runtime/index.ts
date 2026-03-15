@@ -34,6 +34,29 @@ export {
 } from './approval.js';
 export type { RiskFinding, RiskLevel, RiskDetectionResult, GovernancePolicy } from './approval.js';
 
+// memory.ts — primary public API
+export {
+  extractMemories,
+  consolidateMemories,
+  storeMemories,
+  // supporting exports (used by workflow pre-LLM nodes)
+  shouldExtractMemory,
+  buildExtractionPrompt,
+} from './memory.js';
+export type {
+  MemoryScope,
+  MemoryCategory,
+  MemoryTier,
+  MemoryStatus,
+  MemorySourceType,
+  MemoryContext,
+  ShouldExtractResult,
+  MemoryCandidate,
+  MemoryWriteRow,
+  ExtractMemoriesResult,
+  ConsolidationResult,
+} from './memory.js';
+
 // delegation.ts
 export {
   WORKER_RUNTIME,
