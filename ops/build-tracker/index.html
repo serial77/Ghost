@@ -1,0 +1,1000 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ghost Build Tracker</title>
+    <style>
+      :root {
+        --bg: #0f1117;
+        --panel: #151a24;
+        --panel-soft: #11151f;
+        --text: #e8ecf3;
+        --muted: #9aa5b5;
+        --muted-strong: #b8c2d1;
+        --border: #273043;
+
+        --complete: #22c55e;
+        --active: #3b82f6;
+        --pending: #94a3b8;
+        --blocked: #ef4444;
+        --frozen: #8b5cf6;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.35;
+      }
+
+      .container {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 18px 16px 32px;
+      }
+
+      .header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+
+      .title {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 720;
+      }
+
+      .meta {
+        color: var(--muted);
+        font-size: 12px;
+        display: grid;
+        gap: 4px;
+        text-align: right;
+      }
+
+      .focus {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        margin: 10px 0 12px;
+        background: color-mix(in srgb, var(--panel-soft) 92%, transparent);
+        border: 1px solid var(--border);
+        border-left: 6px solid color-mix(in srgb, var(--active) 72%, transparent);
+        border-radius: 10px;
+        padding: 12px 14px;
+        color: var(--text);
+        font-size: 15px;
+        font-weight: 650;
+        letter-spacing: 0.01em;
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--active) 22%, transparent);
+        backdrop-filter: blur(4px);
+      }
+
+      .worker-positions {
+        margin: 0 0 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--panel-soft);
+        padding: 10px 12px;
+      }
+
+      .worker-positions-title {
+        margin: 0 0 8px;
+        font-size: 14px;
+        font-weight: 650;
+        color: var(--muted-strong);
+      }
+
+      .worker-position-group {
+        border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+        border-radius: 10px;
+        padding: 8px;
+        background: color-mix(in srgb, var(--panel) 85%, transparent);
+      }
+
+      .worker-position-group-external {
+        border-left: 4px solid color-mix(in srgb, var(--active) 58%, transparent);
+      }
+
+      .worker-position-group-title {
+        margin: 0 0 2px;
+        font-size: 13px;
+        color: var(--muted-strong);
+      }
+
+      .worker-position-group-subtitle {
+        margin: 0 0 8px;
+        font-size: 10px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .worker-position-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 7px;
+      }
+
+      .worker-position-item {
+        border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+        border-radius: 8px;
+        padding: 7px;
+        background: color-mix(in srgb, #ffffff 2%, transparent);
+      }
+
+      .worker-position-top {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+      }
+
+      .status-light {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        flex-shrink: 0;
+        box-shadow: 0 0 0 1px color-mix(in srgb, #000 35%, transparent);
+      }
+
+      .status-light-active {
+        background: var(--complete);
+        box-shadow:
+          0 0 0 1px color-mix(in srgb, var(--complete) 45%, transparent),
+          0 0 9px color-mix(in srgb, var(--complete) 40%, transparent);
+      }
+
+      .status-light-standby {
+        background: var(--blocked);
+        box-shadow:
+          0 0 0 1px color-mix(in srgb, var(--blocked) 45%, transparent),
+          0 0 9px color-mix(in srgb, var(--blocked) 35%, transparent);
+      }
+
+      .worker-position-name {
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .worker-position-top .status-badge {
+        margin-left: auto;
+      }
+
+      .worker-position-summary {
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--text);
+      }
+
+      .worker-position-meta {
+        margin-top: 4px;
+        font-size: 10px;
+        color: var(--muted);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .phase-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .control-btn {
+        border: 1px solid var(--border);
+        background: var(--panel-soft);
+        color: var(--muted-strong);
+        border-radius: 999px;
+        font-size: 12px;
+        padding: 5px 10px;
+        cursor: pointer;
+      }
+
+      .control-btn:hover {
+        border-color: color-mix(in srgb, var(--active) 35%, var(--border));
+        color: var(--text);
+      }
+
+      .status-badge {
+        font-size: 10px;
+        border-radius: 999px;
+        padding: 2px 8px;
+        border: 1px solid transparent;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+        line-height: 1.2;
+      }
+
+      .status-complete {
+        color: var(--complete);
+        border-color: color-mix(in srgb, var(--complete) 52%, transparent);
+      }
+
+      .status-active {
+        color: var(--active);
+        border-color: color-mix(in srgb, var(--active) 52%, transparent);
+      }
+
+      .status-pending {
+        color: var(--pending);
+        border-color: color-mix(in srgb, var(--pending) 52%, transparent);
+      }
+
+      .status-blocked {
+        color: var(--blocked);
+        border-color: color-mix(in srgb, var(--blocked) 52%, transparent);
+      }
+
+      .status-frozen {
+        color: var(--frozen);
+        border-color: color-mix(in srgb, var(--frozen) 52%, transparent);
+      }
+
+      .phase-tree,
+      .step-list,
+      .substep-list,
+      .activity-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .phase-item {
+        margin-bottom: 12px;
+      }
+
+      .phase-toggle {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--panel);
+        overflow: hidden;
+      }
+
+      .phase-toggle summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 12px;
+      }
+
+      .phase-toggle summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .phase-summary-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .phase-head {
+        display: grid;
+        gap: 5px;
+      }
+
+      .phase-title-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .phase-title {
+        margin: 0;
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+      }
+
+      .phase-summary {
+        margin: 0;
+        font-size: 12px;
+        color: var(--muted);
+        max-width: 980px;
+      }
+
+      .phase-meta {
+        margin: 0;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .phase-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .phase-caret {
+        color: var(--muted);
+        font-size: 11px;
+        transform-origin: center;
+        transition: transform 0.16s ease;
+      }
+
+      .phase-toggle[open] .phase-caret {
+        transform: rotate(90deg);
+      }
+
+      .phase-content {
+        border-top: 1px solid var(--border);
+        padding: 4px 0;
+      }
+
+      .phase-status-active {
+        border-color: color-mix(in srgb, var(--active) 45%, var(--border));
+      }
+
+      .phase-status-blocked {
+        border-color: color-mix(in srgb, var(--blocked) 55%, var(--border));
+      }
+
+      .phase-live summary {
+        background: color-mix(in srgb, var(--active) 9%, var(--panel));
+      }
+
+      .phase-status-complete summary {
+        background: color-mix(in srgb, var(--complete) 4%, var(--panel));
+      }
+
+      .phase-status-pending summary,
+      .phase-status-frozen summary {
+        background: color-mix(in srgb, var(--pending) 3%, var(--panel));
+      }
+
+      .id-chip {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace;
+        font-size: 9px;
+        color: #76859e;
+        border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+        border-radius: 999px;
+        padding: 1px 6px;
+        white-space: nowrap;
+        letter-spacing: 0.01em;
+      }
+
+      .step {
+        margin: 0;
+        padding: 12px;
+        border-bottom: 1px dashed color-mix(in srgb, var(--border) 80%, transparent);
+        border-left: 2px solid transparent;
+      }
+
+      .step:last-child {
+        border-bottom: none;
+      }
+
+      .step-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .step-main {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .step-title {
+        font-size: 14px;
+        font-weight: 650;
+      }
+
+      .step-detail {
+        margin: 6px 0 0;
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .worker-pills {
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .worker-pill {
+        font-size: 10px;
+        border-radius: 999px;
+        border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+        padding: 2px 8px;
+        background: color-mix(in srgb, #ffffff 2%, transparent);
+        color: var(--muted-strong);
+        line-height: 1.35;
+        white-space: nowrap;
+      }
+
+      .worker-pill-active {
+        color: var(--active);
+        border-color: color-mix(in srgb, var(--active) 50%, transparent);
+      }
+
+      .worker-pill-last {
+        color: var(--muted-strong);
+        border-color: color-mix(in srgb, var(--pending) 55%, transparent);
+      }
+
+      .step-active {
+        border-left-color: color-mix(in srgb, var(--active) 80%, transparent);
+        background: color-mix(in srgb, var(--active) 8%, transparent);
+      }
+
+      .step-blocked {
+        border-left-color: color-mix(in srgb, var(--blocked) 85%, transparent);
+        background: color-mix(in srgb, var(--blocked) 7%, transparent);
+      }
+
+      .step-complete .step-detail {
+        color: color-mix(in srgb, var(--muted) 92%, transparent);
+      }
+
+      .substep-list {
+        margin: 8px 0 0 10px;
+        border-left: 1px dashed color-mix(in srgb, var(--border) 72%, transparent);
+      }
+
+      .substep-list .step {
+        margin-left: 8px;
+        border-bottom-color: color-mix(in srgb, var(--border) 65%, transparent);
+      }
+
+      .activity {
+        margin: 0 0 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--panel-soft);
+        padding: 12px;
+      }
+
+      .activity-title {
+        margin: 0 0 10px;
+        font-size: 13px;
+        color: var(--muted-strong);
+      }
+
+      .activity-item {
+        display: grid;
+        grid-template-columns: 146px 1fr;
+        gap: 10px;
+        padding: 7px 0;
+        border-bottom: 1px dashed color-mix(in srgb, var(--border) 78%, transparent);
+      }
+
+      .activity-item:last-child {
+        border-bottom: none;
+      }
+
+      .activity-time {
+        font-size: 11px;
+        color: var(--muted);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace;
+      }
+
+      .activity-body {
+        display: grid;
+        gap: 3px;
+      }
+
+      .activity-top {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .activity-worker {
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .activity-note {
+        font-size: 12px;
+        color: var(--text);
+      }
+
+      .activity-location {
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .error {
+        margin-top: 12px;
+        border: 1px solid color-mix(in srgb, var(--blocked) 60%, transparent);
+        color: #fecaca;
+        background: color-mix(in srgb, var(--blocked) 16%, transparent);
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 12px;
+      }
+
+      @media (max-width: 760px) {
+        .meta {
+          text-align: left;
+        }
+
+        .phase-summary-row {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .activity-item {
+          grid-template-columns: 1fr;
+          gap: 3px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <h1 class="title" id="project-name">Ghost Build Tracker</h1>
+        <div class="meta">
+          <div id="project-updated">Last updated: -</div>
+          <div id="project-counts">Phases: -</div>
+          <div id="project-schema">Schema: -</div>
+        </div>
+      </header>
+
+      <div class="focus" id="project-focus">Current focus: -</div>
+
+      <section class="activity" id="activity-panel" hidden>
+        <h2 class="activity-title">Recent activity (latest first)</h2>
+        <ul class="activity-list" id="activity-list"></ul>
+      </section>
+
+      <section class="worker-positions" id="worker-positions-panel" hidden>
+        <h2 class="worker-positions-title">Implementation worker positions</h2>
+        <div class="worker-position-group worker-position-group-external">
+          <h3 class="worker-position-group-title">Active coordination</h3>
+          <p class="worker-position-group-subtitle">Claude / Copilot / Codex</p>
+          <ul class="worker-position-list" id="external-worker-positions"></ul>
+        </div>
+      </section>
+
+      <div class="phase-controls" id="phase-controls">
+        <button class="control-btn" id="expand-live-btn" type="button">Expand live</button>
+        <button class="control-btn" id="expand-all-btn" type="button">Expand all</button>
+        <button class="control-btn" id="collapse-all-btn" type="button">Collapse all</button>
+      </div>
+
+      <main>
+        <ul class="phase-tree" id="phase-tree"></ul>
+        <div class="error" id="error" hidden></div>
+      </main>
+    </div>
+
+    <script>
+      let controlsBound = false;
+
+      function element(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined && text !== null) node.textContent = text;
+        return node;
+      }
+
+      function normalizeStatus(status) {
+        return String(status || "pending").trim().toLowerCase();
+      }
+
+      function statusClass(status) {
+        switch (normalizeStatus(status)) {
+          case "complete":
+          case "done":
+          case "completed":
+            return "status-complete";
+          case "active":
+          case "working":
+          case "review":
+          case "assigned":
+            return "status-active";
+          case "pending":
+          case "waiting":
+          case "pending_assignment":
+          case "standby":
+            return "status-pending";
+          case "blocked":
+            return "status-blocked";
+          case "unavailable":
+          case "frozen":
+            return "status-frozen";
+          default:
+            return "status-pending";
+        }
+      }
+
+      function makeStatusBadge(status) {
+        return element("span", `status-badge ${statusClass(status)}`, status || "pending");
+      }
+
+      function stepIsLive(step) {
+        if (!step || typeof step !== "object") return false;
+        const status = normalizeStatus(step.status);
+        if (status === "active" || status === "blocked") return true;
+
+        const workers = Array.isArray(step.active_workers) ? step.active_workers : [];
+        return workers.some((worker) => {
+          if (!worker || typeof worker !== "object") return false;
+          const workerStatus = normalizeStatus(worker.status);
+          return workerStatus === "working" || workerStatus === "blocked" || workerStatus === "review";
+        });
+      }
+
+      function phaseHasLivePath(phase) {
+        const steps = Array.isArray(phase.steps) ? phase.steps : [];
+        for (const step of steps) {
+          if (stepIsLive(step)) return true;
+          const substeps = Array.isArray(step.substeps) ? step.substeps : [];
+          if (substeps.some((substep) => stepIsLive(substep))) return true;
+        }
+        return false;
+      }
+
+      function shouldOpenPhaseByDefault(phase) {
+        const phaseStatus = normalizeStatus(phase.status);
+        if (phaseStatus === "active" || phaseStatus === "blocked") return true;
+        if (phaseHasLivePath(phase)) return true;
+        return false;
+      }
+
+      function summarizePhaseItems(phase) {
+        const steps = Array.isArray(phase.steps) ? phase.steps : [];
+        const allItems = [];
+        for (const step of steps) {
+          allItems.push(step);
+          const substeps = Array.isArray(step.substeps) ? step.substeps : [];
+          allItems.push(...substeps);
+        }
+
+        const total = allItems.length;
+        const activeOrBlocked = allItems.filter((item) => {
+          const status = normalizeStatus(item && item.status);
+          return status === "active" || status === "blocked";
+        }).length;
+        const blocked = allItems.filter((item) => normalizeStatus(item && item.status) === "blocked").length;
+
+        return { total, activeOrBlocked, blocked };
+      }
+
+      function makeWorkerLight(status) {
+        const normalized = normalizeStatus(status);
+        const isStandby =
+          normalized === "standby" ||
+          normalized === "pending" ||
+          normalized === "waiting" ||
+          normalized === "pending_assignment" ||
+          normalized === "unavailable" ||
+          normalized === "frozen";
+
+        return element("span", `status-light ${isStandby ? "status-light-standby" : "status-light-active"}`);
+      }
+
+      function makeWorkerPill(text, variant = "") {
+        return element("span", `worker-pill${variant ? ` worker-pill-${variant}` : ""}`, text);
+      }
+
+      function buildLastAssociatedWorkerIndex(activityItems) {
+        const latest = new Map();
+        if (!Array.isArray(activityItems)) {
+          return latest;
+        }
+
+        const sorted = [...activityItems]
+          .filter((entry) => entry && typeof entry === "object" && entry.step_id)
+          .sort((a, b) => {
+            const left = Date.parse(a.time || "") || 0;
+            const right = Date.parse(b.time || "") || 0;
+            return right - left;
+          });
+
+        sorted.forEach((entry) => {
+          if (latest.has(entry.step_id)) return;
+          latest.set(entry.step_id, {
+            worker: entry.worker || "Worker",
+            status: entry.status || "pending",
+            time: entry.time || ""
+          });
+        });
+
+        return latest;
+      }
+
+      function renderStep(step, isSubstep = false, lastAssociatedWorkerIndex = new Map()) {
+        const status = normalizeStatus(step.status);
+        const item = element("li", `step step-${status}${isSubstep ? " substep" : ""}`);
+        item.dataset.stepId = step.id || "";
+
+        const row = element("div", "step-row");
+        const main = element("div", "step-main");
+        main.append(
+          element("span", "step-title", step.title || "Untitled step"),
+          element("span", "id-chip", step.id || "step")
+        );
+
+        row.append(main, makeStatusBadge(step.status || "pending"));
+        item.append(row);
+
+        const workers = Array.isArray(step.active_workers) ? step.active_workers : [];
+        const workerPills = element("div", "worker-pills");
+        workers.forEach((worker) => {
+          const name = worker && worker.name ? worker.name : "Worker";
+          workerPills.append(makeWorkerPill(`Active: ${name}`, "active"));
+        });
+
+        const lastAssociated = step.id ? lastAssociatedWorkerIndex.get(step.id) : null;
+        if (lastAssociated && lastAssociated.worker) {
+          workerPills.append(makeWorkerPill(`Last: ${lastAssociated.worker}`, "last"));
+        }
+
+        if (workerPills.childElementCount) {
+          item.append(workerPills);
+        }
+
+        if (step.detail) {
+          item.append(element("p", "step-detail", step.detail));
+        }
+
+        if (Array.isArray(step.substeps) && step.substeps.length) {
+          const subList = element("ul", "substep-list");
+          step.substeps.forEach((substep) => subList.append(renderStep(substep, true, lastAssociatedWorkerIndex)));
+          item.append(subList);
+        }
+
+        return item;
+      }
+
+      function renderPhase(phase, lastAssociatedWorkerIndex = new Map()) {
+        const phaseStatus = normalizeStatus(phase.status || "pending");
+        const defaultOpen = shouldOpenPhaseByDefault(phase);
+        const stats = summarizePhaseItems(phase);
+
+        const wrapper = element("li", "phase-item");
+        const details = element(
+          "details",
+          `phase-toggle phase-status-${phaseStatus}${defaultOpen ? " phase-live" : ""}`
+        );
+        details.dataset.phaseId = phase.id || "";
+        details.dataset.defaultOpen = defaultOpen ? "true" : "false";
+        details.open = defaultOpen;
+
+        const summary = element("summary", "phase-summary-row");
+        const head = element("div", "phase-head");
+        const titleRow = element("div", "phase-title-row");
+        titleRow.append(
+          element("h2", "phase-title", phase.title || phase.id || "Phase"),
+          element("span", "id-chip", phase.id || "phase")
+        );
+
+        head.append(titleRow);
+        if (phase.summary) {
+          head.append(element("p", "phase-summary", phase.summary));
+        }
+
+        const metaBits = [`${stats.total} items`];
+        if (stats.activeOrBlocked > 0) {
+          metaBits.push(`${stats.activeOrBlocked} live`);
+        }
+        if (stats.blocked > 0) {
+          metaBits.push(`${stats.blocked} blocked`);
+        }
+        head.append(element("p", "phase-meta", metaBits.join(" · ")));
+
+        const right = element("div", "phase-right");
+        right.append(makeStatusBadge(phase.status || "pending"), element("span", "phase-caret", "▶"));
+
+        summary.append(head, right);
+        details.append(summary);
+
+        const content = element("div", "phase-content");
+        const stepList = element("ul", "step-list");
+        const steps = Array.isArray(phase.steps) ? phase.steps : [];
+        steps.forEach((step) => stepList.append(renderStep(step, false, lastAssociatedWorkerIndex)));
+        content.append(stepList);
+        details.append(content);
+
+        wrapper.append(details);
+        return wrapper;
+      }
+
+      function buildStepIndex(phases) {
+        const index = new Map();
+
+        phases.forEach((phase) => {
+          const phaseTitle = phase.title || phase.id || "Phase";
+          const steps = Array.isArray(phase.steps) ? phase.steps : [];
+
+          steps.forEach((step) => {
+            if (step.id) {
+              index.set(step.id, `${phaseTitle} / ${step.title || step.id}`);
+            }
+            const substeps = Array.isArray(step.substeps) ? step.substeps : [];
+            substeps.forEach((substep) => {
+              if (substep.id) {
+                index.set(substep.id, `${phaseTitle} / ${step.title || step.id} / ${substep.title || substep.id}`);
+              }
+            });
+          });
+        });
+
+        return index;
+      }
+
+      function renderActivity(activityItems, stepIndex) {
+        const panel = document.getElementById("activity-panel");
+        const list = document.getElementById("activity-list");
+        list.innerHTML = "";
+
+        if (!Array.isArray(activityItems) || !activityItems.length) {
+          panel.hidden = true;
+          return;
+        }
+
+        activityItems.slice(0, 10).forEach((entry) => {
+          const item = element("li", "activity-item");
+          const time = element("div", "activity-time", entry.time || "");
+
+          const body = element("div", "activity-body");
+          const top = element("div", "activity-top");
+          top.append(
+            element("span", "activity-worker", entry.worker || "Worker"),
+            makeStatusBadge(entry.status || "pending")
+          );
+
+          const note = element("div", "activity-note", entry.note || "");
+          const locationName = entry.step_id ? stepIndex.get(entry.step_id) || entry.step_id : "";
+          const location = element("div", "activity-location", locationName ? `Location: ${locationName}` : "");
+
+          body.append(top, note);
+          if (locationName) body.append(location);
+
+          item.append(time, body);
+          list.append(item);
+        });
+
+        panel.hidden = false;
+      }
+
+      function renderWorkerPositionItem(position, stepIndex) {
+        const item = element("li", "worker-position-item");
+
+        const top = element("div", "worker-position-top");
+        top.append(
+          makeWorkerLight(position.status || "standby"),
+          element("span", "worker-position-name", position.name || "Worker"),
+          makeStatusBadge(position.status || "standby")
+        );
+        item.append(top);
+
+        if (position.summary) {
+          item.append(element("div", "worker-position-summary", position.summary));
+        }
+
+        const meta = element("div", "worker-position-meta");
+        if (position.lane) meta.append(element("span", "", `lane: ${position.lane}`));
+
+        const assignedStep = position.assigned_step_id || "";
+        const assignedPhase = position.assigned_phase_id || "";
+        if (assignedPhase || assignedStep) {
+          const stepPath = assignedStep ? stepIndex.get(assignedStep) || assignedStep : "";
+          const location = stepPath ? `target: ${stepPath}` : `target: ${assignedPhase}`;
+          meta.append(element("span", "", location));
+        }
+
+        if (position.blocking_on) meta.append(element("span", "", `blocking: ${position.blocking_on}`));
+        if (position.branch) meta.append(element("span", "", position.branch));
+        if (position.updated_at) meta.append(element("span", "", position.updated_at));
+        if (position.note) meta.append(element("span", "", position.note));
+
+        if (meta.childElementCount) {
+          item.append(meta);
+        }
+
+        return item;
+      }
+
+      function renderWorkerPositions(workerPositions, stepIndex) {
+        const panel = document.getElementById("worker-positions-panel");
+        const externalList = document.getElementById("external-worker-positions");
+
+        externalList.innerHTML = "";
+
+        if (!workerPositions || typeof workerPositions !== "object") {
+          panel.hidden = true;
+          return;
+        }
+
+        const external = Array.isArray(workerPositions.external_implementation_workers)
+          ? workerPositions.external_implementation_workers
+          : [];
+
+        external.forEach((position) => externalList.append(renderWorkerPositionItem(position, stepIndex)));
+
+        panel.hidden = !externalList.childElementCount;
+      }
+
+      function setPhaseExpansion(mode) {
+        const toggles = document.querySelectorAll(".phase-toggle");
+        toggles.forEach((toggle) => {
+          if (mode === "all") {
+            toggle.open = true;
+          } else if (mode === "none") {
+            toggle.open = false;
+          } else {
+            toggle.open = toggle.dataset.defaultOpen === "true";
+          }
+        });
+      }
+
+      function bindPhaseControls() {
+        if (controlsBound) return;
+        controlsBound = true;
+
+        document.getElementById("expand-live-btn").addEventListener("click", () => setPhaseExpansion("live"));
+        document.getElementById("expand-all-btn").addEventListener("click", () => setPhaseExpansion("all"));
+        document.getElementById("collapse-all-btn").addEventListener("click", () => setPhaseExpansion("none"));
+      }
+
+      function renderTracker(data) {
+        const project = data.project || {};
+        const phases = Array.isArray(data.phases) ? data.phases : [];
+        const recentActivity = Array.isArray(data.recent_activity) ? data.recent_activity : [];
+        const stepIndex = buildStepIndex(phases);
+        const lastAssociatedWorkerIndex = buildLastAssociatedWorkerIndex(recentActivity);
+
+        document.getElementById("project-name").textContent = project.name || "Ghost Build Tracker";
+        document.getElementById("project-updated").textContent = `Last updated: ${project.last_updated || "-"}`;
+        document.getElementById("project-counts").textContent = `Phases: ${phases.length}`;
+        document.getElementById("project-schema").textContent = `Schema: ${project.schema_version || "-"}`;
+        document.getElementById("project-focus").textContent = `Current focus: ${project.current_focus || "-"}`;
+        renderActivity(recentActivity, stepIndex);
+        renderWorkerPositions(data.worker_positions || null, stepIndex);
+
+        const tree = document.getElementById("phase-tree");
+        tree.innerHTML = "";
+        phases.forEach((phase) => tree.append(renderPhase(phase, lastAssociatedWorkerIndex)));
+
+        bindPhaseControls();
+      }
+
+      function showError(message) {
+        const error = document.getElementById("error");
+        error.hidden = false;
+        error.textContent = message;
+      }
+
+      async function loadTracker() {
+        try {
+          const response = await fetch("./project-tracker.json", { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          const data = await response.json();
+          renderTracker(data);
+        } catch (error) {
+          showError(
+            `Unable to load project-tracker.json (${error.message}). Run a local static server from ops/build-tracker, for example: python3 -m http.server 8787`
+          );
+        }
+      }
+
+      loadTracker();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,368 @@
+{
+  "project": {
+    "name": "Ghost Build Tracker",
+    "schema_version": "1.0",
+    "last_updated": "2026-03-14T02:20:00Z",
+    "current_focus": "Phase 7 near-MVP closure: real approved follow-through executor and blocked-work retry-unblock path"
+  },
+  "phases": [
+    {
+      "id": "phase-1",
+      "title": "Phase 1 — Foundation",
+      "summary": "Core repository, operator lane, and baseline runtime environment were established.",
+      "status": "complete",
+      "steps": [
+        {
+          "id": "p1-foundation-baseline",
+          "title": "Foundation baseline established",
+          "detail": "Core repository structure, operator lane conventions, and local runtime baseline were stabilized.",
+          "status": "complete",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "title": "Phase 2 — Core runtime",
+      "summary": "Live webhook runtime and route-class handling reached stable baseline behavior.",
+      "status": "complete",
+      "steps": [
+        {
+          "id": "p2-core-runtime-route",
+          "title": "Core runtime route stabilized",
+          "detail": "Webhook intake, provider routing classes, and normalized response contract became stable.",
+          "status": "complete",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "title": "Phase 3 — Production hardening groundwork",
+      "summary": "Production safety groundwork landed around approval risk gating, artifact capture, and live promotion/rollback discipline.",
+      "status": "complete",
+      "steps": [
+        {
+          "id": "p3-approval-risk-foundation",
+          "title": "Approval and risk control foundation",
+          "detail": "Codex-bound approval gating and structured risk metadata shaping were stabilized.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p3-live-promotion-rollback-groundwork",
+          "title": "Live promotion and rollback groundwork",
+          "detail": "Operator promotion path, backup discipline, and restore behavior were established for safe live updates.",
+          "status": "complete",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "title": "Phase 4 — Structured memory and workflow maturity",
+      "summary": "Structured Postgres memory path matured with conservative extraction and broader validation readiness.",
+      "status": "complete",
+      "steps": [
+        {
+          "id": "p4-structured-memory-lifecycle",
+          "title": "Structured memory lifecycle stabilized",
+          "detail": "Memory extraction, filtering, save path, and recall behavior were hardened in controlled workflow iterations.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p4-memory-quality-review",
+          "title": "Memory quality review and cutover readiness",
+          "detail": "Final review and production-cutover planning landed with no new blocking quality issues.",
+          "status": "complete",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "title": "Phase 5 — Truth and operational trust",
+      "summary": "Operational truth surfaces were formalized through runtime ledgering and topology-level runtime traceability.",
+      "status": "complete",
+      "steps": [
+        {
+          "id": "p5-runtime-ledger-foundation",
+          "title": "Runtime ledger foundation",
+          "detail": "Task/run ledger start-complete lifecycle and correlation payload handling were integrated into runtime flow.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p5-runtime-topology-traceability",
+          "title": "Operational traceability baseline",
+          "detail": "Runtime topology mapping, trace tooling, and ledger-linked observability were consolidated for operator trust.",
+          "status": "complete",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-6",
+      "title": "Phase 6 — Structural maintainability",
+      "summary": "Operator safety envelope and canonical build/runtime naming normalization strengthened maintainability.",
+      "status": "complete",
+      "steps": [
+        {
+          "id": "p6-operator-runbook-hardened",
+          "title": "Operator promotion safety envelope",
+          "detail": "Bounded backup/validate/activate/probe/rollback promotion wrapper and rollback checks were landed and verified.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p6-canonical-artifact-naming",
+          "title": "Canonical artifact naming normalization",
+          "detail": "Transitional milestone naming was removed from active builder/runtime artifact paths in favor of stable canonical names.",
+          "status": "complete",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-7",
+      "title": "Phase 7 — Governed operator system",
+      "summary": "Active near-MVP lane for governed operator execution; core foundations are in place with one major backend follow-through gap still open.",
+      "status": "active",
+      "steps": [
+        {
+          "id": "p7-worker-registry-foundation",
+          "title": "Worker registry foundation",
+          "detail": "Worker contracts and route ownership boundaries are established, with explicit worker lanes documented.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p7-capability-registry-foundation",
+          "title": "Capability registry foundation",
+          "detail": "Capabilities are scoped per worker with explicit-route usage guidance rather than universal fallback execution.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p7-approval-governance-foundation",
+          "title": "Approval governance foundation",
+          "detail": "Approval-required gating, risk classification, and blocked response shaping are in the governed execution path.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p7-action-history-foundation",
+          "title": "Action history foundation",
+          "detail": "Runtime ledger and trace surfaces provide operational action history across governed execution flow.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p7-diagnostic-foundation",
+          "title": "Diagnostic foundation",
+          "detail": "Operator-facing smoke and runtime/memory trace scripts provide compact diagnostics for live verification.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p7-environment-awareness-foundation",
+          "title": "Environment awareness foundation",
+          "detail": "Workspace/agent lane model is documented and used for isolated execution and review discipline.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p7-governed-core-follow-through",
+          "title": "Durable governed core and follow-through",
+          "detail": "Phase 7 is near-MVP. The largest remaining backend gap is the real approved follow-through executor and blocked-work retry-unblock path.",
+          "status": "active",
+          "active_workers": [],
+          "substeps": [
+            {
+              "id": "p7-real-approved-follow-through-executor",
+              "title": "Real approved follow-through executor",
+              "detail": "Implement the real approval-cleared follow-through executor path for governed operations.",
+              "status": "active",
+              "active_workers": [
+                {
+                  "name": "Claude",
+                  "status": "working",
+                  "task": "Close MVP gap on real approved follow-through executor path",
+                  "branch": "claude/mvp-closure",
+                  "updated_at": "2026-03-14T02:20:00Z"
+                }
+              ]
+            },
+            {
+              "id": "p7-blocked-work-retry-unblock-path",
+              "title": "Blocked-work retry-unblock path",
+              "detail": "Land the real retry/unblock flow for previously blocked governed work items.",
+              "status": "blocked",
+              "active_workers": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-8",
+      "title": "Phase 8 — Adaptive operations",
+      "summary": "Planned adaptive operations expansion; top-level structure is seeded without speculative deep substep trees.",
+      "status": "pending",
+      "steps": [
+        {
+          "id": "p8a-strategy-layer",
+          "title": "8A Strategy layer",
+          "detail": "Planned strategy abstraction for adaptive runtime governance.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8b-adaptive-routing-and-worker-optimization",
+          "title": "8B Adaptive routing and worker optimization",
+          "detail": "Planned adaptive route and worker optimization path.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8c-project-workspace-awareness",
+          "title": "8C Project / workspace awareness",
+          "detail": "Planned deeper project/workspace context awareness for execution decisions.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8d-internal-tool-generation-at-scale",
+          "title": "8D Internal tool generation at scale",
+          "detail": "Planned scalable internal tool generation capabilities.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8e-continuous-improvement-loop",
+          "title": "8E Continuous improvement loop",
+          "detail": "Planned loop for incremental operational improvement and tuning.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8f-richer-simulation-and-scenario-testing",
+          "title": "8F Richer simulation and scenario testing",
+          "detail": "Planned scenario simulation expansion for safer operational rollout.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8g-operator-copiloting",
+          "title": "8G Operator copiloting",
+          "detail": "Planned operator copiloting enhancements for guided operations.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8h-higher-order-governance",
+          "title": "8H Higher-order governance",
+          "detail": "Planned higher-order governance controls and policies.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8i-phase-8-freeze-and-architecture-review",
+          "title": "8I Phase 8 freeze and architecture review",
+          "detail": "Planned freeze checkpoint and architecture review gate for Phase 8.",
+          "status": "pending",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-9",
+      "title": "Phase 9 — Platformization",
+      "summary": "Planned platformization phase remains intentionally coarse until authoritative execution details are finalized.",
+      "status": "pending",
+      "steps": [
+        {
+          "id": "p9-platformization-baseline",
+          "title": "Platformization baseline",
+          "detail": "Define and deliver core platformization surfaces for governed Ghost operations.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p9-platform-operator-surface",
+          "title": "Platform operator surface",
+          "detail": "Shape a stable platform-grade operator surface with durable contracts.",
+          "status": "pending",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-10",
+      "title": "Phase 10 — Product maturity / ecosystem",
+      "summary": "Planned product-maturity and ecosystem phase remains coarse by design until platformization outcomes settle.",
+      "status": "pending",
+      "steps": [
+        {
+          "id": "p10-product-maturity-baseline",
+          "title": "Product maturity baseline",
+          "detail": "Planned maturation of product-facing quality, reliability, and governance outcomes.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p10-ecosystem-expansion",
+          "title": "Ecosystem expansion",
+          "detail": "Planned ecosystem and external-surface expansion once core maturity gates are satisfied.",
+          "status": "pending",
+          "active_workers": []
+        }
+      ]
+    }
+  ],
+  "recent_activity": [
+    {
+      "time": "2026-03-14T02:20:00Z",
+      "worker": "Claude",
+      "status": "working",
+      "step_id": "p7-real-approved-follow-through-executor",
+      "note": "Phase 7 near-MVP closure focused on the real approved follow-through executor path"
+    },
+    {
+      "time": "2026-03-14T02:05:00Z",
+      "worker": "Codex",
+      "status": "done",
+      "step_id": "p6-operator-runbook-hardened",
+      "note": "Safe workflow promotion wrapper and rollback safety checks landed"
+    },
+    {
+      "time": "2026-03-14T01:58:00Z",
+      "worker": "Copilot",
+      "status": "done",
+      "step_id": "p6-canonical-artifact-naming",
+      "note": "Canonical workflow builder and runtime artifact naming normalization completed"
+    },
+    {
+      "time": "2026-03-14T01:40:00Z",
+      "worker": "Codex",
+      "status": "done",
+      "step_id": "p7-action-history-foundation",
+      "note": "Runtime ledger and operator truth tracing foundations advanced"
+    },
+    {
+      "time": "2026-03-14T01:25:00Z",
+      "worker": "Claude",
+      "status": "done",
+      "step_id": "p7-environment-awareness-foundation",
+      "note": "Agent-management workspace model and environment-awareness baseline established"
+    },
+    {
+      "time": "2026-03-14T01:10:00Z",
+      "worker": "Copilot",
+      "status": "done",
+      "step_id": "p7-diagnostic-foundation",
+      "note": "Tracker contract hardening landed for lightweight operator diagnostics visibility"
+    }
+  ]
+}

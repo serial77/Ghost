@@ -1,0 +1,914 @@
+{
+  "project": {
+    "name": "Ghost Build Tracker",
+    "schema_version": "1.0",
+    "last_updated": "2026-03-15T01:31:24Z",
+    "current_focus": "Architecture-sensitive queue: 2E migration strategy; 3C-ii/3E/3E-ii/3F runtime load; 7C-ii/7C-iii/7D-ii followthrough reliability"
+  },
+  "core_framing": {
+    "title": "Core framing / governing principles",
+    "principles": [
+      "Ghost is a general orchestrator and governed capability platform, not a hardcoded assistant with fixed roles.",
+      "One pinned conversation owner stays responsible per thread.",
+      "Workers are used only through explicit delegation.",
+      "Every delegation becomes a visible task/work item.",
+      "Capabilities are preferred over raw tools.",
+      "Shared context and source-of-truth discipline outrank flashy autonomy.",
+      "MVP target is the end of Phase 7.",
+      "Phase 8 is post-MVP and does not replace MVP closure.",
+      "The canonical 10-phase spine remains stable while subphases stay flexible.",
+      "Home Assistant remains the control boundary for the Home domain."
+    ],
+    "openclaw_alignment": [
+      "One pinned conversation owner per thread.",
+      "Workers are only invoked through explicit delegation.",
+      "No silent model/provider switching inside a single user conversation.",
+      "Every delegation creates a visible task/work item.",
+      "Worker sessions remain separate from the parent conversation."
+    ],
+    "rollout_order": [
+      "Build",
+      "Study",
+      "Finance",
+      "Home"
+    ],
+    "canonical_worker_registry": [
+      "Ghost Main",
+      "Forge",
+      "Probe",
+      "Rector",
+      "Archivist",
+      "Operator",
+      "Scout"
+    ]
+  },
+  "worker_positions": {
+    "canonical_runtime_workers": [
+      {
+        "name": "Ghost Main",
+        "lane": "governed-ownership",
+        "status": "available",
+        "summary": "Tracked as canonical runtime owner; no active runtime assignment asserted in this side tracker pass.",
+        "updated_at": "2026-03-15T01:25:00Z"
+      },
+      {
+        "name": "Forge",
+        "lane": "specialist-worker",
+        "status": "standby",
+        "summary": "No active roadmap assignment in this tracker pass.",
+        "updated_at": "2026-03-15T01:25:00Z"
+      },
+      {
+        "name": "Probe",
+        "lane": "specialist-worker",
+        "status": "standby",
+        "summary": "No active roadmap assignment in this tracker pass.",
+        "updated_at": "2026-03-15T01:25:00Z"
+      },
+      {
+        "name": "Rector",
+        "lane": "specialist-worker",
+        "status": "standby",
+        "summary": "No active roadmap assignment in this tracker pass.",
+        "updated_at": "2026-03-15T01:25:00Z"
+      },
+      {
+        "name": "Archivist",
+        "lane": "specialist-worker",
+        "status": "standby",
+        "summary": "No active roadmap assignment in this tracker pass.",
+        "updated_at": "2026-03-15T01:25:00Z"
+      },
+      {
+        "name": "Operator",
+        "lane": "runtime-operator",
+        "status": "available",
+        "summary": "Canonical runtime worker tracked with neutral availability in side tracker state.",
+        "updated_at": "2026-03-15T01:25:00Z"
+      },
+      {
+        "name": "Scout",
+        "lane": "specialist-worker",
+        "status": "standby",
+        "summary": "No active roadmap assignment asserted in this tracker pass.",
+        "updated_at": "2026-03-15T01:25:00Z"
+      }
+    ],
+    "external_implementation_workers": [
+      {
+        "name": "Copilot",
+        "lane": "tracker-lane",
+        "status": "available",
+        "summary": "Tracker lane pass completed; available for next assignment.",
+        "updated_at": "2026-03-15T01:25:00Z"
+      },
+      {
+        "name": "Claude",
+        "lane": "implementation",
+        "status": "completed",
+        "summary": "TASK-002 completed — src/runtime scaffolded, classifier/config extracted with tests, bind mount verified, containers can access /opt/ghost/src/runtime. TASK-004/TASK-005 foundation ready.",
+        "updated_at": "2026-03-15T01:31:24Z",
+        "assigned_phase_id": "phase-3",
+        "assigned_step_id": "p3e-ii-extract-business-logic-to-source-files",
+        "note": "Conducting full repo/runtime reality reconciliation against v3 canonical docs",
+        "branch": "phase3/3E-scaffold"
+      },
+      {
+        "name": "Codex",
+        "lane": "implementation",
+        "status": "standby",
+        "summary": "Standby for assignment; no active implementation step started in this tracker state.",
+        "updated_at": "2026-03-15T01:25:00Z"
+      }
+    ]
+  },
+  "phases": [
+    {
+      "id": "phase-1",
+      "title": "Phase 1 — Foundation Lab",
+      "summary": "Foundation lab baseline remains established across compute/runtime benching, early service bring-up, and first toy workflow loops.",
+      "status": "complete",
+      "steps": [
+        {
+          "id": "p1a-compute-runtime-bench",
+          "title": "1A Compute and runtime bench",
+          "detail": "Initial local compute/runtime benching patterns are established and reusable.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p1b-core-services-bootstrapping",
+          "title": "1B Core services bootstrapping",
+          "detail": "Core services bootstrapping flow is established for repeatable local bring-up.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p1c-initial-model-strategy",
+          "title": "1C Initial model strategy",
+          "detail": "Initial model strategy direction was established for early routing and fallback behavior.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p1d-repo-workspace-discipline",
+          "title": "1D Repo and workspace discipline",
+          "detail": "Repository and workspace discipline conventions are in place for operator-safe execution.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p1e-first-end-to-end-toy-workflow",
+          "title": "1E First end-to-end toy workflow",
+          "detail": "First end-to-end toy workflow path was proven to validate core control flow.",
+          "status": "complete",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "title": "Phase 2 — Core System of Record and Service Topology",
+      "summary": "Phase 2 remains established, while 2E schema migration strategy is explicitly tracked as an active load-bearing architectural lane.",
+      "status": "complete",
+      "steps": [
+        {
+          "id": "p2a-authoritative-architecture-shape",
+          "title": "2A Authoritative architecture shape",
+          "detail": "Authoritative architecture shape for core services and execution flow is established.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p2b-database-split-persistence-model",
+          "title": "2B Database split and persistence model",
+          "detail": "Database split and persistence model patterns are largely established.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p2c-environment-deployment-layout",
+          "title": "2C Environment and deployment layout",
+          "detail": "Environment and deployment layout conventions are established for controlled operations.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p2d-reliability-groundwork",
+          "title": "2D Reliability groundwork",
+          "detail": "Reliability groundwork for baseline operations is largely in place.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p2e-schema-migration-strategy",
+          "title": "2E Schema Migration Strategy",
+          "detail": "Migration sequencing, safety envelopes, and reversibility contracts are tracked as active architectural pressure without claiming implementation completion.",
+          "status": "active",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "title": "Phase 3 — Orchestration Core and Runtime Discipline",
+      "summary": "Phase 3 is substantially complete, but v3.0 reopens major architectural load-bearing work around async delegation, circuit breaking, runtime decomposition, source extraction, and Redis activation.",
+      "status": "active",
+      "steps": [
+        {
+          "id": "p3a-conversation-ownership-model",
+          "title": "3A Conversation ownership model",
+          "detail": "Pinned conversation ownership model is established as a core orchestration rule.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p3b-explicit-delegation-model",
+          "title": "3B Explicit delegation model",
+          "detail": "Explicit delegation model remains active and is now expanded for asynchronous delegation pathways.",
+          "status": "active",
+          "active_workers": [],
+          "substeps": [
+            {
+              "id": "p3b-ii-asynchronous-delegation-via-message-bus",
+              "title": "3B-ii Asynchronous Delegation via Message Bus",
+              "detail": "Message-bus delegation contracts are tracked as active architecture work and are not marked complete.",
+              "status": "active",
+              "active_workers": []
+            }
+          ]
+        },
+        {
+          "id": "p3c-worker-identity-routing",
+          "title": "3C Worker identity and routing",
+          "detail": "Worker identity and routing contracts are established, with v3.0 hardening focused on failure control paths.",
+          "status": "active",
+          "active_workers": [],
+          "substeps": [
+            {
+              "id": "p3c-ii-circuit-breaker-for-model-routing",
+              "title": "3C-ii Circuit Breaker for Model Routing",
+              "detail": "Circuit-breaker behavior across providers is tracked as active and load-bearing, without completion claims.",
+              "status": "active",
+              "active_workers": []
+            }
+          ]
+        },
+        {
+          "id": "p3d-tool-boundary-discipline",
+          "title": "3D Tool boundary discipline",
+          "detail": "Tool-boundary discipline remains active under governed execution constraints.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p3e-runtime-decomposition",
+          "title": "3E Runtime Decomposition",
+          "detail": "Runtime decomposition into sub-workflows is an active v3.0 architecture lane and part of immediate pressure.",
+          "status": "active",
+          "active_workers": [
+            {
+              "name": "Operator",
+              "status": "working",
+              "task": "Track v3.0 architecture-sensitive decomposition queue in tracker lane",
+              "updated_at": "2026-03-15T00:50:00Z"
+            }
+          ],
+          "substeps": [
+            {
+              "id": "p3e-ii-extract-business-logic-to-source-files",
+              "title": "3E-ii Extract Business Logic to Source Files",
+              "detail": "Business logic extraction into testable source files is tracked as active architecture work.",
+              "status": "active",
+              "active_workers": []
+            }
+          ]
+        },
+        {
+          "id": "p3f-redis-activation",
+          "title": "3F Redis Activation",
+          "detail": "Redis activation as queue/event bus/capability cache is tracked as active and not yet closed.",
+          "status": "active",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "title": "Phase 4 — Memory and Shared Context Plane",
+      "summary": "Phase 4 is emerging: structured memory baseline is active, with v3.0 expansion toward tsvector + pgvector conversation search and retrieval augmentation.",
+      "status": "active",
+      "steps": [
+        {
+          "id": "p4a-structured-postgres-memory",
+          "title": "4A Structured Postgres memory",
+          "detail": "Structured Postgres memory lane is established and validated as the active baseline.",
+          "status": "complete",
+          "active_workers": []
+        },
+        {
+          "id": "p4b-shared-context-source-of-truth-layer",
+          "title": "4B Shared context / source-of-truth layer",
+          "detail": "Shared-context/source-of-truth layer is active and continues to be formalized.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p4c-retrieval-augmentation-conversation-search",
+          "title": "4C Retrieval Augmentation & Conversation Search",
+          "detail": "Retrieval augmentation now explicitly includes tsvector + pgvector conversation search and ranked recall behavior.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p4d-deferred-vector-complexity",
+          "title": "4D Deferred vector complexity",
+          "detail": "Vector-heavy complexity beyond the v3.0 search baseline remains deliberately deferred.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p4e-memory-contracts-for-workers",
+          "title": "4E Memory contracts for workers",
+          "detail": "Worker memory contracts remain emerging and are not marked complete.",
+          "status": "pending",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "title": "Phase 5 — Capability Model and Specialist Workers",
+      "summary": "Phase 5 is partially underway: capability contracts and specialist worker definitions are active, while deeper packs remain staged.",
+      "status": "active",
+      "steps": [
+        {
+          "id": "p5a-governed-capability-model",
+          "title": "5A Governed capability model",
+          "detail": "Governed capability model is active and being consolidated around explicit contracts.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p5b-worker-role-definitions",
+          "title": "5B Worker role definitions",
+          "detail": "Worker role definitions are active and tied to explicit delegation boundaries.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p5c-coding-worker-capability-pack",
+          "title": "5C Coding worker capability pack",
+          "detail": "Coding-worker capability pack is partially underway with governed execution constraints.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p5d-research-worker",
+          "title": "5D Research worker",
+          "detail": "Research-worker lane remains planned and sparse.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p5e-browser-automation-worker",
+          "title": "5E Browser automation worker",
+          "detail": "Browser-automation worker lane remains planned and not a primary active stream.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p5f-protocol-boundary-direction",
+          "title": "5F Protocol boundary direction",
+          "detail": "Protocol-boundary direction remains planned for later hardening.",
+          "status": "pending",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-6",
+      "title": "Phase 6 — Operator Interface and Product Surfaces",
+      "summary": "Phase 6 is partially implemented and expanded in v3.0 to include archive UI, notification center, push channels, and onboarding experience.",
+      "status": "active",
+      "steps": [
+        {
+          "id": "p6a-home-landing-interface-identity",
+          "title": "6A Home / landing / interface identity",
+          "detail": "Interface identity direction remains active with operator-first constraints.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p6b-runtime-task-overview",
+          "title": "6B Runtime Task Overview",
+          "detail": "Runtime Task Overview remains active with ledger-style operational visibility.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p6c-task-board-work-orchestration-view",
+          "title": "6C Task Board / Work Orchestration View",
+          "detail": "Task Board orchestration view remains active for assignment visibility and handoffs.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p6d-task-detail-workspace",
+          "title": "6D Task detail workspace",
+          "detail": "Task-detail workspace patterns remain active and partially implemented.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p6e-agent-management",
+          "title": "6E Agent Management",
+          "detail": "Agent-management surface remains planned with selective baseline pieces.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p6f-system-health",
+          "title": "6F System Health",
+          "detail": "System-health surface remains planned for broader operator diagnostics.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p6g-analytics",
+          "title": "6G Analytics",
+          "detail": "Analytics surface remains partially implemented and is expected to include real cost analytics at MVP gate.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p6h-approval-queue-surface",
+          "title": "6H Approval queue surface",
+          "detail": "Approval queue surface is active and tied to governed execution workflows.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p6i-audit-action-history-framing",
+          "title": "6I Audit / action history framing",
+          "detail": "Audit/action-history framing remains active with runtime-ledger alignment.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p6j-conversation-search-and-archive",
+          "title": "6J Conversation Search & Archive",
+          "detail": "Conversation search and archive UI is tracked as an explicit v3.0 expansion lane.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p6k-notification-center",
+          "title": "6K Notification Center",
+          "detail": "Notification center surface is tracked as partially implemented expansion work.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p6l-push-notification-channels",
+          "title": "6L Push Notification Channels",
+          "detail": "Push channel integration is tracked as planned and not yet complete.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p6m-onboarding-experience",
+          "title": "6M Onboarding Experience",
+          "detail": "Onboarding flow and first-run guidance are tracked as planned with real interaction requirements.",
+          "status": "pending",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-7",
+      "title": "Phase 7 — Governed Execution, Approvals, Followthrough, MVP Finish",
+      "summary": "Phase 7 is the active delivery zone and now explicitly carries write-ahead followthrough, rollback/undo, event sourcing, notification integration, and multi-user schema preparation.",
+      "status": "active",
+      "steps": [
+        {
+          "id": "p7a-delegation-visibility",
+          "title": "7A Delegation visibility",
+          "detail": "Delegation visibility remains a first-class operational requirement.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p7b-approval-system",
+          "title": "7B Approval system",
+          "detail": "Approval-system behavior remains active with decision and unblock flow hardening.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p7c-governed-followthrough",
+          "title": "7C Governed followthrough",
+          "detail": "Governed followthrough remains active, with v3.0 reliability sub-lanes kept explicit.",
+          "status": "active",
+          "active_workers": [],
+          "substeps": [
+            {
+              "id": "p7c-ii-write-ahead-pattern",
+              "title": "7C-ii Write-Ahead Pattern",
+              "detail": "Write-ahead followthrough pattern is tracked as active architecture-sensitive work.",
+              "status": "active",
+              "active_workers": []
+            },
+            {
+              "id": "p7c-iii-rollback-undo-capability",
+              "title": "7C-iii Rollback / Undo Capability",
+              "detail": "Rollback/undo capability across code, DB, and artifacts is tracked as active and not yet closed.",
+              "status": "active",
+              "active_workers": []
+            }
+          ]
+        },
+        {
+          "id": "p7d-audit-trails",
+          "title": "7D Audit trails",
+          "detail": "Audit-trail continuity remains active as the operator trust backbone.",
+          "status": "active",
+          "active_workers": [],
+          "substeps": [
+            {
+              "id": "p7d-ii-event-sourcing-layer",
+              "title": "7D-ii Event Sourcing Layer",
+              "detail": "Event-sourcing layer centered on ghost_events is tracked as active architecture work.",
+              "status": "active",
+              "active_workers": []
+            }
+          ]
+        },
+        {
+          "id": "p7e-baseline-guardrails",
+          "title": "7E Baseline guardrails",
+          "detail": "Baseline guardrails remain active and continue tightening under governance constraints.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p7f-pre-mvp-observability-baseline",
+          "title": "7F Pre-MVP observability baseline",
+          "detail": "Pre-MVP observability baseline remains active with operator-facing signal quality improvements.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p7g-mvp-v3-gate",
+          "title": "7G MVP v3.0 Gate (17-item)",
+          "detail": "v3.0 MVP gate criteria are tracked explicitly. Gate note: schema migration system must be in place, and runtime business logic must live in version-controlled source files with unit tests.",
+          "status": "active",
+          "active_workers": [],
+          "substeps": [
+            {
+              "id": "p7g-gate-01-ghost-main-owner-delegation",
+              "title": "Gate 01 — Ghost Main owns conversations and delegates through governed path",
+              "detail": "Conversation ownership and governed delegation are required for MVP closure.",
+              "status": "active",
+              "active_workers": []
+            },
+            {
+              "id": "p7g-gate-02-forge-probe-scout-real-work",
+              "title": "Gate 02 — Forge, Probe, Scout complete real delegated work",
+              "detail": "At least three workers must complete real delegated tasks through visible task lanes.",
+              "status": "pending",
+              "active_workers": []
+            },
+            {
+              "id": "p7g-gate-03-runtime-5-subworkflows-source-files",
+              "title": "Gate 03 — Runtime decomposed into 5 sub-workflows with testable source files",
+              "detail": "Runtime decomposition and source extraction are required and currently tracked as active architecture work.",
+              "status": "active",
+              "active_workers": []
+            },
+            {
+              "id": "p7g-gate-04-redis-queue-bus-cache",
+              "title": "Gate 04 — Redis active as delegation queue, event bus, and capability cache",
+              "detail": "Redis activation is required and remains an active architecture lane.",
+              "status": "active",
+              "active_workers": []
+            },
+            {
+              "id": "p7g-gate-05-circuit-breaker-all-providers",
+              "title": "Gate 05 — Circuit breaker active on all model providers",
+              "detail": "Circuit-breaker behavior must be present across providers and remains active work.",
+              "status": "active",
+              "active_workers": []
+            },
+            {
+              "id": "p7g-gate-06-task-board-accurate-state-transitions",
+              "title": "Gate 06 — Tasks visible in Task Board with accurate state transitions",
+              "detail": "Task Board state transitions must reflect real delegated lifecycle truth.",
+              "status": "active",
+              "active_workers": []
+            },
+            {
+              "id": "p7g-gate-07-structured-memory-and-search-operational",
+              "title": "Gate 07 — Structured memory active and conversation search operational",
+              "detail": "Structured memory is active; conversation search operationalization remains tracked as active expansion work.",
+              "status": "active",
+              "active_workers": []
+            },
+            {
+              "id": "p7g-gate-08-operator-surfaces-real-data-cost-analytics",
+              "title": "Gate 08 — Operator surfaces function with real data including cost analytics",
+              "detail": "Operator surfaces must show real runtime data and cost analytics rather than placeholders.",
+              "status": "pending",
+              "active_workers": []
+            },
+            {
+              "id": "p7g-gate-09-approval-blocks-destructive-records-decisions",
+              "title": "Gate 09 — Approval system blocks destructive actions and records decisions",
+              "detail": "Approval controls must enforce destructive-action blocking with durable decision records.",
+              "status": "active",
+              "active_workers": []
+            },
+            {
+              "id": "p7g-gate-10-followthrough-write-ahead-full-loop",
+              "title": "Gate 10 — Followthrough executor completes full loop with write-ahead pattern",
+              "detail": "Followthrough executor + write-ahead loop closure remains active architecture-sensitive work.",
+              "status": "active",
+              "active_workers": []
+            },
+            {
+              "id": "p7g-gate-11-rollback-code-db-artifact",
+              "title": "Gate 11 — Rollback capability available for code/DB/artifact reversal",
+              "detail": "Rollback/undo across code, database, and artifact layers remains active and not yet closed.",
+              "status": "active",
+              "active_workers": []
+            },
+            {
+              "id": "p7g-gate-12-ghost-events-audit-backbone",
+              "title": "Gate 12 — ghost_events event sourcing is the audit backbone",
+              "detail": "ghost_events-backed event sourcing must anchor audit truth and remains active work.",
+              "status": "active",
+              "active_workers": []
+            },
+            {
+              "id": "p7g-gate-13-guardrails-interface-baseline-rules",
+              "title": "Gate 13 — Guardrails interface defined with baseline rules",
+              "detail": "Guardrails interface and baseline governance rules must be concretely defined.",
+              "status": "pending",
+              "active_workers": []
+            },
+            {
+              "id": "p7g-gate-14-notifications-ui-and-push-channel",
+              "title": "Gate 14 — Notification system delivers UI + at least one push channel",
+              "detail": "Notification center plus at least one push channel are required for gate closure.",
+              "status": "pending",
+              "active_workers": []
+            },
+            {
+              "id": "p7g-gate-15-multi-user-columns-present-not-activated",
+              "title": "Gate 15 — Multi-user schema columns present but not activated",
+              "detail": "Schema preparation for multi-user must be present without enabling full activation yet.",
+              "status": "active",
+              "active_workers": []
+            },
+            {
+              "id": "p7g-gate-16-onboarding-real-interactions",
+              "title": "Gate 16 — Onboarding flow exists with real interactions",
+              "detail": "Onboarding flow must be implemented with real user interactions.",
+              "status": "pending",
+              "active_workers": []
+            },
+            {
+              "id": "p7g-gate-17-governance-architecture-review-documented",
+              "title": "Gate 17 — Governance architecture review documented",
+              "detail": "Governance architecture review outcomes must be documented and reviewable.",
+              "status": "pending",
+              "active_workers": []
+            }
+          ]
+        },
+        {
+          "id": "p7h-notification-integration",
+          "title": "7H Notification Integration",
+          "detail": "Notification integration across runtime and operator surfaces is tracked as active v3.0 delivery scope.",
+          "status": "active",
+          "active_workers": []
+        },
+        {
+          "id": "p7i-multi-user-schema-preparation",
+          "title": "7I Multi-User Schema Preparation",
+          "detail": "Multi-user schema preparation is active without claiming production activation.",
+          "status": "active",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-8",
+      "title": "Phase 8 — Adaptive Operations",
+      "summary": "Phase 8 remains planned post-MVP and now explicitly includes proactive behaviors, voice interface, operator meta-observability, and mobile/PWA presence.",
+      "status": "pending",
+      "steps": [
+        {
+          "id": "p8a-wrapper-first-instrumentation",
+          "title": "8A Wrapper-first instrumentation",
+          "detail": "Planned wrapper-first instrumentation lane for adaptive operations.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8b-trace-eval-substrate",
+          "title": "8B Trace and eval substrate",
+          "detail": "Planned trace/eval substrate for data-driven adaptation.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8c-profiler-driven-workflow-optimization",
+          "title": "8C Profiler-driven workflow optimization",
+          "detail": "Planned profiler-led workflow optimization lane.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8d-adaptive-routing-assignment",
+          "title": "8D Adaptive routing and assignment",
+          "detail": "Planned adaptive routing/assignment capabilities beyond MVP.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8e-project-workspace-awareness-proactive-behaviors",
+          "title": "8E Project/Workspace Awareness + Proactive Behaviors",
+          "detail": "Planned expansion for deeper project/workspace awareness with proactive behavior loops.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8f-voice-interface",
+          "title": "8F Voice Interface",
+          "detail": "Planned voice interface lane for post-MVP adaptive operations.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8g-simulation-scenario-testing",
+          "title": "8G Simulation / scenario testing",
+          "detail": "Planned simulation/scenario testing lane for safer adaptation.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8h-operator-copiloting",
+          "title": "8H Operator copiloting",
+          "detail": "Planned operator-copiloting improvements in post-MVP phase.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8i-governance-strengthening-architecture-review",
+          "title": "8I Governance strengthening and architecture review",
+          "detail": "Planned governance-strengthening checkpoint and architecture review gate.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8j-operator-meta-observability",
+          "title": "8J Operator Meta-Observability",
+          "detail": "Planned meta-observability lane for operator-level visibility over adaptation behavior.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p8k-mobile-presence-pwa",
+          "title": "8K Mobile Presence / PWA",
+          "detail": "Planned mobile/PWA presence lane for post-MVP operator access.",
+          "status": "pending",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-9",
+      "title": "Phase 9 — Domain Expansion Under Governance",
+      "summary": "Phase 9 remains planned and now explicitly includes multi-user activation under household governance and child-safety context controls.",
+      "status": "pending",
+      "steps": [
+        {
+          "id": "p9a-build-domain",
+          "title": "9A Build domain",
+          "detail": "Planned domain lane for build-oriented governed capabilities.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p9b-study-education-domain",
+          "title": "9B Study / Education domain",
+          "detail": "Planned study/education domain lane under governance.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p9c-finance-domain",
+          "title": "9C Finance domain",
+          "detail": "Planned finance-analysis domain lane with conservative governance constraints.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p9d-home-domain",
+          "title": "9D Home domain",
+          "detail": "Planned home domain lane where Home Assistant remains the control boundary.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p9e-permissions-risk-tiers",
+          "title": "9E Permissions and risk tiers",
+          "detail": "Planned permissions/risk-tier model for safe domain expansion.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p9g-multi-user-activation",
+          "title": "9G Multi-User Activation",
+          "detail": "Planned multi-user activation lane including household profile boundaries and child-safety context handling.",
+          "status": "pending",
+          "active_workers": []
+        }
+      ]
+    },
+    {
+      "id": "phase-10",
+      "title": "Phase 10 — Platform Maturity, Standards, and Ecosystem Layer",
+      "summary": "Long-range maturity phase focused on standards, ecosystem growth, and platform-level governance quality.",
+      "status": "pending",
+      "steps": [
+        {
+          "id": "p10a-standards-first-interfaces",
+          "title": "10A Standards-first interfaces",
+          "detail": "Planned standards-first interfaces for durable platform interoperability.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p10b-observability-maturity",
+          "title": "10B Observability maturity",
+          "detail": "Planned observability maturity lane for deeper operational confidence.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p10c-guardrails-as-a-system",
+          "title": "10C Guardrails as a system",
+          "detail": "Planned systemic guardrails lane beyond baseline policy gates.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p10d-capability-ecosystem-growth",
+          "title": "10D Capability ecosystem growth",
+          "detail": "Planned ecosystem growth lane for reusable governed capabilities.",
+          "status": "pending",
+          "active_workers": []
+        },
+        {
+          "id": "p10e-broader-governed-capability-platform",
+          "title": "10E Broader governed capability platform",
+          "detail": "Planned long-range lane for broader governed platform operation across capability layers.",
+          "status": "pending",
+          "active_workers": []
+        }
+      ]
+    }
+  ],
+  "recent_activity": [
+    {
+      "time": "2026-03-15T00:06:56Z",
+      "worker": "Claude",
+      "status": "done",
+      "step_id": "p2e-schema-migration-strategy",
+      "note": "Architecture closure audit complete. Reconciliation doc created at docs/reviews/v3-architecture-closure-audit.md. All 8 scoped steps assessed. Tier 0 recommendation: 2E migration runner, 3E-ii src/runtime scaffold, 7D-ii ghost_events migration — all safe to start immediately with no dependencies."
+    },
+    {
+      "time": "2026-03-15T00:50:00Z",
+      "worker": "Operator",
+      "status": "review",
+      "step_id": "p3e-runtime-decomposition",
+      "note": "Tracker reconciled to v3.0 canon; architecture-sensitive runtime decomposition lanes remain active without completion claims"
+    },
+    {
+      "time": "2026-03-15T00:42:00Z",
+      "worker": "Ghost Main",
+      "status": "review",
+      "step_id": "p7g-mvp-v3-gate",
+      "note": "MVP checklist replaced with the v3.0 17-item gate plus migration/testing gate note"
+    },
+    {
+      "time": "2026-03-15T00:34:00Z",
+      "worker": "Operator",
+      "status": "working",
+      "step_id": "p2e-schema-migration-strategy",
+      "note": "Schema migration strategy remains an explicit active load-bearing item"
+    }
+  ]
+}

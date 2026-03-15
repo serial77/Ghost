@@ -39,6 +39,8 @@ app/ui/tsconfig.tsbuildinfo
 
 # Backups / exports / dumps
 *.sql
+!db/migrations/*.sql
+!scripts/init-ghost-app.sql
 *.dump
 *.sqlite
 *.sqlite3
