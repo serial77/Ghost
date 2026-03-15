@@ -2,7 +2,7 @@
   "project": {
     "name": "Ghost Build Tracker",
     "schema_version": "1.0",
-    "last_updated": "2026-03-15T05:34:22Z",
+    "last_updated": "2026-03-15T05:38:30Z",
     "current_focus": "Architecture-sensitive queue: 2E migration strategy; 3C-ii/3E/3E-ii/3F runtime load; 7C-ii/7C-iii/7D-ii followthrough reliability"
   },
   "core_framing": {
@@ -106,8 +106,8 @@
         "name": "Claude",
         "lane": "implementation",
         "status": "assigned",
-        "summary": "TASK-008 started — supervised extraction of Ghost_Memory sub-workflow with two checkpoints (no p4f step-id exists in tracker; using p3e-runtime-decomposition as closest match)",
-        "updated_at": "2026-03-15T05:34:22Z",
+        "summary": "TASK-008 Checkpoint 1 ready — Ghost_Memory extracted (ID: u7omvbq1Lkn7We5F), parent calls sub-workflow, behavior equivalent, CI green (run 23104297034)",
+        "updated_at": "2026-03-15T05:38:30Z",
         "assigned_phase_id": "phase-3",
         "assigned_step_id": "p3e-runtime-decomposition",
         "note": "Current live assignment on TASK-004.",
