@@ -106,12 +106,13 @@
         "name": "Claude",
         "lane": "implementation",
         "status": "assigned",
-        "summary": "TASK-008 Checkpoint 1 ready — Ghost_Memory extracted (ID: u7omvbq1Lkn7We5F), parent calls sub-workflow, behavior equivalent, CI green (run 23104297034)",
-        "updated_at": "2026-03-15T05:38:30Z",
-        "assigned_phase_id": "phase-3",
-        "assigned_step_id": "p3e-runtime-decomposition",
+        "summary": "TASK-008 Checkpoint 1 ready \u2014 Ghost_Memory extracted (ID: u7omvbq1Lkn7We5F), parent calls sub-workflow, behavior equivalent, CI green (run 23104297034)",
+        "updated_at": "2026-03-15T07:05:00Z",
+        "assigned_phase_id": "phase-4",
+        "assigned_step_id": "p4b-shared-context-source-of-truth-layer",
         "note": "Current live assignment on TASK-004.",
-        "branch": "phase4/4F-ghost-memory-subworkflow"
+        "branch": "phase4/4F-ghost-memory-subworkflow",
+        "task": "TASK-008 Phase C: structured Extract\u2192Consolidate\u2192Store pipeline (memory.ts + memories table)"
       },
       {
         "name": "Codex",
@@ -125,7 +126,7 @@
   "phases": [
     {
       "id": "phase-1",
-      "title": "Phase 1 — Foundation Lab",
+      "title": "Phase 1 \u2014 Foundation Lab",
       "summary": "Foundation lab baseline remains established across compute/runtime benching, early service bring-up, and first toy workflow loops.",
       "status": "complete",
       "steps": [
@@ -168,7 +169,7 @@
     },
     {
       "id": "phase-2",
-      "title": "Phase 2 — Core System of Record and Service Topology",
+      "title": "Phase 2 \u2014 Core System of Record and Service Topology",
       "summary": "Phase 2 remains established, while 2E schema migration strategy is explicitly tracked as an active load-bearing architectural lane.",
       "status": "complete",
       "steps": [
@@ -211,7 +212,7 @@
     },
     {
       "id": "phase-3",
-      "title": "Phase 3 — Orchestration Core and Runtime Discipline",
+      "title": "Phase 3 \u2014 Orchestration Core and Runtime Discipline",
       "summary": "Phase 3 is substantially complete, but v3.0 reopens major architectural load-bearing work around async delegation, circuit breaking, runtime decomposition, source extraction, and Redis activation.",
       "status": "active",
       "steps": [
@@ -295,7 +296,7 @@
     },
     {
       "id": "phase-4",
-      "title": "Phase 4 — Memory and Shared Context Plane",
+      "title": "Phase 4 \u2014 Memory and Shared Context Plane",
       "summary": "Phase 4 is emerging: structured memory baseline is active, with v3.0 expansion toward tsvector + pgvector conversation search and retrieval augmentation.",
       "status": "active",
       "steps": [
@@ -338,7 +339,7 @@
     },
     {
       "id": "phase-5",
-      "title": "Phase 5 — Capability Model and Specialist Workers",
+      "title": "Phase 5 \u2014 Capability Model and Specialist Workers",
       "summary": "Phase 5 is partially underway: capability contracts and specialist worker definitions are active, while deeper packs remain staged.",
       "status": "active",
       "steps": [
@@ -388,7 +389,7 @@
     },
     {
       "id": "phase-6",
-      "title": "Phase 6 — Operator Interface and Product Surfaces",
+      "title": "Phase 6 \u2014 Operator Interface and Product Surfaces",
       "summary": "Phase 6 is partially implemented and expanded in v3.0 to include archive UI, notification center, push channels, and onboarding experience.",
       "status": "active",
       "steps": [
@@ -487,7 +488,7 @@
     },
     {
       "id": "phase-7",
-      "title": "Phase 7 — Governed Execution, Approvals, Followthrough, MVP Finish",
+      "title": "Phase 7 \u2014 Governed Execution, Approvals, Followthrough, MVP Finish",
       "summary": "Phase 7 is the active delivery zone and now explicitly carries write-ahead followthrough, rollback/undo, event sourcing, notification integration, and multi-user schema preparation.",
       "status": "active",
       "steps": [
@@ -567,119 +568,119 @@
           "substeps": [
             {
               "id": "p7g-gate-01-ghost-main-owner-delegation",
-              "title": "Gate 01 — Ghost Main owns conversations and delegates through governed path",
+              "title": "Gate 01 \u2014 Ghost Main owns conversations and delegates through governed path",
               "detail": "Conversation ownership and governed delegation are required for MVP closure.",
               "status": "active",
               "active_workers": []
             },
             {
               "id": "p7g-gate-02-forge-probe-scout-real-work",
-              "title": "Gate 02 — Forge, Probe, Scout complete real delegated work",
+              "title": "Gate 02 \u2014 Forge, Probe, Scout complete real delegated work",
               "detail": "At least three workers must complete real delegated tasks through visible task lanes.",
               "status": "pending",
               "active_workers": []
             },
             {
               "id": "p7g-gate-03-runtime-5-subworkflows-source-files",
-              "title": "Gate 03 — Runtime decomposed into 5 sub-workflows with testable source files",
+              "title": "Gate 03 \u2014 Runtime decomposed into 5 sub-workflows with testable source files",
               "detail": "Runtime decomposition and source extraction are required and currently tracked as active architecture work.",
               "status": "active",
               "active_workers": []
             },
             {
               "id": "p7g-gate-04-redis-queue-bus-cache",
-              "title": "Gate 04 — Redis active as delegation queue, event bus, and capability cache",
+              "title": "Gate 04 \u2014 Redis active as delegation queue, event bus, and capability cache",
               "detail": "Redis activation is required and remains an active architecture lane.",
               "status": "active",
               "active_workers": []
             },
             {
               "id": "p7g-gate-05-circuit-breaker-all-providers",
-              "title": "Gate 05 — Circuit breaker active on all model providers",
+              "title": "Gate 05 \u2014 Circuit breaker active on all model providers",
               "detail": "Circuit-breaker behavior must be present across providers and remains active work.",
               "status": "active",
               "active_workers": []
             },
             {
               "id": "p7g-gate-06-task-board-accurate-state-transitions",
-              "title": "Gate 06 — Tasks visible in Task Board with accurate state transitions",
+              "title": "Gate 06 \u2014 Tasks visible in Task Board with accurate state transitions",
               "detail": "Task Board state transitions must reflect real delegated lifecycle truth.",
               "status": "active",
               "active_workers": []
             },
             {
               "id": "p7g-gate-07-structured-memory-and-search-operational",
-              "title": "Gate 07 — Structured memory active and conversation search operational",
+              "title": "Gate 07 \u2014 Structured memory active and conversation search operational",
               "detail": "Structured memory is active; conversation search operationalization remains tracked as active expansion work.",
               "status": "active",
               "active_workers": []
             },
             {
               "id": "p7g-gate-08-operator-surfaces-real-data-cost-analytics",
-              "title": "Gate 08 — Operator surfaces function with real data including cost analytics",
+              "title": "Gate 08 \u2014 Operator surfaces function with real data including cost analytics",
               "detail": "Operator surfaces must show real runtime data and cost analytics rather than placeholders.",
               "status": "pending",
               "active_workers": []
             },
             {
               "id": "p7g-gate-09-approval-blocks-destructive-records-decisions",
-              "title": "Gate 09 — Approval system blocks destructive actions and records decisions",
+              "title": "Gate 09 \u2014 Approval system blocks destructive actions and records decisions",
               "detail": "Approval controls must enforce destructive-action blocking with durable decision records.",
               "status": "active",
               "active_workers": []
             },
             {
               "id": "p7g-gate-10-followthrough-write-ahead-full-loop",
-              "title": "Gate 10 — Followthrough executor completes full loop with write-ahead pattern",
+              "title": "Gate 10 \u2014 Followthrough executor completes full loop with write-ahead pattern",
               "detail": "Followthrough executor + write-ahead loop closure remains active architecture-sensitive work.",
               "status": "active",
               "active_workers": []
             },
             {
               "id": "p7g-gate-11-rollback-code-db-artifact",
-              "title": "Gate 11 — Rollback capability available for code/DB/artifact reversal",
+              "title": "Gate 11 \u2014 Rollback capability available for code/DB/artifact reversal",
               "detail": "Rollback/undo across code, database, and artifact layers remains active and not yet closed.",
               "status": "active",
               "active_workers": []
             },
             {
               "id": "p7g-gate-12-ghost-events-audit-backbone",
-              "title": "Gate 12 — ghost_events event sourcing is the audit backbone",
+              "title": "Gate 12 \u2014 ghost_events event sourcing is the audit backbone",
               "detail": "ghost_events-backed event sourcing must anchor audit truth and remains active work.",
               "status": "active",
               "active_workers": []
             },
             {
               "id": "p7g-gate-13-guardrails-interface-baseline-rules",
-              "title": "Gate 13 — Guardrails interface defined with baseline rules",
+              "title": "Gate 13 \u2014 Guardrails interface defined with baseline rules",
               "detail": "Guardrails interface and baseline governance rules must be concretely defined.",
               "status": "pending",
               "active_workers": []
             },
             {
               "id": "p7g-gate-14-notifications-ui-and-push-channel",
-              "title": "Gate 14 — Notification system delivers UI + at least one push channel",
+              "title": "Gate 14 \u2014 Notification system delivers UI + at least one push channel",
               "detail": "Notification center plus at least one push channel are required for gate closure.",
               "status": "pending",
               "active_workers": []
             },
             {
               "id": "p7g-gate-15-multi-user-columns-present-not-activated",
-              "title": "Gate 15 — Multi-user schema columns present but not activated",
+              "title": "Gate 15 \u2014 Multi-user schema columns present but not activated",
               "detail": "Schema preparation for multi-user must be present without enabling full activation yet.",
               "status": "active",
               "active_workers": []
             },
             {
               "id": "p7g-gate-16-onboarding-real-interactions",
-              "title": "Gate 16 — Onboarding flow exists with real interactions",
+              "title": "Gate 16 \u2014 Onboarding flow exists with real interactions",
               "detail": "Onboarding flow must be implemented with real user interactions.",
               "status": "pending",
               "active_workers": []
             },
             {
               "id": "p7g-gate-17-governance-architecture-review-documented",
-              "title": "Gate 17 — Governance architecture review documented",
+              "title": "Gate 17 \u2014 Governance architecture review documented",
               "detail": "Governance architecture review outcomes must be documented and reviewable.",
               "status": "pending",
               "active_workers": []
@@ -704,7 +705,7 @@
     },
     {
       "id": "phase-8",
-      "title": "Phase 8 — Adaptive Operations",
+      "title": "Phase 8 \u2014 Adaptive Operations",
       "summary": "Phase 8 remains planned post-MVP and now explicitly includes proactive behaviors, voice interface, operator meta-observability, and mobile/PWA presence.",
       "status": "pending",
       "steps": [
@@ -789,7 +790,7 @@
     },
     {
       "id": "phase-9",
-      "title": "Phase 9 — Domain Expansion Under Governance",
+      "title": "Phase 9 \u2014 Domain Expansion Under Governance",
       "summary": "Phase 9 remains planned and now explicitly includes multi-user activation under household governance and child-safety context controls.",
       "status": "pending",
       "steps": [
@@ -839,7 +840,7 @@
     },
     {
       "id": "phase-10",
-      "title": "Phase 10 — Platform Maturity, Standards, and Ecosystem Layer",
+      "title": "Phase 10 \u2014 Platform Maturity, Standards, and Ecosystem Layer",
       "summary": "Long-range maturity phase focused on standards, ecosystem growth, and platform-level governance quality.",
       "status": "pending",
       "steps": [
@@ -883,6 +884,12 @@
   ],
   "recent_activity": [
     {
+      "step_id": "p4b-shared-context-source-of-truth-layer",
+      "description": "TASK-008 Phase C: src/runtime/memory.ts extracted, db/migrations/008 created, Ghost_Memory upgraded to structured pipeline, 57 new tests (194 total passing)",
+      "timestamp": "2026-03-15T07:05:00Z",
+      "status": "checkpoint_2_pending_review"
+    },
+    {
       "time": "2026-03-15T00:50:00Z",
       "worker": "Operator",
       "status": "review",
@@ -908,7 +915,7 @@
       "worker": "Claude",
       "status": "done",
       "step_id": "p2e-schema-migration-strategy",
-      "note": "Architecture closure audit complete. Reconciliation doc created at docs/reviews/v3-architecture-closure-audit.md. All 8 scoped steps assessed. Tier 0 recommendation: 2E migration runner, 3E-ii src/runtime scaffold, 7D-ii ghost_events migration — all safe to start immediately with no dependencies."
+      "note": "Architecture closure audit complete. Reconciliation doc created at docs/reviews/v3-architecture-closure-audit.md. All 8 scoped steps assessed. Tier 0 recommendation: 2E migration runner, 3E-ii src/runtime scaffold, 7D-ii ghost_events migration \u2014 all safe to start immediately with no dependencies."
     }
   ]
 }

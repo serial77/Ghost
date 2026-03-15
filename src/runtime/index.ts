@@ -34,6 +34,26 @@ export {
 } from './approval.js';
 export type { RiskFinding, RiskLevel, RiskDetectionResult, GovernancePolicy } from './approval.js';
 
+// memory.ts
+export {
+  shouldExtractMemory,
+  buildExtractionPrompt,
+  parseMemoryCandidates,
+  consolidateMemories,
+  buildMemoryWriteRows,
+} from './memory.js';
+export type {
+  MemoryScope,
+  MemoryType,
+  MemoryStatus,
+  MemoryContext,
+  ShouldExtractResult,
+  MemoryCandidate,
+  MemoryWriteRow,
+  ParseResult,
+  ConsolidationResult,
+} from './memory.js';
+
 // delegation.ts
 export {
   WORKER_RUNTIME,
