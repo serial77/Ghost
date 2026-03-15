@@ -117,7 +117,7 @@ def validate_tracker_data(data: Any, schema: dict[str, Any]) -> tuple[list[str],
             add_error(path, "worker marker must be an object")
             return
 
-        allowed = {"name", "status", "task", "branch", "updated_at"}
+        allowed = {"name", "status", "task", "task_title", "branch", "updated_at"}
         check_allowed_keys(worker, allowed, path)
 
         require_non_empty_string(worker, "name", path)
@@ -134,6 +134,9 @@ def validate_tracker_data(data: Any, schema: dict[str, Any]) -> tuple[list[str],
 
         if "branch" in worker and (not isinstance(worker["branch"], str) or not worker["branch"].strip()):
             add_error(path, "'branch' must be a non-empty string when provided")
+
+        if "task_title" in worker and (not isinstance(worker["task_title"], str) or not worker["task_title"].strip()):
+            add_error(path, "'task_title' must be a non-empty string when provided")
 
         if "updated_at" in worker:
             updated_at = worker.get("updated_at")
@@ -255,6 +258,7 @@ def validate_tracker_data(data: Any, schema: dict[str, Any]) -> tuple[list[str],
             "assigned_phase_id",
             "assigned_step_id",
             "summary",
+            "task_title",
             "note",
             "branch",
             "blocking_on",
@@ -302,6 +306,8 @@ def validate_tracker_data(data: Any, schema: dict[str, Any]) -> tuple[list[str],
 
         if "note" in entry and (not isinstance(entry["note"], str) or not entry["note"].strip()):
             add_error(path, "'note' must be a non-empty string when provided")
+        if "task_title" in entry and (not isinstance(entry["task_title"], str) or not entry["task_title"].strip()):
+            add_error(path, "'task_title' must be a non-empty string when provided")
         if "branch" in entry and (not isinstance(entry["branch"], str) or not entry["branch"].strip()):
             add_error(path, "'branch' must be a non-empty string when provided")
         if "blocking_on" in entry and (not isinstance(entry["blocking_on"], str) or not entry["blocking_on"].strip()):
@@ -470,7 +476,7 @@ def validate_tracker_data(data: Any, schema: dict[str, Any]) -> tuple[list[str],
             add_error(path, "activity entry must be an object")
             continue
 
-        allowed = {"time", "worker", "status", "step_id", "note"}
+        allowed = {"time", "worker", "status", "step_id", "task_title", "note"}
         check_allowed_keys(entry, allowed, path)
 
         timestamp = require_non_empty_string(entry, "time", path)
@@ -478,6 +484,11 @@ def validate_tracker_data(data: Any, schema: dict[str, Any]) -> tuple[list[str],
         worker_status = require_non_empty_string(entry, "status", path)
         step_id = require_non_empty_string(entry, "step_id", path)
         note = require_non_empty_string(entry, "note", path)
+
+        if "task_title" in entry:
+            task_title = entry.get("task_title")
+            if not isinstance(task_title, str) or not task_title.strip():
+                add_error(path, "'task_title' must be a non-empty string when provided")
 
         _ = worker_name, note
 

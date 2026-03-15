@@ -194,6 +194,10 @@
           "type": "string",
           "minLength": 1
         },
+        "task_title": {
+          "type": "string",
+          "minLength": 1
+        },
         "note": {
           "type": "string",
           "minLength": 1
@@ -276,6 +280,10 @@
           "$ref": "#/$defs/workerStatus"
         },
         "task": {
+          "type": "string",
+          "minLength": 1
+        },
+        "task_title": {
           "type": "string",
           "minLength": 1
         },
@@ -414,6 +422,10 @@
           "$ref": "#/$defs/entityId"
         },
         "note": {
+          "type": "string",
+          "minLength": 1
+        },
+        "task_title": {
           "type": "string",
           "minLength": 1
         }
