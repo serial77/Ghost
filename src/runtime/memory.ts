@@ -23,8 +23,8 @@ export type MemoryCategory =
   | 'environment_fact'
   | 'operational_note'
   | 'conversation_summary';
-export type MemoryTier = 'working' | 'long_term' | 'semantic';
-export type MemoryStatus = 'active' | 'superseded' | 'archived';
+export type MemoryTier = 'working' | 'long_term' | 'episodic';
+export type MemoryStatus = 'active' | 'superseded' | 'conflicted' | 'archived';
 export type MemorySourceType =
   | 'llm_extraction'
   | 'heuristic_fallback'

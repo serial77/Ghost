@@ -2,7 +2,7 @@
   "project": {
     "name": "Ghost Build Tracker",
     "schema_version": "1.0",
-    "last_updated": "2026-03-15T05:38:30Z",
+    "last_updated": "2026-03-15T07:14:00Z",
     "current_focus": "Architecture-sensitive queue: 2E migration strategy; 3C-ii/3E/3E-ii/3F runtime load; 7C-ii/7C-iii/7D-ii followthrough reliability"
   },
   "core_framing": {
@@ -105,14 +105,13 @@
       {
         "name": "Claude",
         "lane": "implementation",
-        "status": "assigned",
-        "summary": "TASK-008 Checkpoint 1 ready \u2014 Ghost_Memory extracted (ID: u7omvbq1Lkn7We5F), parent calls sub-workflow, behavior equivalent, CI green (run 23104297034)",
-        "updated_at": "2026-03-15T07:05:00Z",
+        "status": "standby",
+        "summary": "TASK-008 Phase C complete: memory.ts + memories migration + Ghost_Memory pipeline upgrade. Stopped at Checkpoint 2 awaiting operator approval.",
+        "updated_at": "2026-03-15T07:14:00Z",
         "assigned_phase_id": "phase-4",
         "assigned_step_id": "p4b-shared-context-source-of-truth-layer",
         "note": "Current live assignment on TASK-004.",
-        "branch": "phase4/4F-ghost-memory-subworkflow",
-        "task": "TASK-008 Phase C: structured Extract\u2192Consolidate\u2192Store pipeline (memory.ts + memories table)"
+        "branch": "phase4/4F-ghost-memory-subworkflow"
       },
       {
         "name": "Codex",
@@ -884,10 +883,11 @@
   ],
   "recent_activity": [
     {
+      "time": "2026-03-15T07:14:00Z",
+      "worker": "Claude",
+      "status": "review",
       "step_id": "p4b-shared-context-source-of-truth-layer",
-      "description": "TASK-008 Phase C: src/runtime/memory.ts extracted, db/migrations/008 created, Ghost_Memory upgraded to structured pipeline, 57 new tests (194 total passing)",
-      "timestamp": "2026-03-15T07:05:00Z",
-      "status": "checkpoint_2_pending_review"
+      "note": "TASK-008 Phase C: memory.ts, 008 migration, Ghost_Memory structured pipeline. Checkpoint 2 correction applied (schema + API alignment). 201 tests green."
     },
     {
       "time": "2026-03-15T00:50:00Z",

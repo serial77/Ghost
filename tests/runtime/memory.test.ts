@@ -578,6 +578,49 @@ describe('consolidateMemories — priority ordering', () => {
   });
 });
 
+// ─── schema taxonomy guards ───────────────────────────────────────────────────
+
+describe('memories schema taxonomy', () => {
+  it('memory_tier uses working | long_term | episodic (not semantic)', () => {
+    // Verify SCOPE_TO_TIER never produces the retired 'semantic' value
+    const scopes: Array<[string, string]> = [
+      ['global', 'long_term'],
+      ['conversation', 'working'],
+      ['task', 'working'],
+    ];
+    for (const [scope, expectedTier] of scopes) {
+      const rows = storeMemories(
+        [{
+          scope: scope as import('../../src/runtime/memory.js').MemoryScope,
+          memory_type: 'decision',
+          title: '',
+          summary: 'A sufficiently long summary text to pass filters.',
+          details_json: {},
+          importance: 3,
+        }],
+        { task_class: 'chat' },
+      );
+      expect(rows[0].memory_tier).toBe(expectedTier);
+      expect(rows[0].memory_tier).not.toBe('semantic');
+    }
+  });
+
+  it('storeMemories always emits status=active (conflicted/superseded set by DB)', () => {
+    const rows = storeMemories(
+      [{
+        scope: 'global',
+        memory_type: 'decision',
+        title: '',
+        summary: 'Use Postgres for all structured data storage.',
+        details_json: {},
+        importance: 4,
+      }],
+      { task_class: 'chat' },
+    );
+    expect(rows[0].status).toBe('active');
+  });
+});
+
 // ─── storeMemories ────────────────────────────────────────────────────────────
 
 describe('storeMemories — approved schema mapping', () => {

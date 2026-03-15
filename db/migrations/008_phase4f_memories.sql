@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS memories (
   last_accessed     TIMESTAMPTZ   NULL,
 
   CONSTRAINT memories_tier_check
-    CHECK (memory_tier IN ('working', 'long_term', 'semantic')),
+    CHECK (memory_tier IN ('working', 'long_term', 'episodic')),
   CONSTRAINT memories_category_check
     CHECK (category IN (
       'task_summary', 'decision', 'environment_fact',
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS memories (
   CONSTRAINT memories_confidence_check
     CHECK (confidence BETWEEN 0.00 AND 1.00),
   CONSTRAINT memories_status_check
-    CHECK (status IN ('active', 'superseded', 'archived')),
+    CHECK (status IN ('active', 'superseded', 'conflicted', 'archived')),
   CONSTRAINT memories_source_type_check
     CHECK (source_type IN (
       'llm_extraction', 'heuristic_fallback', 'operator_direct', 'system'
