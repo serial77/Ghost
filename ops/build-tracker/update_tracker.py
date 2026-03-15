@@ -143,6 +143,7 @@ def run() -> int:
     add_activity.add_argument("--status", required=True, help="Worker status")
     add_activity.add_argument("--step-id", required=True, help="Target step/substep id")
     add_activity.add_argument("--note", required=True, help="Activity note")
+    add_activity.add_argument("--task-title", help="Optional explicit task label (e.g. TASK-004 — Extract ...)")
     add_activity.add_argument("--time", help="ISO-8601 UTC timestamp")
     add_activity.add_argument("--append", action="store_true", help="Append to end instead of prepending")
     add_activity.add_argument("--current-focus", help="Optional project.current_focus update")
@@ -153,6 +154,7 @@ def run() -> int:
     position_upsert.add_argument("--lane", help="Lane/type label (required when creating new position)")
     position_upsert.add_argument("--status", help="Worker position status (required when creating new position)")
     position_upsert.add_argument("--summary", help="Short assignment summary (required when creating new position)")
+    position_upsert.add_argument("--task-title", help="Optional explicit task label (e.g. TASK-004 — Extract ...)")
     position_upsert.add_argument("--phase-id", help="Optional assigned phase id")
     position_upsert.add_argument("--step-id", help="Optional assigned step/substep id")
     position_upsert.add_argument("--clear-assignment", action="store_true", help="Clear assigned phase/step fields")
@@ -317,6 +319,11 @@ def run() -> int:
                 "note": args.note,
             }
 
+            if args.task_title is not None:
+                task_title = args.task_title.strip()
+                if task_title:
+                    entry["task_title"] = task_title
+
             activity = updated.get("recent_activity")
             if activity is None:
                 activity = []
@@ -360,6 +367,9 @@ def run() -> int:
             resolved_lane = args.lane or (existing_entry.get("lane") if isinstance(existing_entry.get("lane"), str) else None)
             resolved_status = args.status or (existing_entry.get("status") if isinstance(existing_entry.get("status"), str) else None)
             resolved_summary = args.summary or (existing_entry.get("summary") if isinstance(existing_entry.get("summary"), str) else None)
+            resolved_task_title = args.task_title
+            if resolved_task_title is None and isinstance(existing_entry.get("task_title"), str):
+                resolved_task_title = existing_entry.get("task_title")
 
             if not resolved_lane or not str(resolved_lane).strip():
                 raise ValueError("--lane is required when creating a new position")
@@ -431,6 +441,12 @@ def run() -> int:
                 "summary": resolved_summary,
                 "updated_at": position_timestamp,
             }
+
+            if resolved_task_title is not None:
+                task_title = str(resolved_task_title).strip()
+                if task_title:
+                    payload["task_title"] = task_title
+
             if assigned_phase_id:
                 payload["assigned_phase_id"] = assigned_phase_id
             if assigned_step_id:

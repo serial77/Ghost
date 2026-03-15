@@ -16,6 +16,7 @@
 
         --complete: #22c55e;
         --active: #3b82f6;
+        --active-live: #facc15;
         --pending: #94a3b8;
         --blocked: #ef4444;
         --frozen: #8b5cf6;
@@ -80,11 +81,18 @@
       }
 
       .worker-positions {
-        margin: 0 0 12px;
+        margin: 0;
         border: 1px solid var(--border);
         border-radius: 12px;
         background: var(--panel-soft);
         padding: 10px 12px;
+      }
+
+      .live-oversight {
+        margin: 0 0 12px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
       }
 
       .worker-positions-title {
@@ -226,8 +234,8 @@
       }
 
       .status-active {
-        color: var(--active);
-        border-color: color-mix(in srgb, var(--active) 52%, transparent);
+        color: var(--active-live);
+        border-color: color-mix(in srgb, var(--active-live) 52%, transparent);
       }
 
       .status-pending {
@@ -337,7 +345,7 @@
       }
 
       .phase-status-active {
-        border-color: color-mix(in srgb, var(--active) 45%, var(--border));
+        border-color: color-mix(in srgb, var(--active-live) 45%, var(--border));
       }
 
       .phase-status-blocked {
@@ -345,10 +353,11 @@
       }
 
       .phase-live summary {
-        background: color-mix(in srgb, var(--active) 9%, var(--panel));
+        background: color-mix(in srgb, var(--active-live) 9%, var(--panel));
       }
 
-      .phase-status-complete summary {
+      .phase-status-complete summary,
+      .phase-status-completed summary {
         background: color-mix(in srgb, var(--complete) 4%, var(--panel));
       }
 
@@ -412,29 +421,42 @@
       }
 
       .worker-pill {
-        font-size: 10px;
+        font-size: 11px;
+        font-weight: 760;
         border-radius: 999px;
-        border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
-        padding: 2px 8px;
-        background: color-mix(in srgb, #ffffff 2%, transparent);
-        color: var(--muted-strong);
+        border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+        padding: 4px 12px;
+        background: color-mix(in srgb, var(--panel) 82%, #ffffff 6%);
+        color: var(--text);
         line-height: 1.35;
+        letter-spacing: 0.01em;
+        box-shadow:
+          inset 0 0 0 1px color-mix(in srgb, #ffffff 8%, transparent),
+          0 0 0 1px color-mix(in srgb, #000 22%, transparent);
         white-space: nowrap;
       }
 
       .worker-pill-active {
-        color: var(--active);
-        border-color: color-mix(in srgb, var(--active) 50%, transparent);
+        color: color-mix(in srgb, #ffffff 96%, var(--complete) 4%);
+        border-color: color-mix(in srgb, var(--complete) 78%, transparent);
+        background: color-mix(in srgb, var(--complete) 34%, var(--panel));
+        box-shadow:
+          inset 0 0 0 1px color-mix(in srgb, var(--complete) 52%, transparent),
+          0 0 14px color-mix(in srgb, var(--complete) 36%, transparent);
       }
 
       .worker-pill-last {
-        color: var(--muted-strong);
-        border-color: color-mix(in srgb, var(--pending) 55%, transparent);
+        color: color-mix(in srgb, #ffffff 92%, var(--frozen) 8%);
+        border-color: color-mix(in srgb, var(--frozen) 74%, transparent);
+        background: color-mix(in srgb, var(--frozen) 30%, var(--panel));
+        box-shadow:
+          inset 0 0 0 1px color-mix(in srgb, var(--frozen) 34%, transparent),
+          0 0 10px color-mix(in srgb, var(--frozen) 34%, transparent);
       }
 
       .step-active {
-        border-left-color: color-mix(in srgb, var(--active) 80%, transparent);
-        background: color-mix(in srgb, var(--active) 8%, transparent);
+        border-left-color: color-mix(in srgb, var(--active-live) 72%, transparent);
+        background: color-mix(in srgb, var(--active-live) 8%, transparent);
       }
 
       .step-blocked {
@@ -442,8 +464,16 @@
         background: color-mix(in srgb, var(--blocked) 7%, transparent);
       }
 
-      .step-complete .step-detail {
+      .step-complete .step-detail,
+      .step-completed .step-detail {
         color: color-mix(in srgb, var(--muted) 92%, transparent);
+      }
+
+      .step-assignment-detail {
+        margin: 6px 0 0;
+        font-size: 11px;
+        color: var(--muted-strong);
+        line-height: 1.4;
       }
 
       .substep-list {
@@ -457,7 +487,7 @@
       }
 
       .activity {
-        margin: 0 0 12px;
+        margin: 0;
         border: 1px solid var(--border);
         border-radius: 12px;
         background: var(--panel-soft);
@@ -509,6 +539,11 @@
         color: var(--text);
       }
 
+      .activity-task-title {
+        font-size: 11px;
+        color: var(--muted-strong);
+      }
+
       .activity-location {
         font-size: 11px;
         color: var(--muted);
@@ -525,6 +560,10 @@
       }
 
       @media (max-width: 760px) {
+        .live-oversight {
+          grid-template-columns: 1fr;
+        }
+
         .meta {
           text-align: left;
         }
@@ -554,18 +593,20 @@
 
       <div class="focus" id="project-focus">Current focus: -</div>
 
-      <section class="activity" id="activity-panel" hidden>
-        <h2 class="activity-title">Recent activity (latest first)</h2>
-        <ul class="activity-list" id="activity-list"></ul>
-      </section>
+      <section class="live-oversight">
+        <section class="activity" id="activity-panel" hidden>
+          <h2 class="activity-title">Recent activity (latest first)</h2>
+          <ul class="activity-list" id="activity-list"></ul>
+        </section>
 
-      <section class="worker-positions" id="worker-positions-panel" hidden>
-        <h2 class="worker-positions-title">Implementation worker positions</h2>
-        <div class="worker-position-group worker-position-group-external">
-          <h3 class="worker-position-group-title">Active coordination</h3>
-          <p class="worker-position-group-subtitle">Claude / Copilot / Codex</p>
-          <ul class="worker-position-list" id="external-worker-positions"></ul>
-        </div>
+        <section class="worker-positions" id="worker-positions-panel" hidden>
+          <h2 class="worker-positions-title">Implementation worker positions</h2>
+          <div class="worker-position-group worker-position-group-external">
+            <h3 class="worker-position-group-title">Active coordination</h3>
+            <p class="worker-position-group-subtitle">Claude / Copilot / Codex</p>
+            <ul class="worker-position-list" id="external-worker-positions"></ul>
+          </div>
+        </section>
       </section>
 
       <div class="phase-controls" id="phase-controls">
@@ -582,6 +623,7 @@
 
     <script>
       let controlsBound = false;
+      const IMPLEMENTATION_WORKERS = new Set(["claude", "copilot", "codex"]);
 
       function element(tag, className, text) {
         const node = document.createElement(tag);
@@ -590,8 +632,74 @@
         return node;
       }
 
+      function normalizeWorkerName(name) {
+        return String(name || "").trim();
+      }
+
+      function workerKey(name) {
+        return normalizeWorkerName(name).toLowerCase();
+      }
+
+      function workerLabel(name) {
+        return normalizeWorkerName(name).toUpperCase();
+      }
+
+      function isImplementationWorker(name) {
+        return IMPLEMENTATION_WORKERS.has(workerKey(name));
+      }
+
       function normalizeStatus(status) {
         return String(status || "pending").trim().toLowerCase();
+      }
+
+      function normalizeTaskTitle(value) {
+        return String(value || "").replace(/\s+/g, " ").trim();
+      }
+
+      function pickTaskTitle(...candidates) {
+        for (const candidate of candidates) {
+          const normalized = normalizeTaskTitle(candidate);
+          if (normalized) return normalized;
+        }
+        return "";
+      }
+
+      function resolveExecutionTaskTitle(workerOrEntry = {}, stepTitle = "") {
+        if (!workerOrEntry || typeof workerOrEntry !== "object") {
+          return pickTaskTitle(stepTitle || "");
+        }
+
+        return pickTaskTitle(
+          workerOrEntry.task_title || "",
+          workerOrEntry.current_task_title || "",
+          workerOrEntry.assigned_task_title || "",
+          workerOrEntry.task || "",
+          workerOrEntry.summary || "",
+          workerOrEntry.note || "",
+          stepTitle || ""
+        );
+      }
+
+      function buildWorkerPresenceText(workerName, stateLabel, taskTitle = "") {
+        const base = `${workerLabel(workerName)} ${stateLabel}`;
+        const resolvedTaskTitle = normalizeTaskTitle(taskTitle);
+        return resolvedTaskTitle ? `${base} — ${resolvedTaskTitle}` : base;
+      }
+
+      function isWorkerActivelyWorking(status) {
+        const normalized = normalizeStatus(status);
+        return (
+          normalized === "working" ||
+          normalized === "active" ||
+          normalized === "assigned" ||
+          normalized === "in_progress" ||
+          normalized === "in-progress"
+        );
+      }
+
+      function isCompletionStatus(status) {
+        const normalized = normalizeStatus(status);
+        return normalized === "complete" || normalized === "completed" || normalized === "done";
       }
 
       function statusClass(status) {
@@ -602,13 +710,16 @@
             return "status-complete";
           case "active":
           case "working":
-          case "review":
-          case "assigned":
+          case "in_progress":
+          case "in-progress":
             return "status-active";
           case "pending":
           case "waiting":
           case "pending_assignment":
           case "standby":
+          case "available":
+          case "assigned":
+          case "review":
             return "status-pending";
           case "blocked":
             return "status-blocked";
@@ -620,55 +731,91 @@
         }
       }
 
+      function normalizeBadgeStatus(status) {
+        const normalized = normalizeStatus(status);
+        if (isCompletionStatus(normalized)) return "completed";
+        if (isWorkerActivelyWorking(normalized)) return "active";
+        if (normalized === "blocked") return "blocked";
+        if (normalized === "frozen" || normalized === "unavailable") return "frozen";
+        return "pending";
+      }
+
       function makeStatusBadge(status) {
-        return element("span", `status-badge ${statusClass(status)}`, status || "pending");
+        const label = normalizeBadgeStatus(status);
+        return element("span", `status-badge ${statusClass(label)}`, label);
       }
 
-      function stepIsLive(step) {
-        if (!step || typeof step !== "object") return false;
+      function getEffectiveStepStatus(step, activeWorkerIndex = new Map()) {
+        if (!step || typeof step !== "object") return "pending";
+
+        const stepId = step.id || "";
+        const activeWorkers = stepId ? activeWorkerIndex.get(stepId) || [] : [];
+        if (activeWorkers.length) return "active";
+
         const status = normalizeStatus(step.status);
-        if (status === "active" || status === "blocked") return true;
-
-        const workers = Array.isArray(step.active_workers) ? step.active_workers : [];
-        return workers.some((worker) => {
-          if (!worker || typeof worker !== "object") return false;
-          const workerStatus = normalizeStatus(worker.status);
-          return workerStatus === "working" || workerStatus === "blocked" || workerStatus === "review";
-        });
+        if (isCompletionStatus(status)) return "completed";
+        if (status === "blocked") return "blocked";
+        if (status === "frozen" || status === "unavailable") return "frozen";
+        return "pending";
       }
 
-      function phaseHasLivePath(phase) {
-        const steps = Array.isArray(phase.steps) ? phase.steps : [];
-        for (const step of steps) {
-          if (stepIsLive(step)) return true;
-          const substeps = Array.isArray(step.substeps) ? step.substeps : [];
-          if (substeps.some((substep) => stepIsLive(substep))) return true;
-        }
-        return false;
-      }
-
-      function shouldOpenPhaseByDefault(phase) {
-        const phaseStatus = normalizeStatus(phase.status);
-        if (phaseStatus === "active" || phaseStatus === "blocked") return true;
-        if (phaseHasLivePath(phase)) return true;
-        return false;
-      }
-
-      function summarizePhaseItems(phase) {
-        const steps = Array.isArray(phase.steps) ? phase.steps : [];
+      function collectPhaseItems(phase) {
+        const steps = Array.isArray(phase && phase.steps) ? phase.steps : [];
         const allItems = [];
+
         for (const step of steps) {
           allItems.push(step);
           const substeps = Array.isArray(step.substeps) ? step.substeps : [];
           allItems.push(...substeps);
         }
 
+        return allItems;
+      }
+
+      function derivePhaseStatus(phase, activeWorkerIndex = new Map()) {
+        const effectiveStatuses = collectPhaseItems(phase).map((item) => getEffectiveStepStatus(item, activeWorkerIndex));
+
+        if (effectiveStatuses.includes("active")) return "active";
+        if (effectiveStatuses.includes("blocked")) return "blocked";
+        if (effectiveStatuses.length > 0 && effectiveStatuses.every((status) => status === "completed")) {
+          return "completed";
+        }
+
+        const raw = normalizeStatus(phase && phase.status);
+        if (isCompletionStatus(raw) && !effectiveStatuses.length) return "completed";
+        if (raw === "blocked") return "blocked";
+        if (raw === "frozen" || raw === "unavailable") return "frozen";
+        return "pending";
+      }
+
+      function stepHasActiveAssignment(stepId, activeWorkerIndex = new Map()) {
+        if (!stepId) return false;
+        const assignedWorkers = activeWorkerIndex.get(stepId) || [];
+        return assignedWorkers.length > 0;
+      }
+
+      function phaseHasActiveAssignments(phase, activeWorkerIndex = new Map()) {
+        const steps = Array.isArray(phase.steps) ? phase.steps : [];
+        for (const step of steps) {
+          if (stepHasActiveAssignment(step.id || "", activeWorkerIndex)) return true;
+          const substeps = Array.isArray(step.substeps) ? step.substeps : [];
+          if (substeps.some((substep) => stepHasActiveAssignment(substep.id || "", activeWorkerIndex))) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function shouldOpenPhaseByDefault(phase, activeWorkerIndex = new Map()) {
+        return phaseHasActiveAssignments(phase, activeWorkerIndex);
+      }
+
+      function summarizePhaseItems(phase, activeWorkerIndex = new Map()) {
+        const allItems = collectPhaseItems(phase);
         const total = allItems.length;
-        const activeOrBlocked = allItems.filter((item) => {
-          const status = normalizeStatus(item && item.status);
-          return status === "active" || status === "blocked";
-        }).length;
-        const blocked = allItems.filter((item) => normalizeStatus(item && item.status) === "blocked").length;
+        const effectiveStatuses = allItems.map((item) => getEffectiveStepStatus(item, activeWorkerIndex));
+        const activeOrBlocked = effectiveStatuses.filter((status) => status === "active" || status === "blocked").length;
+        const blocked = effectiveStatuses.filter((status) => status === "blocked").length;
 
         return { total, activeOrBlocked, blocked };
       }
@@ -690,34 +837,216 @@
         return element("span", `worker-pill${variant ? ` worker-pill-${variant}` : ""}`, text);
       }
 
-      function buildLastAssociatedWorkerIndex(activityItems) {
-        const latest = new Map();
-        if (!Array.isArray(activityItems)) {
-          return latest;
-        }
+      function mapPositionStatusToActivityStatus(status) {
+        const normalized = normalizeStatus(status);
+        if (isWorkerActivelyWorking(normalized)) return "working";
+        if (normalized === "blocked") return "blocked";
+        if (isCompletionStatus(normalized)) return "done";
+        if (normalized === "review") return "review";
+        return "waiting";
+      }
 
-        const sorted = [...activityItems]
-          .filter((entry) => entry && typeof entry === "object" && entry.step_id)
-          .sort((a, b) => {
-            const left = Date.parse(a.time || "") || 0;
-            const right = Date.parse(b.time || "") || 0;
-            return right - left;
+      function buildImplementationActivityFeed(recentActivity, workerPositions) {
+        const feed = [];
+
+        const activityItems = Array.isArray(recentActivity) ? recentActivity : [];
+        activityItems.forEach((entry) => {
+          if (!entry || typeof entry !== "object") return;
+          if (!isImplementationWorker(entry.worker || "")) return;
+
+          feed.push({
+            time: entry.time || "",
+            worker: entry.worker || "Worker",
+            status: entry.status || "waiting",
+            step_id: entry.step_id || "",
+            task_title: pickTaskTitle(entry.task_title || "", entry.task || ""),
+            note: entry.note || ""
+          });
+        });
+
+        const externalWorkers = Array.isArray(workerPositions && workerPositions.external_implementation_workers)
+          ? workerPositions.external_implementation_workers
+          : [];
+
+        externalWorkers.forEach((position) => {
+          if (!position || typeof position !== "object") return;
+          if (!isImplementationWorker(position.name || "")) return;
+          if (!position.updated_at) return;
+
+          feed.push({
+            time: position.updated_at || "",
+            worker: position.name || "Worker",
+            status: mapPositionStatusToActivityStatus(position.status || "pending"),
+            step_id: position.assigned_step_id || "",
+            task_title: pickTaskTitle(
+              position.task_title || "",
+              position.current_task_title || "",
+              position.assigned_task_title || ""
+            ),
+            note: position.summary || position.note || ""
+          });
+        });
+
+        const deduped = [];
+        const seen = new Set();
+        feed.forEach((entry) => {
+          const key = [entry.time, workerKey(entry.worker), entry.step_id || "", normalizeStatus(entry.status), entry.task_title, entry.note].join("|");
+          if (seen.has(key)) return;
+          seen.add(key);
+          deduped.push(entry);
+        });
+
+        return deduped.sort((a, b) => {
+          const left = Date.parse(a.time || "") || 0;
+          const right = Date.parse(b.time || "") || 0;
+          return right - left;
+        });
+      }
+
+      function pushStepWorker(index, stepId, worker) {
+        if (!stepId || !worker || !worker.name) return;
+        if (!isImplementationWorker(worker.name)) return;
+
+        const bucket = index.get(stepId) || [];
+        if (bucket.some((entry) => workerKey(entry.name) === workerKey(worker.name))) return;
+
+        bucket.push(worker);
+        index.set(stepId, bucket);
+      }
+
+      function buildActiveWorkerIndex(phases, workerPositions) {
+        const activeByStep = new Map();
+
+        const externalWorkers = Array.isArray(workerPositions && workerPositions.external_implementation_workers)
+          ? workerPositions.external_implementation_workers
+          : [];
+
+        externalWorkers.forEach((position) => {
+          if (!position || typeof position !== "object") return;
+          if (!position.assigned_step_id) return;
+          if (!isWorkerActivelyWorking(position.status)) return;
+
+          pushStepWorker(activeByStep, position.assigned_step_id, {
+            name: position.name || "Worker",
+            status: position.status || "working",
+            task_title: pickTaskTitle(
+              position.task_title || "",
+              position.current_task_title || "",
+              position.assigned_task_title || ""
+            ),
+            current_task_title: position.current_task_title || "",
+            assigned_task_title: position.assigned_task_title || "",
+            summary: position.summary || "",
+            note: position.note || "",
+            task: "",
+            updated_at: position.updated_at || ""
+          });
+        });
+
+        const visitStep = (step) => {
+          if (!step || typeof step !== "object") return;
+
+          const workers = Array.isArray(step.active_workers) ? step.active_workers : [];
+          workers.forEach((worker) => {
+            if (!worker || typeof worker !== "object") return;
+            if (!isWorkerActivelyWorking(worker.status)) return;
+
+            pushStepWorker(activeByStep, step.id || "", {
+              name: worker.name || "Worker",
+              status: worker.status || "working",
+              task_title: pickTaskTitle(worker.task_title || "", worker.task || ""),
+              summary: "",
+              note: "",
+              task: worker.task || "",
+              updated_at: worker.updated_at || ""
+            });
           });
 
-        sorted.forEach((entry) => {
-          if (latest.has(entry.step_id)) return;
-          latest.set(entry.step_id, {
-            worker: entry.worker || "Worker",
-            status: entry.status || "pending",
-            time: entry.time || ""
+          const substeps = Array.isArray(step.substeps) ? step.substeps : [];
+          substeps.forEach((substep) => visitStep(substep));
+        };
+
+        const phaseList = Array.isArray(phases) ? phases : [];
+        phaseList.forEach((phase) => {
+          const steps = Array.isArray(phase.steps) ? phase.steps : [];
+          steps.forEach((step) => visitStep(step));
+        });
+
+        return activeByStep;
+      }
+
+      function buildLastAssociatedWorkerIndex(activityItems, workerPositions) {
+        const latest = new Map();
+
+        if (Array.isArray(activityItems)) {
+          const sorted = [...activityItems]
+            .filter(
+              (entry) =>
+                entry &&
+                typeof entry === "object" &&
+                entry.step_id &&
+                isImplementationWorker(entry.worker || "")
+            )
+            .sort((a, b) => {
+              const left = Date.parse(a.time || "") || 0;
+              const right = Date.parse(b.time || "") || 0;
+              return right - left;
+            });
+
+          sorted.forEach((entry) => {
+            if (latest.has(entry.step_id)) return;
+            latest.set(entry.step_id, {
+              worker: entry.worker || "Worker",
+              status: entry.status || "pending",
+              time: entry.time || "",
+              task_title: pickTaskTitle(entry.task_title || "", entry.task || ""),
+              current_task_title: "",
+              assigned_task_title: "",
+              summary: "",
+              note: entry.note || ""
+            });
+          });
+        }
+
+        const externalWorkers = Array.isArray(workerPositions && workerPositions.external_implementation_workers)
+          ? workerPositions.external_implementation_workers
+          : [];
+
+        externalWorkers.forEach((position) => {
+          if (!position || typeof position !== "object") return;
+          if (!position.assigned_step_id || latest.has(position.assigned_step_id)) return;
+          if (!isImplementationWorker(position.name || "")) return;
+
+          const normalized = normalizeStatus(position.status);
+          if (isWorkerActivelyWorking(normalized)) return;
+          if (!(isCompletionStatus(normalized) || normalized === "review")) return;
+
+          latest.set(position.assigned_step_id, {
+            worker: position.name || "Worker",
+            status: position.status || "completed",
+            time: position.updated_at || "",
+            task_title: pickTaskTitle(
+              position.task_title || "",
+              position.current_task_title || "",
+              position.assigned_task_title || ""
+            ),
+            current_task_title: position.current_task_title || "",
+            assigned_task_title: position.assigned_task_title || "",
+            summary: position.summary || "",
+            note: position.summary || position.note || ""
           });
         });
 
         return latest;
       }
 
-      function renderStep(step, isSubstep = false, lastAssociatedWorkerIndex = new Map()) {
-        const status = normalizeStatus(step.status);
+      function renderStep(
+        step,
+        isSubstep = false,
+        lastAssociatedWorkerIndex = new Map(),
+        activeWorkerIndex = new Map()
+      ) {
+        const status = getEffectiveStepStatus(step, activeWorkerIndex);
         const item = element("li", `step step-${status}${isSubstep ? " substep" : ""}`);
         item.dataset.stepId = step.id || "";
 
@@ -728,23 +1057,38 @@
           element("span", "id-chip", step.id || "step")
         );
 
-        row.append(main, makeStatusBadge(step.status || "pending"));
+        row.append(main, makeStatusBadge(status));
         item.append(row);
 
-        const workers = Array.isArray(step.active_workers) ? step.active_workers : [];
+        const activeWorkers = step.id ? activeWorkerIndex.get(step.id) || [] : [];
         const workerPills = element("div", "worker-pills");
-        workers.forEach((worker) => {
-          const name = worker && worker.name ? worker.name : "Worker";
-          workerPills.append(makeWorkerPill(`Active: ${name}`, "active"));
-        });
 
-        const lastAssociated = step.id ? lastAssociatedWorkerIndex.get(step.id) : null;
-        if (lastAssociated && lastAssociated.worker) {
-          workerPills.append(makeWorkerPill(`Last: ${lastAssociated.worker}`, "last"));
+        if (activeWorkers.length) {
+          activeWorkers.forEach((worker) => {
+            const taskTitle = resolveExecutionTaskTitle(worker, step.title || "");
+            workerPills.append(makeWorkerPill(buildWorkerPresenceText(worker.name, "IS WORKING HERE", taskTitle), "active"));
+          });
+        } else {
+          const lastAssociated = step.id ? lastAssociatedWorkerIndex.get(step.id) : null;
+          if (lastAssociated && lastAssociated.worker) {
+            const taskTitle = resolveExecutionTaskTitle(lastAssociated, step.title || "");
+            workerPills.append(
+              makeWorkerPill(buildWorkerPresenceText(lastAssociated.worker, "LAST WORKED HERE", taskTitle), "last")
+            );
+          }
         }
 
         if (workerPills.childElementCount) {
           item.append(workerPills);
+        }
+
+        if (activeWorkers.length) {
+          const assignmentDetail = activeWorkers
+            .map((worker) => resolveExecutionTaskTitle(worker, step.title || ""))
+            .find(Boolean);
+          if (assignmentDetail) {
+            item.append(element("p", "step-assignment-detail", `Executing now: ${assignmentDetail}`));
+          }
         }
 
         if (step.detail) {
@@ -753,17 +1097,19 @@
 
         if (Array.isArray(step.substeps) && step.substeps.length) {
           const subList = element("ul", "substep-list");
-          step.substeps.forEach((substep) => subList.append(renderStep(substep, true, lastAssociatedWorkerIndex)));
+          step.substeps.forEach((substep) =>
+            subList.append(renderStep(substep, true, lastAssociatedWorkerIndex, activeWorkerIndex))
+          );
           item.append(subList);
         }
 
         return item;
       }
 
-      function renderPhase(phase, lastAssociatedWorkerIndex = new Map()) {
-        const phaseStatus = normalizeStatus(phase.status || "pending");
-        const defaultOpen = shouldOpenPhaseByDefault(phase);
-        const stats = summarizePhaseItems(phase);
+      function renderPhase(phase, lastAssociatedWorkerIndex = new Map(), activeWorkerIndex = new Map()) {
+        const phaseStatus = derivePhaseStatus(phase, activeWorkerIndex);
+        const defaultOpen = shouldOpenPhaseByDefault(phase, activeWorkerIndex);
+        const stats = summarizePhaseItems(phase, activeWorkerIndex);
 
         const wrapper = element("li", "phase-item");
         const details = element(
@@ -797,7 +1143,7 @@
         head.append(element("p", "phase-meta", metaBits.join(" · ")));
 
         const right = element("div", "phase-right");
-        right.append(makeStatusBadge(phase.status || "pending"), element("span", "phase-caret", "▶"));
+        right.append(makeStatusBadge(phaseStatus), element("span", "phase-caret", "▶"));
 
         summary.append(head, right);
         details.append(summary);
@@ -805,7 +1151,7 @@
         const content = element("div", "phase-content");
         const stepList = element("ul", "step-list");
         const steps = Array.isArray(phase.steps) ? phase.steps : [];
-        steps.forEach((step) => stepList.append(renderStep(step, false, lastAssociatedWorkerIndex)));
+        steps.forEach((step) => stepList.append(renderStep(step, false, lastAssociatedWorkerIndex, activeWorkerIndex)));
         content.append(stepList);
         details.append(content);
 
@@ -839,6 +1185,7 @@
       function renderActivity(activityItems, stepIndex) {
         const panel = document.getElementById("activity-panel");
         const list = document.getElementById("activity-list");
+        const defaultLimit = 6;
         list.innerHTML = "";
 
         if (!Array.isArray(activityItems) || !activityItems.length) {
@@ -846,7 +1193,13 @@
           return;
         }
 
-        activityItems.slice(0, 10).forEach((entry) => {
+        const sorted = [...activityItems].sort((a, b) => {
+          const left = Date.parse((a && a.time) || "") || 0;
+          const right = Date.parse((b && b.time) || "") || 0;
+          return right - left;
+        });
+
+        sorted.slice(0, defaultLimit).forEach((entry) => {
           const item = element("li", "activity-item");
           const time = element("div", "activity-time", entry.time || "");
 
@@ -858,10 +1211,14 @@
           );
 
           const note = element("div", "activity-note", entry.note || "");
+          const taskTitle = normalizeTaskTitle(entry.task_title || "");
+          const taskTitleLine = taskTitle ? element("div", "activity-task-title", `Task: ${taskTitle}`) : null;
           const locationName = entry.step_id ? stepIndex.get(entry.step_id) || entry.step_id : "";
           const location = element("div", "activity-location", locationName ? `Location: ${locationName}` : "");
 
-          body.append(top, note);
+          body.append(top);
+          if (taskTitleLine) body.append(taskTitleLine);
+          if (entry.note) body.append(note);
           if (locationName) body.append(location);
 
           item.append(time, body);
@@ -924,7 +1281,9 @@
           ? workerPositions.external_implementation_workers
           : [];
 
-        external.forEach((position) => externalList.append(renderWorkerPositionItem(position, stepIndex)));
+        const implementationWorkers = external.filter((position) => isImplementationWorker(position && position.name));
+
+        implementationWorkers.forEach((position) => externalList.append(renderWorkerPositionItem(position, stepIndex)));
 
         panel.hidden = !externalList.childElementCount;
       }
@@ -955,20 +1314,23 @@
         const project = data.project || {};
         const phases = Array.isArray(data.phases) ? data.phases : [];
         const recentActivity = Array.isArray(data.recent_activity) ? data.recent_activity : [];
+        const workerPositions = data.worker_positions || null;
+        const implementationRecentActivity = buildImplementationActivityFeed(recentActivity, workerPositions);
         const stepIndex = buildStepIndex(phases);
-        const lastAssociatedWorkerIndex = buildLastAssociatedWorkerIndex(recentActivity);
+        const activeWorkerIndex = buildActiveWorkerIndex(phases, workerPositions);
+        const lastAssociatedWorkerIndex = buildLastAssociatedWorkerIndex(implementationRecentActivity, workerPositions);
 
         document.getElementById("project-name").textContent = project.name || "Ghost Build Tracker";
         document.getElementById("project-updated").textContent = `Last updated: ${project.last_updated || "-"}`;
         document.getElementById("project-counts").textContent = `Phases: ${phases.length}`;
         document.getElementById("project-schema").textContent = `Schema: ${project.schema_version || "-"}`;
         document.getElementById("project-focus").textContent = `Current focus: ${project.current_focus || "-"}`;
-        renderActivity(recentActivity, stepIndex);
-        renderWorkerPositions(data.worker_positions || null, stepIndex);
+        renderActivity(implementationRecentActivity, stepIndex);
+        renderWorkerPositions(workerPositions, stepIndex);
 
         const tree = document.getElementById("phase-tree");
         tree.innerHTML = "";
-        phases.forEach((phase) => tree.append(renderPhase(phase, lastAssociatedWorkerIndex)));
+        phases.forEach((phase) => tree.append(renderPhase(phase, lastAssociatedWorkerIndex, activeWorkerIndex)));
 
         bindPhaseControls();
       }

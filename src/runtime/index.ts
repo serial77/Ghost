@@ -21,3 +21,30 @@ export type {
   OpenAIConfig,
   CodexConfig,
 } from './config.js';
+
+// router.ts
+export { selectRoute } from './router.js';
+export type { RouterConfig, RouteOverrides, RouteResult } from './router.js';
+
+// approval.ts
+export {
+  APPROVAL_CONFIG,
+  detectRiskLevel,
+  assessApprovalRisk,
+} from './approval.js';
+export type { RiskFinding, RiskLevel, RiskDetectionResult, GovernancePolicy } from './approval.js';
+
+// delegation.ts
+export {
+  WORKER_RUNTIME,
+  DELEGATION_REQUIRED_CAPABILITIES,
+  buildDelegationRequest,
+  resolveWorkerByIntent,
+} from './delegation.js';
+export type {
+  WorkerDefinition,
+  DelegationContext,
+  WorkerConfig,
+  WorkerGovernancePolicy,
+  DelegationResult,
+} from './delegation.js';

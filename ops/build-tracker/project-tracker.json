@@ -2,7 +2,7 @@
   "project": {
     "name": "Ghost Build Tracker",
     "schema_version": "1.0",
-    "last_updated": "2026-03-15T01:31:24Z",
+    "last_updated": "2026-03-15T03:15:00Z",
     "current_focus": "Architecture-sensitive queue: 2E migration strategy; 3C-ii/3E/3E-ii/3F runtime load; 7C-ii/7C-iii/7D-ii followthrough reliability"
   },
   "core_framing": {
@@ -105,13 +105,14 @@
       {
         "name": "Claude",
         "lane": "implementation",
-        "status": "completed",
-        "summary": "TASK-002 completed — src/runtime scaffolded, classifier/config extracted with tests, bind mount verified, containers can access /opt/ghost/src/runtime. TASK-004/TASK-005 foundation ready.",
-        "updated_at": "2026-03-15T01:31:24Z",
+        "status": "assigned",
+        "summary": "TASK-004 in progress — extracting router.ts + approval.ts + delegation.ts.",
+        "task_title": "TASK-004 — Extract router.ts + approval.ts + delegation.ts",
+        "updated_at": "2026-03-15T03:15:00Z",
         "assigned_phase_id": "phase-3",
         "assigned_step_id": "p3e-ii-extract-business-logic-to-source-files",
-        "note": "Conducting full repo/runtime reality reconciliation against v3 canonical docs",
-        "branch": "phase3/3E-scaffold"
+        "note": "Current live assignment on TASK-004.",
+        "branch": "phase3/3E-extract-remaining"
       },
       {
         "name": "Codex",
@@ -883,13 +884,6 @@
   ],
   "recent_activity": [
     {
-      "time": "2026-03-15T00:06:56Z",
-      "worker": "Claude",
-      "status": "done",
-      "step_id": "p2e-schema-migration-strategy",
-      "note": "Architecture closure audit complete. Reconciliation doc created at docs/reviews/v3-architecture-closure-audit.md. All 8 scoped steps assessed. Tier 0 recommendation: 2E migration runner, 3E-ii src/runtime scaffold, 7D-ii ghost_events migration — all safe to start immediately with no dependencies."
-    },
-    {
       "time": "2026-03-15T00:50:00Z",
       "worker": "Operator",
       "status": "review",
@@ -909,6 +903,14 @@
       "status": "working",
       "step_id": "p2e-schema-migration-strategy",
       "note": "Schema migration strategy remains an explicit active load-bearing item"
+    },
+    {
+      "time": "2026-03-15T00:06:56Z",
+      "worker": "Claude",
+      "status": "done",
+      "step_id": "p2e-schema-migration-strategy",
+      "task_title": "Architecture closure audit reconciliation",
+      "note": "Architecture closure audit complete. Reconciliation doc created at docs/reviews/v3-architecture-closure-audit.md. All 8 scoped steps assessed. Tier 0 recommendation: 2E migration runner, 3E-ii src/runtime scaffold, 7D-ii ghost_events migration — all safe to start immediately with no dependencies."
     }
   ]
 }
