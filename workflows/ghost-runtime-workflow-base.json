@@ -3,7 +3,7 @@
     "updatedAt": "2026-03-12T20:44:28.217Z",
     "createdAt": "2026-03-12T12:08:38.760Z",
     "id": "Yh6h9OJyVCfREbp3",
-    "name": "GHOST by Codex",
+    "name": "Ghost Chat Runtime",
     "description": "Phase 4A structured memory prod-ready artifact. Prepared for controlled cutover; do not activate directly.",
     "active": true,
     "isArchived": false,
@@ -158,7 +158,7 @@
           "operation": "executeQuery",
           "query": "INSERT INTO conversations (\n  id,\n  owner_user_id,\n  title,\n  source,\n  status,\n  metadata,\n  created_at,\n  updated_at,\n  last_message_at\n)\nVALUES (\n  COALESCE(NULLIF($1, '00000000-0000-0000-0000-000000000000')::uuid, gen_random_uuid()),\n  NULLIF($2, 'NULL')::uuid,\n  $3,\n  $4,\n  $5,\n  $6::jsonb,\n  NOW(),\n  NOW(),\n  NOW()\n)\nRETURNING id AS conversation_id, owner_user_id, created_at, updated_at, last_message_at;",
           "options": {
-            "queryReplacement": "={{ [\n  $('Normalize Input').item.json.conversation_id || '00000000-0000-0000-0000-000000000000',\n  (($('Normalize Input').item.json.user_id || '').match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/) ? $('Normalize Input').item.json.user_id : 'NULL'),\n  'Ghost Chat',\n  'ghost-chat-v3',\n  'active',\n  {}\n] }}"
+            "queryReplacement": "={{ [\n  $('Normalize Input').item.json.conversation_id || '00000000-0000-0000-0000-000000000000',\n  (($('Normalize Input').item.json.user_id || '').match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/) ? $('Normalize Input').item.json.user_id : 'NULL'),\n  'Ghost Chat',\n  'ghost-runtime',\n  'active',\n  {}\n] }}"
           }
         },
         "type": "n8n-nodes-base.postgres",
@@ -275,7 +275,7 @@
               {
                 "id": "ec1b4de7-21bd-4bd4-9670-2fe04addb921",
                 "name": "system_prompt",
-                "value": "={{ \"You are Ghost 🔮 — an efficient, direct AI assistant.\\n\" + \"Be concise, useful, and factual.\\n\" + \"Do not use filler.\\n\" + \"Do not pretend certainty when unsure.\\n\" + \"Prefer practical answers.\\n\" + \"When context exists in the conversation, use it.\\n\" + \"When the user asks for code or technical help, be precise and implementation-oriented.\\n\" }}",
+                "value": "={{ \"You are Ghost \ud83d\udd2e \u2014 an efficient, direct AI assistant.\\n\" + \"Be concise, useful, and factual.\\n\" + \"Do not use filler.\\n\" + \"Do not pretend certainty when unsure.\\n\" + \"Prefer practical answers.\\n\" + \"When context exists in the conversation, use it.\\n\" + \"When the user asks for code or technical help, be precise and implementation-oriented.\\n\" }}",
                 "type": "string"
               },
               {

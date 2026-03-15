@@ -1,0 +1,145 @@
+{
+  "version": "phase7-action-model-v1",
+  "entities": [
+    "request",
+    "owner_decision",
+    "delegation",
+    "runtime",
+    "approval",
+    "artifact",
+    "outcome"
+  ],
+  "event_types": [
+    {
+      "id": "request.received",
+      "entity": "request",
+      "description": "A parent request entered the Ghost runtime."
+    },
+    {
+      "id": "owner.resolved",
+      "entity": "owner_decision",
+      "description": "Conversation owner, provider, and parent strategy were resolved."
+    },
+    {
+      "id": "delegation.created",
+      "entity": "delegation",
+      "description": "A delegated work item and its orchestration linkage were created."
+    },
+    {
+      "id": "delegation.blocked",
+      "entity": "delegation",
+      "description": "Delegated execution was blocked or unavailable before worker execution."
+    },
+    {
+      "id": "runtime.started",
+      "entity": "runtime",
+      "description": "A direct or delegated runtime task ledger was started."
+    },
+    {
+      "id": "runtime.completed",
+      "entity": "runtime",
+      "description": "A runtime task ledger completed with success or failure."
+    },
+    {
+      "id": "approval.requested",
+      "entity": "approval",
+      "description": "An approval item was created or surfaced for operator action."
+    },
+    {
+      "id": "approval.resolved",
+      "entity": "approval",
+      "description": "An approval item reached a terminal governance state."
+    },
+    {
+      "id": "governance.transitioned",
+      "entity": "approval",
+      "description": "A resolved approval produced an explicit governed outcome such as allow, deny, or cancellation."
+    },
+    {
+      "id": "governance.allowed",
+      "entity": "approval",
+      "description": "A governed approval resolution explicitly allowed the next backend step."
+    },
+    {
+      "id": "governance.denied",
+      "entity": "approval",
+      "description": "A governed approval resolution explicitly denied the requested action."
+    },
+    {
+      "id": "governance.retry_enqueued",
+      "entity": "approval",
+      "description": "Governed follow-through enqueued a narrow retry or unblock step."
+    },
+    {
+      "id": "governance.closed_without_retry",
+      "entity": "approval",
+      "description": "Governed follow-through closed the approval lifecycle without a retry."
+    },
+    {
+      "id": "governance.retry_dispatched",
+      "entity": "approval",
+      "description": "Governed follow-through dispatched a real webhook retry for an approved blocked path."
+    },
+    {
+      "id": "governance.retry_failed",
+      "entity": "approval",
+      "description": "Governed follow-through attempted a webhook retry but the dispatch failed."
+    },
+    {
+      "id": "artifact.published",
+      "entity": "artifact",
+      "description": "A workflow or durable artifact was published or promoted."
+    },
+    {
+      "id": "outcome.recorded",
+      "entity": "outcome",
+      "description": "The canonical user-visible outcome for a request was persisted."
+    }
+  ],
+  "relationships": [
+    {
+      "from": "request",
+      "to": "owner_decision",
+      "description": "Every request should yield one owner decision context."
+    },
+    {
+      "from": "owner_decision",
+      "to": "delegation",
+      "description": "Technical-work routing may create a delegation."
+    },
+    {
+      "from": "owner_decision",
+      "to": "runtime",
+      "description": "Direct routing starts a parent runtime task."
+    },
+    {
+      "from": "delegation",
+      "to": "runtime",
+      "description": "Executable delegated work starts a delegated runtime task."
+    },
+    {
+      "from": "delegation",
+      "to": "approval",
+      "description": "Blocked delegated work may create an approval record."
+    },
+    {
+      "from": "runtime",
+      "to": "artifact",
+      "description": "Runtime work may emit a durable artifact."
+    },
+    {
+      "from": "runtime",
+      "to": "outcome",
+      "description": "Runtime completion yields the persisted outcome."
+    }
+  ],
+  "required_record_fields": [
+    "action_id",
+    "event_type",
+    "entity",
+    "occurred_at",
+    "conversation_id",
+    "request_id",
+    "summary"
+  ]
+}

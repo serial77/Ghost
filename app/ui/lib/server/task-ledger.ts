@@ -34,9 +34,9 @@ function summarizePrompt(message: string) {
 function extractWebhookTarget() {
   try {
     const url = new URL(getGhostBackendUrl());
-    return url.pathname.replace(/^\/+/, "") || "ghost-chat-v3";
+    return url.pathname.replace(/^\/+/, "") || "ghost-runtime";
   } catch {
-    return "ghost-chat-v3";
+    return "ghost-runtime";
   }
 }
 
@@ -110,7 +110,7 @@ export async function startLedgerTask(input: LedgerStartInput) {
       [
         taskId,
         extractWebhookTarget(),
-        "GHOST by Codex",
+        "Ghost Runtime",
         JSON.stringify({
           message: input.message,
           conversation_id: input.conversationId ?? null,

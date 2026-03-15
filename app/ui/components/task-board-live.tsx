@@ -41,11 +41,6 @@ function agentTone(agent: TaskBoardAgent): "success" | "warning" | "neutral" {
   return "warning";
 }
 
-function ownershipTone(card: TaskBoardCard): "success" | "warning" | "neutral" {
-  if (card.ownershipMode === "board_owned") return "success";
-  if (card.ownershipMode === "hybrid") return "warning";
-  return "neutral";
-}
 
 function laneClass(lane: TaskBoardLane) {
   if (lane.id === "planning") return styles.lanePlanning;
@@ -70,21 +65,6 @@ function StatusDot({ tone }: { tone: "success" | "warning" | "danger" | "neutral
 
 function shouldIgnoreCardOpen(target: EventTarget | null) {
   return target instanceof HTMLElement && Boolean(target.closest("a, button, select, option, input, textarea, label"));
-}
-
-// ── Feed section ──────────────────────────────────────────────────────────────
-
-function FeedSection({ title, items }: { title: string; items: TaskBoardFeedItem[] }) {
-  return (
-    <section className={styles.feedSection}>
-      <div className={styles.feedSectionTitle}>{title}</div>
-      <div className={styles.feedList}>
-        {items.length
-          ? items.map((item) => <FeedItem key={item.id} item={item} />)
-          : <div className={styles.emptyPanel}>No items.</div>}
-      </div>
-    </section>
-  );
 }
 
 // ── Inline control panel ──────────────────────────────────────────────────────
@@ -161,47 +141,38 @@ function InlineControlPanel({
   );
 }
 
-// ── Metric tile ───────────────────────────────────────────────────────────────
-
-function MetricTile({ label, value, detail, tone = "neutral" }: {
-  label: string;
-  value: number;
-  detail: string;
-  tone?: "neutral" | "success" | "warning" | "danger";
-}) {
-  return (
-    <div className={styles.metricTile}>
-      <div className={styles.metricHeader}>
-        <StatusDot tone={tone} />
-        <span className={styles.metricLabel}>{label}</span>
-      </div>
-      <div className={styles.metricValue}>{value}</div>
-      <p className="caption">{detail}</p>
-    </div>
-  );
-}
-
 // ── Agent rail item ───────────────────────────────────────────────────────────
 
+function agentIcon(label: string): string {
+  const l = label.toLowerCase();
+  if (l.includes("ghost") || l.includes("core")) return "◆";
+  if (l.includes("atlas"))                        return "◎";
+  if (l.includes("relay"))                        return "⇄";
+  if (l.includes("ember"))                        return "◉";
+  if (l.includes("orchestrat"))                   return "◆";
+  if (l.includes("build"))                        return "⚙";
+  if (l.includes("research"))                     return "◎";
+  if (l.includes("review"))                       return "◈";
+  if (l.includes("test"))                         return "⊕";
+  return label.charAt(0).toUpperCase();
+}
+
 function AgentRailItem({ agent }: { agent: TaskBoardAgent }) {
-  const initials = agent.label
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
   const tone = agentTone(agent);
 
   return (
     <div className={styles.agentItem}>
-      <div className={styles.agentBadge}>{initials || "G"}</div>
+      <div className={styles.agentIcon}>{agentIcon(agent.label)}</div>
       <div className={styles.agentBody}>
-        <div className={styles.agentTopline}>
-          <strong className={styles.agentName}>{agent.label}</strong>
-          <StatusDot tone={tone} />
+        <strong className={styles.agentName}>{agent.label}</strong>
+        <div className={styles.agentStatusLine}>
+          <span className={cn(styles.agentChip, tone === "success" ? styles.agentChipActive : styles.agentChipIdle)}>
+            {agent.status}
+          </span>
+          {agent.currentTaskTitle ? (
+            <span className={styles.agentTask}>{agent.currentTaskTitle}</span>
+          ) : null}
         </div>
-        <div className={styles.agentStatus}>{agent.status}</div>
-        <div className={styles.agentTask}>{agent.currentTaskTitle ?? "No active task"}</div>
       </div>
     </div>
   );
@@ -211,24 +182,26 @@ function AgentRailItem({ agent }: { agent: TaskBoardAgent }) {
 
 function MissionCard({
   card,
-  stageOptions,
-  agentOptions,
-  onApply,
   onOpen,
 }: {
   card: TaskBoardCard;
-  stageOptions: TaskBoardWorkspaceControlOption[];
-  agentOptions: TaskBoardWorkspaceControlOption[];
-  onApply: (input: { card: TaskBoardCard; stage: TaskBoardLaneId; orchestratorAgentId: string }) => Promise<void>;
   onOpen: (card: TaskBoardCard) => void;
 }) {
   const tone = cardTone(card);
   const owner = card.orchestrationOwner?.label ?? card.assignedActor?.label ?? "Ghost";
-  const ownerTone = ownershipTone(card);
+  const priorityClass = card.priorityLabel
+    ? ({ high: styles.cardPriorityHigh, urgent: styles.cardPriorityUrgent, normal: styles.cardPriorityNormal, low: styles.cardPriorityLow, resolved: styles.cardPriorityResolved, succeeded: styles.cardPrioritySucceeded } as Record<string, string>)[card.priorityLabel.toLowerCase()]
+    : undefined;
+  const cardToneClass: Record<ReturnType<typeof cardTone>, string> = {
+    success: styles.cardToneSuccess,
+    warning: styles.cardToneWarning,
+    danger: styles.cardToneDanger,
+    neutral: styles.cardToneNeutral,
+  };
 
   return (
     <article
-      className={styles.card}
+      className={cn(styles.card, cardToneClass[tone])}
       role="button"
       tabIndex={0}
       onClick={(event) => { if (!shouldIgnoreCardOpen(event.target)) onOpen(card); }}
@@ -244,46 +217,48 @@ function MissionCard({
           <StatusDot tone={tone} />
           <h3 className={styles.cardTitle}>{card.title}</h3>
         </div>
-        {card.priorityLabel ? <span className={styles.cardPriority}>{card.priorityLabel}</span> : null}
+        {card.priorityLabel ? <span className={cn(styles.cardPriority, priorityClass)}>{card.priorityLabel}</span> : null}
       </div>
-
-      <p className={styles.cardSummary}>{card.summary}</p>
 
       <div className={styles.cardMeta}>
-        <StatusDot tone={ownerTone} />
         <span>{owner}</span>
-        {card.latestActivityTitle ? (
-          <span className={styles.cardMetaDim}>· {card.latestActivityTitle}</span>
-        ) : null}
+        <span className={styles.cardMetaDim}>· {card.freshnessLabel ?? relativeTime(card.updatedAt)}</span>
       </div>
-
-      <div className={styles.cardFooter} onClick={(e) => e.stopPropagation()}>
-        <button type="button" className={styles.cardLinkButton} onClick={() => onOpen(card)}>
-          Open
-        </button>
-        <div className={styles.cardLinks}>
-          <a href={card.detailHref} className={styles.cardLink}>Deep link</a>
-          {card.runtimeHref ? (
-            <a href={card.runtimeHref} className={styles.cardLinkMuted}>Runtime</a>
-          ) : null}
-        </div>
-      </div>
-
-      <InlineControlPanel card={card} stageOptions={stageOptions} agentOptions={agentOptions} onApply={onApply} />
     </article>
   );
 }
 
 // ── Feed item ─────────────────────────────────────────────────────────────────
 
+function ClockIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
 function FeedItem({ item }: { item: TaskBoardFeedItem }) {
   const tone = (item.tone ?? "neutral") as "success" | "warning" | "danger" | "neutral";
+  const feedToneClass: Record<typeof tone, string> = {
+    success: styles.feedItemSuccess,
+    warning: styles.feedItemWarning,
+    danger:  styles.feedItemDanger,
+    neutral: styles.feedItemNeutral,
+  };
   return (
-    <div className={styles.feedItem}>
-      <StatusDot tone={tone} />
-      <span className={styles.feedTitle}>{item.title}</span>
-      {item.href ? <a href={item.href} className={styles.feedLink}>↗</a> : null}
-      <time className={styles.feedTime}>{relativeTime(item.timestamp)}</time>
+    <div className={cn(styles.feedItem, feedToneClass[tone])}>
+      <div className={styles.feedItemBody}>
+        <div className={styles.feedTitle}>
+          {item.title}
+          {item.href ? <a href={item.href} className={styles.feedLink}>↗</a> : null}
+        </div>
+        <div className={styles.feedMeta}>
+          <ClockIcon />
+          <time>{relativeTime(item.timestamp)}</time>
+        </div>
+      </div>
     </div>
   );
 }
@@ -303,6 +278,8 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
   const [suggestedModel, setSuggestedModel] = useState("");
   const [planningNote, setPlanningNote] = useState("");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [feedTab, setFeedTab] = useState<"all" | "tasks" | "agents">("all");
+  const [agentFilter, setAgentFilter] = useState<"all" | "working" | "standby">("all");
   const [drawerPayload, setDrawerPayload] = useState<TaskBoardWorkspacePayload | null>(null);
   const [drawerLoading, setDrawerLoading] = useState(false);
   const [drawerError, setDrawerError] = useState<string | null>(null);
@@ -389,24 +366,53 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
     return () => window.clearInterval(interval);
   }, [selectedItemId]);
 
-  const operatorFeed = payload.feed.filter((item) => item.group === "operator_actions");
-  const runtimeFeed = payload.feed.filter((item) => item.group === "runtime_signals");
+  useEffect(() => {
+    if (!selectedItemId) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setSelectedItemId(null);
+        setDrawerPayload(null);
+        setDrawerError(null);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedItemId]);
+
+  const filteredFeed = feedTab === "all"
+    ? payload.feed
+    : payload.feed.filter((item) =>
+        feedTab === "tasks" ? item.group === "runtime_signals" : item.group === "operator_actions"
+      );
+  const filteredAgents = agentFilter === "all"
+    ? payload.agents
+    : payload.agents.filter((a) => a.status === agentFilter);
 
   return (
     <div className={cn("screen", "shell-page", styles.page)}>
-
       {/* ── Top bar ── */}
       <div className={styles.topBar}>
-        <div className={styles.topBarTitle}>
-          <div className="eyebrow">Task Board</div>
+        <div className={styles.topBarLeft}>
           <h1 className={styles.title}>Mission Control</h1>
         </div>
-        <div className={styles.topBarSignals}>
+        <div className={styles.topBarCenter}>
+          <div className={cn(styles.statBlock, styles.statBlockAgents)}>
+            <div className={styles.statValue}>{payload.summary.activeAgents}</div>
+            <div className={styles.statLabel}>Agents active</div>
+          </div>
+          <div className={cn(styles.statBlock, styles.statBlockTasks)}>
+            <div className={styles.statValue}>{payload.summary.totalCards}</div>
+            <div className={styles.statLabel}>Tasks in queue</div>
+          </div>
+          <div className={cn(styles.statBlock, styles.statBlockReview)}>
+            <div className={styles.statValue}>{payload.summary.reviewNeeded}</div>
+            <div className={styles.statLabel}>Need review</div>
+          </div>
+        </div>
+        <div className={styles.topBarRight}>
           <div className={styles.boardStatus}>
             <StatusDot tone={isLoading ? "warning" : "success"} />
-            <span className={styles.boardStatusLabel}>
-              {isLoading ? "Refreshing" : `${payload.summary.totalCards} cards`}
-            </span>
+            <span className={styles.boardStatusLabel}>{isLoading ? "Refreshing…" : "Live"}</span>
           </div>
           <button type="button" className={styles.newTaskButton} onClick={() => setIsCreateOpen(true)}>
             + New task
@@ -414,46 +420,41 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
         </div>
       </div>
 
-      {/* ── Summary strip ── */}
-      <div className={styles.summaryStrip}>
-        <MetricTile label="Active Agents" value={payload.summary.activeAgents} detail="Currently carrying active work." tone="success" />
-        <MetricTile label="Queue" value={payload.summary.tasksInQueue} detail="Planning, inbox, and assigned." tone="neutral" />
-        <MetricTile label="In Flight" value={payload.summary.tasksInProgress} detail="Execution and testing posture." tone="warning" />
-        <MetricTile label="Review" value={payload.summary.reviewNeeded} detail="Approval or handoff needed." tone="warning" />
-        <MetricTile label="Resolved" value={payload.summary.resolved} detail="Terminal tasks confirmed." tone="success" />
-      </div>
-
       {/* ── Three-column layout ── */}
-      <div className={cn(styles.layout, selectedItemId && styles.layoutWithDrawer)}>
+      <div className={styles.layout}>
 
         {/* Agent rail */}
         <aside className={styles.agentRail}>
           <div className={cn("glass-panel", styles.sidePanel)}>
-            <div className={styles.panelHeader}>
-              <div className="kicker">Agents</div>
-              <span className={styles.panelCount}>{payload.agents.length}</span>
+            <div className={styles.railHeader}>
+              <div className={styles.railTitle}>
+                <span className="kicker">Agents</span>
+                <span className={styles.panelCount}>{payload.agents.length}</span>
+              </div>
+              <div className={styles.segTabs}>
+                {(["all", "working", "standby"] as const).map((f) => (
+                  <button key={f} type="button"
+                    className={cn(styles.segTab, agentFilter === f && styles.segTabActive)}
+                    onClick={() => setAgentFilter(f)}>
+                    {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className={styles.agentList}>
-              {payload.agents.length ? (
-                payload.agents.map((agent) => <AgentRailItem key={`${agent.id}:${agent.sourceMode}`} agent={agent} />)
-              ) : (
-                <div className={styles.emptyPanel}>No agents visible.</div>
-              )}
+              {filteredAgents.length
+                ? filteredAgents.map((agent) => <AgentRailItem key={`${agent.id}:${agent.sourceMode}`} agent={agent} />)
+                : <div className={styles.emptyPanel}>No agents.</div>}
             </div>
           </div>
         </aside>
 
+        {/* Board area: lanes + feed rail flush together */}
+        <div className={styles.boardArea}>
+
         {/* Queue section */}
         <section className={styles.queueSection}>
-          <div className={cn("glass-panel", styles.queueShell)}>
-            <div className={styles.panelHeader}>
-              <div>
-                <div className="kicker">Mission Queue</div>
-                <h3 className={styles.panelTitle}>Orchestration lanes</h3>
-              </div>
-              <span className={styles.panelCount}>{payload.summary.totalCards} cards</span>
-            </div>
-
+          <div className={styles.queueShell}>
             <div className={styles.laneScroller}>
               {payload.lanes.map((lane) => (
                 <section
@@ -461,10 +462,7 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
                   className={cn(styles.lane, laneClass(lane))}
                 >
                   <header className={styles.laneHeader}>
-                    <div>
-                      <h4 className={styles.laneTitle}>{lane.title}</h4>
-                      <p className={styles.laneDescription}>{lane.description}</p>
-                    </div>
+                    <h4 className={styles.laneTitle}>{lane.title}</h4>
                     <div className={styles.laneCount}>{lane.count}</div>
                   </header>
 
@@ -474,22 +472,12 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
                         <MissionCard
                           key={card.id}
                           card={card}
-                          stageOptions={payload.controls.stageOptions}
-                          agentOptions={payload.controls.agentOptions}
-                          onApply={applyInlineControls}
                           onOpen={() => void loadWorkspace(card.id)}
                         />
                       ))}
                     </div>
                   ) : (
-                    <div className={styles.laneEmpty}>
-                      <div>
-                        <strong>No cards</strong>
-                        <p className="caption" style={{ marginTop: 8 }}>
-                          Ghost will place tasks here as orchestration posture evolves.
-                        </p>
-                      </div>
-                    </div>
+                    <div className={styles.laneEmpty} />
                   )}
                 </section>
               ))}
@@ -497,46 +485,69 @@ export function TaskBoardLive({ initialPayload }: { initialPayload: TaskBoardPay
           </div>
         </section>
 
-        {/* Feed rail */}
+        {/* Feed rail — inside boardArea, always flush after lanes */}
         <aside className={styles.feedRail}>
           <div className={cn("glass-panel", styles.sidePanel)}>
-            <div className={styles.panelHeader}>
-              <div className="kicker">Live Feed</div>
-              <span className={styles.panelCount}>{payload.feed.length}</span>
+            <div className={styles.railHeader}>
+              <div className={styles.railTitle}>
+                <span className="kicker">Live Feed</span>
+                <span className={styles.panelCount}>{payload.feed.length}</span>
+              </div>
+              <div className={styles.segTabs}>
+                {(["all", "tasks", "agents"] as const).map((tab) => (
+                  <button key={tab} type="button"
+                    className={cn(styles.segTab, feedTab === tab && styles.segTabActive)}
+                    onClick={() => setFeedTab(tab)}>
+                    {tab === "all" ? "All" : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className={styles.feedGrouped}>
-              <FeedSection title="Operator actions" items={operatorFeed} />
-              <FeedSection title="Runtime signals" items={runtimeFeed} />
+            <div className={styles.feedList}>
+              {filteredFeed.length
+                ? filteredFeed.map((item) => <FeedItem key={item.id} item={item} />)
+                : <div className={styles.emptyPanel}>No events.</div>}
             </div>
           </div>
         </aside>
 
-        {/* Drawer rail */}
-        {selectedItemId ? (
-          <aside className={styles.drawerRail}>
-            <Card className={styles.drawerShell}>
-              {drawerLoading ? <div className={styles.drawerState}>Loading board workspace…</div> : null}
-              {!drawerLoading && drawerError ? <div className={styles.drawerState}>{drawerError}</div> : null}
-              {!drawerLoading && !drawerError && drawerPayload ? (
-                <TaskBoardWorkspaceLive
-                  initialPayload={drawerPayload}
-                  mode="drawer"
-                  onClose={() => {
-                    setSelectedItemId(null);
-                    setDrawerPayload(null);
-                    setDrawerError(null);
-                  }}
-                  onMutated={async () => {
-                    if (!selectedItemId) return;
-                    await load({ keepDrawer: false });
-                    await loadWorkspace(selectedItemId);
-                  }}
-                />
-              ) : null}
-            </Card>
-          </aside>
-        ) : null}
+        </div>{/* end boardArea */}
+
       </div>
+
+      {/* ── Workspace popup ── */}
+      {selectedItemId ? (
+        <div className={styles.workspaceOverlay}>
+          <div
+            className={styles.workspaceBackdrop}
+            onClick={() => {
+              setSelectedItemId(null);
+              setDrawerPayload(null);
+              setDrawerError(null);
+            }}
+          />
+          <div className={cn("glass-panel", styles.workspacePanel)}>
+            {drawerLoading ? <div className={styles.drawerState}>Loading workspace…</div> : null}
+            {!drawerLoading && drawerError ? <div className={styles.drawerState}>{drawerError}</div> : null}
+            {!drawerLoading && !drawerError && drawerPayload ? (
+              <TaskBoardWorkspaceLive
+                initialPayload={drawerPayload}
+                mode="drawer"
+                onClose={() => {
+                  setSelectedItemId(null);
+                  setDrawerPayload(null);
+                  setDrawerError(null);
+                }}
+                onMutated={async () => {
+                  if (!selectedItemId) return;
+                  await load({ keepDrawer: false });
+                  await loadWorkspace(selectedItemId);
+                }}
+              />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {/* ── Create task modal ── */}
       {isCreateOpen ? (

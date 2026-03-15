@@ -1,0 +1,206 @@
+{
+  "version": "phase7-capabilities-v1",
+  "capabilities": [
+    {
+      "id": "code.read",
+      "class": "non_destructive",
+      "approval_required": false,
+      "environment_restriction": [
+        "prod",
+        "staging",
+        "lab",
+        "sandbox",
+        "scratch"
+      ],
+      "description": "Read source files, generated artifacts, and builder modules."
+    },
+    {
+      "id": "code.write",
+      "class": "destructive",
+      "approval_required": true,
+      "environment_restriction": [
+        "staging",
+        "lab",
+        "sandbox",
+        "scratch"
+      ],
+      "description": "Modify source files or generated workflow artifacts."
+    },
+    {
+      "id": "shell.safe",
+      "class": "non_destructive",
+      "approval_required": false,
+      "environment_restriction": [
+        "prod",
+        "staging",
+        "lab",
+        "sandbox",
+        "scratch"
+      ],
+      "description": "Run bounded, non-destructive shell commands for inspection or validation."
+    },
+    {
+      "id": "shell.destructive",
+      "class": "destructive",
+      "approval_required": true,
+      "environment_restriction": [
+        "staging",
+        "lab",
+        "sandbox",
+        "scratch"
+      ],
+      "description": "Run commands that can mutate runtime state or remove data."
+    },
+    {
+      "id": "git.inspect",
+      "class": "non_destructive",
+      "approval_required": false,
+      "environment_restriction": [
+        "prod",
+        "staging",
+        "lab",
+        "sandbox",
+        "scratch"
+      ],
+      "description": "Inspect repository history, status, and diffs."
+    },
+    {
+      "id": "git.write",
+      "class": "destructive",
+      "approval_required": true,
+      "environment_restriction": [
+        "staging",
+        "lab",
+        "sandbox",
+        "scratch"
+      ],
+      "description": "Create commits or otherwise mutate repository state."
+    },
+    {
+      "id": "deploy.promote",
+      "class": "destructive",
+      "approval_required": true,
+      "environment_restriction": [
+        "prod",
+        "staging"
+      ],
+      "description": "Promote, publish, or roll back live workflows."
+    },
+    {
+      "id": "db.read",
+      "class": "non_destructive",
+      "approval_required": false,
+      "environment_restriction": [
+        "prod",
+        "staging",
+        "lab",
+        "sandbox"
+      ],
+      "description": "Read application or workflow database state."
+    },
+    {
+      "id": "db.write",
+      "class": "destructive",
+      "approval_required": true,
+      "environment_restriction": [
+        "staging",
+        "lab",
+        "sandbox",
+        "scratch"
+      ],
+      "description": "Mutate application or workflow database state."
+    },
+    {
+      "id": "memory.write",
+      "class": "destructive",
+      "approval_required": true,
+      "environment_restriction": [
+        "prod",
+        "staging",
+        "lab",
+        "sandbox"
+      ],
+      "description": "Persist durable memory or history records."
+    },
+    {
+      "id": "web.research",
+      "class": "non_destructive",
+      "approval_required": false,
+      "environment_restriction": [
+        "prod",
+        "staging",
+        "lab",
+        "sandbox",
+        "scratch"
+      ],
+      "description": "Perform external or internal research for discovery and preflight work."
+    },
+    {
+      "id": "artifact.publish",
+      "class": "destructive",
+      "approval_required": true,
+      "environment_restriction": [
+        "staging",
+        "lab",
+        "sandbox"
+      ],
+      "description": "Publish or persist generated artifacts intended for wider system use."
+    }
+  ],
+  "worker_capabilities": {
+    "ghost_main": [
+      "code.read",
+      "shell.safe",
+      "git.inspect",
+      "db.read"
+    ],
+    "forge": [
+      "code.read",
+      "code.write",
+      "shell.safe",
+      "git.inspect",
+      "artifact.publish"
+    ],
+    "probe": [
+      "code.read",
+      "shell.safe",
+      "git.inspect",
+      "db.read",
+      "web.research"
+    ],
+    "rector": [
+      "code.read",
+      "code.write",
+      "shell.safe",
+      "shell.destructive",
+      "git.inspect",
+      "git.write",
+      "db.read",
+      "db.write"
+    ],
+    "archivist": [
+      "code.read",
+      "db.read",
+      "memory.write",
+      "artifact.publish"
+    ],
+    "operator": [
+      "code.read",
+      "shell.safe",
+      "shell.destructive",
+      "git.inspect",
+      "git.write",
+      "deploy.promote",
+      "db.read",
+      "db.write",
+      "artifact.publish"
+    ],
+    "scout": [
+      "code.read",
+      "shell.safe",
+      "git.inspect",
+      "db.read",
+      "web.research"
+    ]
+  }
+}

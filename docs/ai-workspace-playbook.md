@@ -1,9 +1,23 @@
 # Ghost AI workspace playbook
 
 ## Workspace roles
-- `~/dev/ghost-stack` = main/operator/review workspace
-- `~/dev/ghost-stack-codex` = Codex execution workspace
-- `~/dev/ghost-stack-claude` = Claude execution workspace
+
+All three directories are **git worktrees of the same repository** (main worktree at `~/dev/ghost-stack`). They share one `.git` object store and the same `origin`.
+
+- `~/dev/ghost-stack` = **main worktree** — operator review, VS Code, Copilot, merge prep; also holds live `base/.env`, `db/migrations/`, and `backups/`
+- `~/dev/ghost-stack-codex` = **development/Claude execution worktree** — canonical home for ops scripts, workflow builder, backend code, and docs authoring; **this is the authoritative development copy**
+- `~/dev/ghost-stack-claude` = **UI worktree** — currently on `claude-mission-control-polish`; runs `next dev` for the live UI
+
+### Why ghost-stack-codex is the authoritative development copy
+- All development work (ops, scripts, workflows, backend UI changes, docs) should be done here
+- Push/merge to main from here
+- The `base/docker-compose.yml` is self-contained (uses relative paths — no dependency on `~/dev/ghost-stack/`)
+- `base/.env` and `db/migrations/` are gitignored here but should be populated from `~/dev/ghost-stack/base/.env` (see `base/.env.example`)
+
+### To avoid manual mirroring (which caused operational debt)
+- Do not manually copy files between worktrees
+- Instead: commit UI changes to the appropriate branch in codex, then merge/rebase the UI worktree against main
+- When ghost-stack-claude needs updates from main: `git merge main` from inside `~/dev/ghost-stack-claude`
 
 ## Branch conventions
 - `main` = protected review/merge baseline
@@ -38,25 +52,32 @@
   3. `git switch main && git pull`
   4. `git switch -c codex-<task-name>`
 
-- New Claude task:
-  1. start from `~/dev/ghost-stack-claude` if it is free, otherwise create a new Claude worktree later
+- New Claude task (backend/ops/docs):
+  1. start from `~/dev/ghost-stack-codex` (authoritative development worktree)
   2. `git fetch origin`
-  3. base from the intended upstream branch
+  3. `git switch main && git pull`
   4. `git switch -c claude-<task-name>`
 
-- Main/operator workspace:
+- New Claude task (UI/visual/design-system):
+  1. start from `~/dev/ghost-stack-claude` (UI worktree, on mission-control-polish or a new branch)
+  2. `git fetch origin && git merge main` to get latest backend changes
+  3. `git switch -c claude-<task-name>` if a new branch is needed
+
+- Main/operator workspace (`~/dev/ghost-stack`):
   - use for review, diff inspection, merge prep, repo instructions, and safe manual edits
+  - holds live secrets (`base/.env`) and DB artifacts — do not delete
   - do not use as the primary execution lane for Codex or Claude
 
 ## Merge rule
-- Review in `~/dev/ghost-stack`
+- Review in `~/dev/ghost-stack` or `~/dev/ghost-stack-codex`
 - Merge only after diff inspection and basic validation
 - If two agents need overlapping files, stop and rescope before continuing
+- Do NOT manually copy files between worktrees — use `git merge main` to update a worktree from main
 
 ## Daily screen layout
 - Portrait screen:
-  - top-left terminal = Claude workspace (`~/dev/ghost-stack-claude`)
-  - top-right terminal = Codex workspace (`~/dev/ghost-stack-codex`)
+  - top-left terminal = Claude UI workspace (`~/dev/ghost-stack-claude`, running `next dev`)
+  - top-right terminal = Claude/Codex dev workspace (`~/dev/ghost-stack-codex`)
   - bottom = ChatGPT for planning, prompts, review, arbitration
 
 - Main landscape screen:

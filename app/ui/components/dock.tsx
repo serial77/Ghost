@@ -73,12 +73,21 @@ function IconChart() {
   );
 }
 
+function IconShield() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+
 const navItems = [
   { href: "/", label: "Chat", icon: <IconChat /> },
   { href: "/task-board", label: "Mission Control", icon: <IconGrid /> },
   { href: "/task-overview", label: "Tasks", icon: <IconList /> },
   { href: "/system-health", label: "System", icon: <IconCpu /> },
   { href: "/agent-management", label: "Agents", icon: <IconUsers /> },
+  { href: "/approvals", label: "Governed", icon: <IconShield /> },
   { href: "/analytics", label: "Analytics", icon: <IconChart /> },
 ] as const satisfies ReadonlyArray<{ href: Route; label: string; icon: React.ReactNode }>;
 

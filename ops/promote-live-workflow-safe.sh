@@ -107,16 +107,16 @@ validate_candidate_workflow() {
 }
 
 find_latest_pre_backup() {
-  find "$OUTPUT_DIR" -maxdepth 1 -type f -name 'ghost-chat-v3-live-backup-*.json' | sort | tail -n 1
+  find "$OUTPUT_DIR" -maxdepth 1 -type f -name 'ghost-runtime-live-backup-*.json' | sort | tail -n 1
 }
 
 find_latest_post_export() {
-  find "$OUTPUT_DIR" -maxdepth 1 -type f -name 'ghost-chat-v3-live-post-activate-*.json' | sort | tail -n 1
+  find "$OUTPUT_DIR" -maxdepth 1 -type f -name 'ghost-runtime-live-post-activate-*.json' | sort | tail -n 1
 }
 
 capture_existing_artifacts() {
-  mapfile -t EXISTING_PRE_BACKUPS < <(find "$OUTPUT_DIR" -maxdepth 1 -type f -name 'ghost-chat-v3-live-backup-*.json' | sort)
-  mapfile -t EXISTING_POST_EXPORTS < <(find "$OUTPUT_DIR" -maxdepth 1 -type f -name 'ghost-chat-v3-live-post-activate-*.json' | sort)
+  mapfile -t EXISTING_PRE_BACKUPS < <(find "$OUTPUT_DIR" -maxdepth 1 -type f -name 'ghost-runtime-live-backup-*.json' | sort)
+  mapfile -t EXISTING_POST_EXPORTS < <(find "$OUTPUT_DIR" -maxdepth 1 -type f -name 'ghost-runtime-live-post-activate-*.json' | sort)
 }
 
 path_in_array() {
@@ -135,7 +135,7 @@ find_new_pre_backup() {
   while IFS= read -r candidate; do
     path_in_array "$candidate" "${EXISTING_PRE_BACKUPS[@]}" && continue
     latest="$candidate"
-  done < <(find "$OUTPUT_DIR" -maxdepth 1 -type f -name 'ghost-chat-v3-live-backup-*.json' | sort)
+  done < <(find "$OUTPUT_DIR" -maxdepth 1 -type f -name 'ghost-runtime-live-backup-*.json' | sort)
   printf '%s\n' "$latest"
 }
 
@@ -145,7 +145,7 @@ find_new_post_export() {
   while IFS= read -r candidate; do
     path_in_array "$candidate" "${EXISTING_POST_EXPORTS[@]}" && continue
     latest="$candidate"
-  done < <(find "$OUTPUT_DIR" -maxdepth 1 -type f -name 'ghost-chat-v3-live-post-activate-*.json' | sort)
+  done < <(find "$OUTPUT_DIR" -maxdepth 1 -type f -name 'ghost-runtime-live-post-activate-*.json' | sort)
   printf '%s\n' "$latest"
 }
 
@@ -157,7 +157,7 @@ rollback_from_pre_backup() {
   [[ -f "$pre_backup" ]] || fail "rollback requested but backup file not found: $pre_backup"
 
   log "rollback triggered: $reason"
-  remote_backup="/tmp/ghost-chat-v3-rollback-$(timestamp_utc).json"
+  remote_backup="/tmp/ghost-runtime-rollback-$(timestamp_utc).json"
 
   log "copying rollback backup into n8n container"
   docker cp "$pre_backup" "$N8N_MAIN_CONTAINER:$remote_backup" >/dev/null
