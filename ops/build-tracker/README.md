@@ -59,6 +59,8 @@ The tracker includes a compact top-level `worker_positions` section for live coo
 - Active assignments should point to canonical IDs using:
   - `assigned_phase_id` (e.g. `phase-3`)
   - `assigned_step_id` (e.g. `p3e-runtime-decomposition`)
+- For live implementation check-ins, include explicit `task_title` in `TASK-### — <title>` format.
+  - Example: `TASK-004 — Extract router.ts + approval.ts + delegation.ts`
 
 Current emphasis lanes are:
 
@@ -196,7 +198,7 @@ python3 ops/build-tracker/update_tracker.py worker-remove --id p3e-runtime-decom
 ### 4) Add recent activity
 
 ```bash
-python3 ops/build-tracker/update_tracker.py add-activity --worker Ghost\ Main --status review --step-id p7g-mvp-v3-gate --note "Reviewed v3.0 MVP gate criteria alignment"
+python3 ops/build-tracker/update_tracker.py add-activity --worker Ghost\ Main --status review --step-id p7g-mvp-v3-gate --task-title "TASK-017 — MVP gate criteria alignment" --note "Reviewed v3.0 MVP gate criteria alignment"
 ```
 
 ### 5) Upsert top-level worker position (recommended for live placement)
@@ -216,7 +218,7 @@ python3 ops/build-tracker/update_tracker.py position-upsert --group external --n
 Move Claude from `3E` to `7C-ii` (single command update):
 
 ```bash
-python3 ops/build-tracker/update_tracker.py position-upsert --group external --name Claude --lane implementation --status assigned --phase-id phase-7 --step-id p7c-ii-write-ahead-pattern --summary "Assigned to write-ahead followthrough lane"
+python3 ops/build-tracker/update_tracker.py position-upsert --group external --name Claude --lane implementation --status assigned --phase-id phase-7 --step-id p7c-ii-write-ahead-pattern --task-title "TASK-007 — Write-ahead pattern followthrough" --summary "Assigned to write-ahead followthrough lane"
 ```
 
 Update-only usage note:
@@ -226,16 +228,22 @@ Update-only usage note:
 
 ### Claude quick commands (copy/paste)
 
+Assign Claude to TASK-004 (`3E-ii`):
+
+```bash
+python3 ops/build-tracker/update_tracker.py position-upsert --group external --name Claude --lane implementation --status assigned --phase-id phase-3 --step-id p3e-ii-extract-business-logic-to-source-files --task-title "TASK-004 — Extract router.ts + approval.ts + delegation.ts" --summary "TASK-004 in progress — extracting router.ts + approval.ts + delegation.ts"
+```
+
 Assign Claude to `2E`:
 
 ```bash
-python3 ops/build-tracker/update_tracker.py position-upsert --group external --name Claude --lane implementation --status assigned --phase-id phase-2 --step-id p2e-schema-migration-strategy --summary "Claude assigned to 2E schema migration strategy"
+python3 ops/build-tracker/update_tracker.py position-upsert --group external --name Claude --lane implementation --status assigned --phase-id phase-2 --step-id p2e-schema-migration-strategy --task-title "TASK-002 — Schema migration strategy" --summary "Claude assigned to 2E schema migration strategy"
 ```
 
 Move Claude to `3E`:
 
 ```bash
-python3 ops/build-tracker/update_tracker.py position-upsert --group external --name Claude --status assigned --phase-id phase-3 --step-id p3e-runtime-decomposition --summary "Claude moved to 3E runtime decomposition"
+python3 ops/build-tracker/update_tracker.py position-upsert --group external --name Claude --status assigned --phase-id phase-3 --step-id p3e-runtime-decomposition --task-title "TASK-003 — Runtime decomposition" --summary "Claude moved to 3E runtime decomposition"
 ```
 
 Mark Claude completed:
