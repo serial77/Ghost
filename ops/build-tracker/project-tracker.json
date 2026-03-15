@@ -2,7 +2,7 @@
   "project": {
     "name": "Ghost Build Tracker",
     "schema_version": "1.0",
-    "last_updated": "2026-03-15T01:26:02Z",
+    "last_updated": "2026-03-15T01:31:24Z",
     "current_focus": "Architecture-sensitive queue: 2E migration strategy; 3C-ii/3E/3E-ii/3F runtime load; 7C-ii/7C-iii/7D-ii followthrough reliability"
   },
   "core_framing": {
@@ -105,9 +105,9 @@
       {
         "name": "Claude",
         "lane": "implementation",
-        "status": "assigned",
-        "summary": "TASK-002 started — src/runtime scaffold + classifier/config + test infrastructure",
-        "updated_at": "2026-03-15T01:26:02Z",
+        "status": "completed",
+        "summary": "TASK-002 completed — src/runtime scaffolded, classifier/config extracted with tests, bind mount verified, containers can access /opt/ghost/src/runtime. TASK-004/TASK-005 foundation ready.",
+        "updated_at": "2026-03-15T01:31:24Z",
         "assigned_phase_id": "phase-3",
         "assigned_step_id": "p3e-ii-extract-business-logic-to-source-files",
         "note": "Conducting full repo/runtime reality reconciliation against v3 canonical docs",
