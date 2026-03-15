@@ -664,20 +664,48 @@
         return "";
       }
 
+      function isExplicitTaskTitle(value) {
+        const normalized = normalizeTaskTitle(value);
+        if (!normalized) return false;
+        return /^TASK-\d{3}\s+[—-]\s+.+/.test(normalized);
+      }
+
+      function pickExplicitTaskTitle(...candidates) {
+        for (const candidate of candidates) {
+          const normalized = normalizeTaskTitle(candidate);
+          if (!normalized) continue;
+          if (isExplicitTaskTitle(normalized)) return normalized;
+        }
+        return "";
+      }
+
       function resolveExecutionTaskTitle(workerOrEntry = {}, stepTitle = "") {
         if (!workerOrEntry || typeof workerOrEntry !== "object") {
           return pickTaskTitle(stepTitle || "");
         }
 
-        return pickTaskTitle(
-          workerOrEntry.task_title || "",
+        const explicitTaskTitle = pickTaskTitle(workerOrEntry.task_title || "");
+        const assignmentTaskTitle = pickTaskTitle(
           workerOrEntry.current_task_title || "",
           workerOrEntry.assigned_task_title || "",
+          workerOrEntry.current_task || "",
+          workerOrEntry.assigned_task || ""
+        );
+        const associatedTaskTitle = pickExplicitTaskTitle(
           workerOrEntry.task || "",
+          workerOrEntry.assignment_task_title || "",
+          workerOrEntry.history_task_title || "",
+          workerOrEntry.note || "",
+          workerOrEntry.summary || ""
+        );
+        const fallbackSummary = pickTaskTitle(
           workerOrEntry.summary || "",
           workerOrEntry.note || "",
+          workerOrEntry.task || "",
           stepTitle || ""
         );
+
+        return pickTaskTitle(explicitTaskTitle, assignmentTaskTitle, associatedTaskTitle, fallbackSummary);
       }
 
       function buildWorkerPresenceText(workerName, stateLabel, taskTitle = "") {
@@ -859,7 +887,11 @@
             worker: entry.worker || "Worker",
             status: entry.status || "waiting",
             step_id: entry.step_id || "",
-            task_title: pickTaskTitle(entry.task_title || "", entry.task || ""),
+            task_title: pickTaskTitle(entry.task_title || ""),
+            current_task_title: pickTaskTitle(entry.current_task_title || ""),
+            assigned_task_title: pickTaskTitle(entry.assigned_task_title || ""),
+            task: entry.task || "",
+            summary: entry.summary || "",
             note: entry.note || ""
           });
         });
@@ -878,19 +910,30 @@
             worker: position.name || "Worker",
             status: mapPositionStatusToActivityStatus(position.status || "pending"),
             step_id: position.assigned_step_id || "",
-            task_title: pickTaskTitle(
-              position.task_title || "",
-              position.current_task_title || "",
-              position.assigned_task_title || ""
-            ),
-            note: position.summary || position.note || ""
+            task_title: pickTaskTitle(position.task_title || ""),
+            current_task_title: pickTaskTitle(position.current_task_title || ""),
+            assigned_task_title: pickTaskTitle(position.assigned_task_title || ""),
+            task: position.task || "",
+            summary: position.summary || "",
+            note: position.note || ""
           });
         });
 
         const deduped = [];
         const seen = new Set();
         feed.forEach((entry) => {
-          const key = [entry.time, workerKey(entry.worker), entry.step_id || "", normalizeStatus(entry.status), entry.task_title, entry.note].join("|");
+          const key = [
+            entry.time,
+            workerKey(entry.worker),
+            entry.step_id || "",
+            normalizeStatus(entry.status),
+            entry.task_title || "",
+            entry.current_task_title || "",
+            entry.assigned_task_title || "",
+            entry.task || "",
+            entry.summary || "",
+            entry.note || ""
+          ].join("|");
           if (seen.has(key)) return;
           seen.add(key);
           deduped.push(entry);
@@ -929,16 +972,12 @@
           pushStepWorker(activeByStep, position.assigned_step_id, {
             name: position.name || "Worker",
             status: position.status || "working",
-            task_title: pickTaskTitle(
-              position.task_title || "",
-              position.current_task_title || "",
-              position.assigned_task_title || ""
-            ),
-            current_task_title: position.current_task_title || "",
-            assigned_task_title: position.assigned_task_title || "",
+            task_title: pickTaskTitle(position.task_title || ""),
+            current_task_title: pickTaskTitle(position.current_task_title || ""),
+            assigned_task_title: pickTaskTitle(position.assigned_task_title || ""),
             summary: position.summary || "",
             note: position.note || "",
-            task: "",
+            task: position.task || "",
             updated_at: position.updated_at || ""
           });
         });
@@ -954,7 +993,9 @@
             pushStepWorker(activeByStep, step.id || "", {
               name: worker.name || "Worker",
               status: worker.status || "working",
-              task_title: pickTaskTitle(worker.task_title || "", worker.task || ""),
+              task_title: pickTaskTitle(worker.task_title || ""),
+              current_task_title: pickTaskTitle(worker.current_task_title || ""),
+              assigned_task_title: pickTaskTitle(worker.assigned_task_title || ""),
               summary: "",
               note: "",
               task: worker.task || "",
@@ -999,11 +1040,12 @@
               worker: entry.worker || "Worker",
               status: entry.status || "pending",
               time: entry.time || "",
-              task_title: pickTaskTitle(entry.task_title || "", entry.task || ""),
-              current_task_title: "",
-              assigned_task_title: "",
-              summary: "",
-              note: entry.note || ""
+              task_title: pickTaskTitle(entry.task_title || ""),
+              current_task_title: pickTaskTitle(entry.current_task_title || ""),
+              assigned_task_title: pickTaskTitle(entry.assigned_task_title || ""),
+              summary: entry.summary || "",
+              note: entry.note || "",
+              task: entry.task || ""
             });
           });
         }
@@ -1025,15 +1067,12 @@
             worker: position.name || "Worker",
             status: position.status || "completed",
             time: position.updated_at || "",
-            task_title: pickTaskTitle(
-              position.task_title || "",
-              position.current_task_title || "",
-              position.assigned_task_title || ""
-            ),
-            current_task_title: position.current_task_title || "",
-            assigned_task_title: position.assigned_task_title || "",
+            task_title: pickTaskTitle(position.task_title || ""),
+            current_task_title: pickTaskTitle(position.current_task_title || ""),
+            assigned_task_title: pickTaskTitle(position.assigned_task_title || ""),
             summary: position.summary || "",
-            note: position.summary || position.note || ""
+            note: position.note || "",
+            task: position.task || ""
           });
         });
 

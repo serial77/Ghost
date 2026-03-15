@@ -23,8 +23,22 @@ export type {
 } from './config.js';
 
 // router.ts
-export { selectRoute } from './router.js';
+export { selectRoute, selectRouteWithCircuit } from './router.js';
 export type { RouterConfig, RouteOverrides, RouteResult } from './router.js';
+
+// circuit-breaker.ts
+export {
+  getCircuitStatus,
+  recordFailure,
+  recordSuccess,
+  isCircuitOpen,
+  categorizeFailure,
+  calculateBackoff,
+  buildCircuitEventPayload,
+  fetchCircuitStates,
+  createInMemoryRedisClient,
+} from './circuit-breaker.js';
+export type { CircuitState, FailureCategory, CircuitStatus, FailureInfo } from './circuit-breaker.js';
 
 // approval.ts
 export {

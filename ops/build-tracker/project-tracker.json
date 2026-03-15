@@ -2,7 +2,7 @@
   "project": {
     "name": "Ghost Build Tracker",
     "schema_version": "1.0",
-    "last_updated": "2026-03-15T03:15:00Z",
+    "last_updated": "2026-03-15T04:52:12Z",
     "current_focus": "Architecture-sensitive queue: 2E migration strategy; 3C-ii/3E/3E-ii/3F runtime load; 7C-ii/7C-iii/7D-ii followthrough reliability"
   },
   "core_framing": {
@@ -106,13 +106,13 @@
         "name": "Claude",
         "lane": "implementation",
         "status": "assigned",
-        "summary": "TASK-004 in progress — extracting router.ts + approval.ts + delegation.ts.",
+        "summary": "TASK-006 started — implement circuit breaker with Redis state and router integration",
+        "updated_at": "2026-03-15T04:52:12Z",
         "task_title": "TASK-004 — Extract router.ts + approval.ts + delegation.ts",
-        "updated_at": "2026-03-15T03:15:00Z",
         "assigned_phase_id": "phase-3",
         "assigned_step_id": "p3e-ii-extract-business-logic-to-source-files",
         "note": "Current live assignment on TASK-004.",
-        "branch": "phase3/3E-extract-remaining"
+        "branch": "phase3/3C-circuit-breaker"
       },
       {
         "name": "Codex",
